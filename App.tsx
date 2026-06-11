@@ -160,6 +160,16 @@ function getErrorMessage(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
+function getMetadataDisplayName(metadata: unknown): string | undefined {
+  if (!metadata || typeof metadata !== "object") return undefined;
+
+  const displayName = (metadata as { displayName?: unknown }).displayName;
+  if (typeof displayName !== "string") return undefined;
+
+  const trimmed = displayName.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function LoadingBlock({ text = "Loading..." }: { text?: string }) {
   return (
     <View style={styles.centerBlock}>
@@ -296,6 +306,7 @@ function AuthScreen() {
   const { startSSOFlow } = useSSO();
 
   const [mode, setMode] = useState<AuthMode>("sign_in");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -308,8 +319,8 @@ function AuthScreen() {
     if (isLoading || !isReady) return false;
     if (mode === "sign_in") return Boolean(email.trim() && password.trim());
     if (awaitingVerification) return Boolean(code.trim());
-    return Boolean(email.trim() && password.trim());
-  }, [awaitingVerification, code, email, isLoading, isReady, mode, password]);
+    return Boolean(displayName.trim() && email.trim() && password.trim());
+  }, [awaitingVerification, code, displayName, email, isLoading, isReady, mode, password]);
 
   const handleSignIn = async () => {
     if (!signIn || !setActive) return;
@@ -340,9 +351,13 @@ function AuthScreen() {
     try {
       setErrorText(null);
       setIsLoading(true);
+      const normalizedDisplayName = displayName.trim();
       await signUp.create({
         emailAddress: email.trim(),
         password,
+        unsafeMetadata: {
+          displayName: normalizedDisplayName,
+        },
       });
       await signUp.prepareEmailAddressVerification({
         strategy: "email_code",
@@ -442,6 +457,15 @@ function AuthScreen() {
 
         {!awaitingVerification ? (
           <>
+            {mode === "sign_up" ? (
+              <TextInput
+                style={styles.input}
+                placeholder="Name"
+                autoCapitalize="words"
+                value={displayName}
+                onChangeText={setDisplayName}
+              />
+            ) : null}
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -533,7 +557,8 @@ function SignedInHome() {
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const profileName = user?.fullName ?? user?.username ?? undefined;
+  const profileName =
+    user?.fullName ?? getMetadataDisplayName(user?.unsafeMetadata) ?? user?.username ?? undefined;
   const profileEmail = user?.primaryEmailAddress?.emailAddress ?? undefined;
 
   useEffect(() => {
