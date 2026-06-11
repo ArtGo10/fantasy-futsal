@@ -104,25 +104,45 @@ type AuthStatusView = {
   name: string | null;
 };
 type ClerkGetToken = ReturnType<typeof useAuth>["getToken"];
+const TOKEN_FETCH_TIMEOUT_MS = 8000;
 
-async function getClerkConvexToken(getToken: ClerkGetToken, skipCache: boolean) {
-  try {
-    const templateToken = await getToken({
-      template: "convex",
-      skipCache,
-    });
-    if (templateToken) return templateToken;
-  } catch {
-    // Some Clerk apps use the Convex integration instead of a named JWT template.
-  }
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    return await getToken({
-      skipCache,
-    });
-  } catch {
-    return null;
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Timed out fetching Clerk token.")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
+}
+
+async function getClerkConvexToken(
+  getToken: ClerkGetToken,
+  skipCache: boolean,
+  preferDefaultToken: boolean,
+) {
+  const tokenRequests = preferDefaultToken
+    ? [{ skipCache }, { template: "convex" as const, skipCache }]
+    : [{ template: "convex" as const, skipCache }, { skipCache }];
+
+  for (const request of tokenRequests) {
+    try {
+      const token = await withTimeout(getToken(request), TOKEN_FETCH_TIMEOUT_MS);
+      if (token) return token;
+    } catch {
+      // Try the other Clerk token mode below. Convex integration uses the
+      // default token; JWT templates use the named "convex" token.
+    }
+  }
+
+  return null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -151,71 +171,27 @@ function LoadingBlock({ text = "Loading..." }: { text?: string }) {
 
 function useClerkConvexAuth() {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth();
-  const [tokenProbe, setTokenProbe] = useState<"idle" | "checking" | "ready" | "failed">("idle");
   const getTokenRef = useRef(getToken);
+  const preferDefaultToken = sessionClaims?.aud === "convex";
 
   useEffect(() => {
     getTokenRef.current = getToken;
   }, [getToken]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!isLoaded) {
-      setTokenProbe("checking");
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (!isSignedIn) {
-      setTokenProbe("idle");
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setTokenProbe("checking");
-
-    const probeToken = async () => {
-      for (let attempt = 0; attempt < 12; attempt += 1) {
-        const token = await getClerkConvexToken(getTokenRef.current, attempt > 0);
-        if (cancelled) return;
-
-        if (token) {
-          setTokenProbe("ready");
-          return;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 350));
-      }
-
-      if (!cancelled) {
-        setTokenProbe("failed");
-      }
-    };
-
-    void probeToken();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, isSignedIn, sessionClaims?.aud]);
-
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
-      return await getClerkConvexToken(getTokenRef.current, forceRefreshToken);
+      return await getClerkConvexToken(getTokenRef.current, forceRefreshToken, preferDefaultToken);
     },
-    [sessionClaims?.aud],
+    [preferDefaultToken],
   );
 
   return useMemo(
     () => ({
-      isLoading: !isLoaded || (Boolean(isSignedIn) && tokenProbe === "checking"),
+      isLoading: !isLoaded,
       isAuthenticated: isSignedIn ?? false,
       fetchAccessToken,
     }),
-    [fetchAccessToken, isLoaded, isSignedIn, tokenProbe],
+    [fetchAccessToken, isLoaded, isSignedIn],
   );
 }
 
