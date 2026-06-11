@@ -1,0 +1,34 @@
+2026-03-15T12:40:56.577Z expo:telemetry Switching strategy from detached to instant
+2026-03-15T12:40:56.578Z expo:telemetry Recording 1 event(s)
+2026-03-15T12:40:56.599Z expo:env Loaded environment variables from: /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/.env
+2026-03-15T12:40:56.599Z expo:env /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/.env.development does not exist, skipping this env file
+2026-03-15T12:40:56.599Z expo:env Loaded environment variables from: /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/.env.local
+2026-03-15T12:40:56.599Z expo:env "EXPO_PUBLIC_CONVEX_URL" is already defined and overwritten by: /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/.env.local
+2026-03-15T12:40:56.599Z expo:env /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/.env.development.local does not exist, skipping this env file
+env: load .env.local .env
+env: export EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY EXPO_PUBLIC_CONVEX_URL CONVEX_DEPLOYMENT EXPO_PUBLIC_CONVEX_SITE_URL
+Starting project at /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz
+2026-03-15T12:40:56.674Z expo:doctor:webSupport Ensuring web support is setup
+2026-03-15T12:40:56.678Z expo:doctor:dependencies:getMissingPackages Required package "react-dom" found (no version constraint specified).
+2026-03-15T12:40:56.679Z expo:doctor:dependencies:getMissingPackages Required package "react-native-web" found (no version constraint specified).
+2026-03-15T12:40:56.775Z expo:start:server:devServer Stopping dev server (bundler: metro)
+2026-03-15T12:40:56.775Z expo:start:server:devServer Stopped dev server (bundler: metro)
+2026-03-15T12:40:56.779Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+
+Expo Metro config:
+- Version: 55.0.9
+- Extensions: ts, tsx, mjs, js, jsx, json, cjs, scss, sass, css
+- React Native: /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/node_modules/react-native
+- Watch Folders: 
+- Node Module Paths: 
+- Sass: null
+- Reanimated: null
+- Worklets: null
+- Babel Runtime: null
+
+2026-03-15T12:40:57.139Z expo:utils:fileNotifier Observing /Users/artem/Documents/Документы — MacBook Air — Artem/work/nerdizzz/tsconfig.json
+2026-03-15T12:40:57.139Z expo:metro:withMetroResolvers Appending 8 custom resolvers to Metro config. (has custom resolver: false)
+2026-03-15T12:40:57.154Z expo:start:server:urlCreator URL: http://127.0.0.1:8081
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
