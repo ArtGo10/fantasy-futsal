@@ -4,7 +4,22 @@ import type { Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./authHelpers";
 import { MAX_PARTICIPANTS, POTS, Pot, TEAMS_PER_POT, TeamStage, potValidator } from "./validators";
 
-const DRAW_IS_LOCKED = true;
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
+function getDrawUnlockAt() {
+  const rawValue = process.env.DRAW_UNLOCK_AT?.trim();
+  if (!rawValue) return null;
+
+  const timestamp = Date.parse(rawValue);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function isDrawLocked() {
+  const drawUnlockAt = getDrawUnlockAt();
+  return drawUnlockAt === null || Date.now() < drawUnlockAt;
+}
 
 function potLabel(pot: Pot) {
   return `корзина ${pot}`;
@@ -124,6 +139,7 @@ export const getDashboard = query({
       isFull: participantUsers.length >= MAX_PARTICIPANTS,
       totalTeams: teams.length,
       teamsReady: teams.length === POTS.length * TEAMS_PER_POT && teamsByPot.every((pot) => pot.total === TEAMS_PER_POT),
+      drawUnlockAt: getDrawUnlockAt(),
       teamsByPot,
     };
   },
@@ -134,7 +150,7 @@ export const drawTeam = mutation({
     pot: potValidator,
   },
   handler: async (ctx, args) => {
-    if (DRAW_IS_LOCKED) {
+    if (isDrawLocked()) {
       throw new Error("Выбор команд временно закрыт.");
     }
 

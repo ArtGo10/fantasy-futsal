@@ -45,7 +45,6 @@ const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 const POTS = [1, 2, 3] as const;
-const DRAW_IS_LOCKED = true;
 const WEB_OAUTH_CALLBACK_PATH = "/sso-callback";
 
 type AuthMode = "sign_in" | "sign_up";
@@ -107,6 +106,7 @@ type DashboardView = {
   isFull: boolean;
   totalTeams: number;
   teamsReady: boolean;
+  drawUnlockAt: number | null;
   teamsByPot: PotView[];
 };
 type MatchView = {
@@ -368,6 +368,15 @@ function formatMatchDate(timestamp: number) {
 
 function formatMatchTime(timestamp: number) {
   return new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function formatDrawUnlockTime(timestamp: number) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(timestamp));
@@ -848,6 +857,7 @@ function SignedInHome() {
   const [isBusy, setIsBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const rawProfileName =
     user?.fullName ?? getMetadataDisplayName(user?.unsafeMetadata) ?? user?.username ?? undefined;
@@ -891,6 +901,11 @@ function SignedInHome() {
   const remainingTeamCount =
     dashboard?.teamsByPot.reduce((total, pot) => total + pot.remaining, 0) ?? 0;
   const maxUserAssignments = dashboard?.teamsByPot.length ?? POTS.length;
+  const drawUnlockAt = dashboard?.drawUnlockAt ?? null;
+  const drawIsLocked = drawUnlockAt === null || nowMs < drawUnlockAt;
+  const drawLockText = drawUnlockAt
+    ? `Жеребьёвка откроется ${formatDrawUnlockTime(drawUnlockAt)}. Ждём регистрацию новых игроков.`
+    : "Выбор команд временно закрыт. Ждём регистрацию новых игроков.";
   const showDrawSetupPanel = dashboard ? !dashboard.teamsReady || hasRemainingTeams : false;
   const matchGroups = useMemo(() => groupMatchesByLocalDate(matches ?? []), [matches]);
   const pointsByTeamId = useMemo(() => getTeamPointsById(matches ?? []), [matches]);
@@ -914,9 +929,18 @@ function SignedInHome() {
     });
   }, [dashboard?.participants, pointsByTeamId]);
 
+  useEffect(() => {
+    if (!drawUnlockAt || nowMs >= drawUnlockAt) return;
+
+    const delayMs = Math.min(Math.max(drawUnlockAt - Date.now(), 250), 1000);
+    const timeoutId = setTimeout(() => setNowMs(Date.now()), delayMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [drawUnlockAt, nowMs]);
+
   const handleDraw = async (pot: Pot) => {
-    if (DRAW_IS_LOCKED) {
-      setErrorText("Выбор команд временно закрыт.");
+    if (drawIsLocked) {
+      setErrorText(drawUnlockAt ? `Жеребьёвка откроется ${formatDrawUnlockTime(drawUnlockAt)}.` : "Выбор команд временно закрыт.");
       return;
     }
 
@@ -1007,10 +1031,8 @@ function SignedInHome() {
                 <Text style={styles.mutedText}>
                   Все {dashboard.maxParticipants} мест игроков уже заняты. Вы можете смотреть таблицу, но выбор команд для этого аккаунта закрыт.
                 </Text>
-              ) : DRAW_IS_LOCKED ? (
-                <Text style={styles.mutedText}>
-                  Выбор команд временно закрыт. Ждём регистрацию новых игроков.
-                </Text>
+              ) : drawIsLocked ? (
+                <Text style={styles.mutedText}>{drawLockText}</Text>
               ) : null}
 
               {!dashboard.teamsReady ? (
@@ -1099,7 +1121,7 @@ function SignedInHome() {
                 {dashboard.teamsByPot.map((pot) => {
                   const alreadyDrawn = currentAssignments.some((assignment) => assignment.pot === pot.pot);
                   const canDrawPot = Boolean(
-                    !DRAW_IS_LOCKED &&
+                    !drawIsLocked &&
                     dashboard.currentUser?.isParticipant &&
                       dashboard.teamsReady &&
                       !alreadyDrawn &&
@@ -1144,7 +1166,7 @@ function SignedInHome() {
                         onPress={() => void handleDraw(pot.pot)}
                       >
                         <Text style={styles.primaryButtonText}>
-                          {alreadyDrawn ? "Выбрано" : DRAW_IS_LOCKED ? "Пауза" : isBusy ? "Выбираем..." : "Вытащить"}
+                          {alreadyDrawn ? "Выбрано" : drawIsLocked ? "Пауза" : isBusy ? "Выбираем..." : "Вытащить"}
                         </Text>
                       </Pressable>
                     </View>
