@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run build:web:maintenance",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/sso-callback",

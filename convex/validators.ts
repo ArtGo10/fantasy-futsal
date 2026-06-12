@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 
-export const MAX_PARTICIPANTS = 12;
-export const POTS = [1, 2, 3, 4] as const;
+export const MAX_PARTICIPANTS = 16;
+export const TEAMS_PER_POT = 16;
+export const POTS = [1, 2, 3] as const;
 export const TEAM_STAGES = [
   "group",
   "round_of_32",
@@ -24,7 +25,7 @@ export type Pot = (typeof POTS)[number];
 export type TeamStage = (typeof TEAM_STAGES)[number];
 export type MatchStage = (typeof MATCH_STAGES)[number];
 
-export const potValidator = v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4));
+export const potValidator = v.union(v.literal(1), v.literal(2), v.literal(3));
 export const teamStageValidator = v.union(
   v.literal("group"),
   v.literal("round_of_32"),

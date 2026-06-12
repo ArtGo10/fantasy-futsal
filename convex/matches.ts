@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { matchDecisionValidator } from "./validators";
 import type { MatchStage } from "./validators";
+import { v } from "convex/values";
 
 type MatchSeed = {
   matchNumber: number;
@@ -19,7 +21,7 @@ type MatchSeed = {
 
 const MATCH_SEED: MatchSeed[] = [
   {"matchNumber":1,"externalId":"A1","group":"A","scheduledAt":"2026-06-11T19:00:00.000Z","sourceKickoff":"1:00 p.m. UTC−6","homeTeam":"Мексика","awayTeam":"ЮАР","homeScore":2,"awayScore":0,"status":"completed","venue":"Estadio Azteca, Mexico City"},
-  {"matchNumber":2,"externalId":"A2","group":"A","scheduledAt":"2026-06-12T02:00:00.000Z","sourceKickoff":"8:00 p.m. UTC−6","homeTeam":"Южная Корея","awayTeam":"Чехия","status":"scheduled","venue":"Estadio Akron, Zapopan"},
+  {"matchNumber":2,"externalId":"A2","group":"A","scheduledAt":"2026-06-12T02:00:00.000Z","sourceKickoff":"8:00 p.m. UTC−6","homeTeam":"Южная Корея","awayTeam":"Чехия","homeScore":2,"awayScore":1,"status":"completed","venue":"Estadio Akron, Zapopan"},
   {"matchNumber":3,"externalId":"A3","group":"A","scheduledAt":"2026-06-18T16:00:00.000Z","sourceKickoff":"12:00 p.m. UTC−4","homeTeam":"Чехия","awayTeam":"ЮАР","status":"scheduled","venue":"Mercedes-Benz Stadium, Atlanta"},
   {"matchNumber":4,"externalId":"A4","group":"A","scheduledAt":"2026-06-19T01:00:00.000Z","sourceKickoff":"7:00 p.m. UTC−6","homeTeam":"Мексика","awayTeam":"Южная Корея","status":"scheduled","venue":"Estadio Akron, Zapopan"},
   {"matchNumber":5,"externalId":"A5","group":"A","scheduledAt":"2026-06-25T01:00:00.000Z","sourceKickoff":"7:00 p.m. UTC−6","homeTeam":"Чехия","awayTeam":"Мексика","status":"scheduled","venue":"Estadio Azteca, Mexico City"},
@@ -190,5 +192,55 @@ export const seedIfEmpty = mutation({
   args: {},
   handler: async (ctx) => {
     return await insertSeedMatches(ctx);
+  },
+});
+
+export const setResult = mutation({
+  args: {
+    externalId: v.string(),
+    homeScore: v.number(),
+    awayScore: v.number(),
+    decidedBy: v.optional(matchDecisionValidator),
+    homePenaltyScore: v.optional(v.number()),
+    awayPenaltyScore: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const match = await ctx.db
+      .query("matches")
+      .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId))
+      .first();
+
+    if (!match) {
+      throw new Error(`Матч ${args.externalId} не найден.`);
+    }
+
+    const winnerTeamId =
+      args.homeScore > args.awayScore
+        ? match.homeTeamId
+        : args.awayScore > args.homeScore
+          ? match.awayTeamId
+          : undefined;
+
+    await ctx.db.patch(match._id, {
+      homeScore: args.homeScore,
+      awayScore: args.awayScore,
+      winnerTeamId,
+      decidedBy: args.decidedBy ?? "regular",
+      homePenaltyScore: args.homePenaltyScore,
+      awayPenaltyScore: args.awayPenaltyScore,
+      status: "completed",
+      updatedAt: Date.now(),
+    });
+
+    return {
+      id: match._id,
+      externalId: match.externalId,
+      homeTeamName: match.homeTeamName,
+      awayTeamName: match.awayTeamName,
+      homeScore: args.homeScore,
+      awayScore: args.awayScore,
+      winnerTeamId,
+      status: "completed",
+    };
   },
 });

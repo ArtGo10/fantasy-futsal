@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./authHelpers";
-import { MAX_PARTICIPANTS, POTS, Pot, TeamStage, potValidator } from "./validators";
+import { MAX_PARTICIPANTS, POTS, Pot, TEAMS_PER_POT, TeamStage, potValidator } from "./validators";
 
 function potLabel(pot: Pot) {
   return `корзина ${pot}`;
@@ -121,7 +121,7 @@ export const getDashboard = query({
       maxParticipants: MAX_PARTICIPANTS,
       isFull: participantUsers.length >= MAX_PARTICIPANTS,
       totalTeams: teams.length,
-      teamsReady: teams.length === 48 && teamsByPot.every((pot) => pot.total === 12),
+      teamsReady: teams.length === POTS.length * TEAMS_PER_POT && teamsByPot.every((pot) => pot.total === TEAMS_PER_POT),
       teamsByPot,
     };
   },
@@ -138,7 +138,7 @@ export const drawTeam = mutation({
     }
 
     if (user.participantNumber === undefined) {
-      throw new Error("Все 12 мест игроков уже заняты. Вы можете смотреть жеребьёвку как зритель.");
+      throw new Error(`Все ${MAX_PARTICIPANTS} мест игроков уже заняты. Вы можете смотреть жеребьёвку как зритель.`);
     }
 
     const userAssignments = await ctx.db

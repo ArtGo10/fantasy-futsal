@@ -42,9 +42,10 @@ import { api } from "./convex/_generated/api";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+const isMaintenanceMode = process.env.EXPO_PUBLIC_MAINTENANCE_MODE === "true";
 
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
-const POTS = [1, 2, 3, 4] as const;
+const POTS = [1, 2, 3] as const;
 const WEB_OAUTH_CALLBACK_PATH = "/sso-callback";
 
 type AuthMode = "sign_in" | "sign_up";
@@ -889,6 +890,7 @@ function SignedInHome() {
   const hasRemainingTeams = dashboard?.teamsByPot.some((pot) => pot.remaining > 0) ?? false;
   const remainingTeamCount =
     dashboard?.teamsByPot.reduce((total, pot) => total + pot.remaining, 0) ?? 0;
+  const maxUserAssignments = dashboard?.teamsByPot.length ?? POTS.length;
   const showDrawSetupPanel = dashboard ? !dashboard.teamsReady || hasRemainingTeams : false;
   const matchGroups = useMemo(() => groupMatchesByLocalDate(matches ?? []), [matches]);
   const pointsByTeamId = useMemo(() => getTeamPointsById(matches ?? []), [matches]);
@@ -990,7 +992,7 @@ function SignedInHome() {
                 </View>
                 <View style={styles.summaryItem}>
                   <Text style={styles.label}>{isViewer ? "Моя роль" : "Мой выбор"}</Text>
-                  <Text style={styles.metric}>{isViewer ? "Зритель" : `${currentAssignments.length}/4`}</Text>
+                  <Text style={styles.metric}>{isViewer ? "Зритель" : `${currentAssignments.length}/${maxUserAssignments}`}</Text>
                 </View>
               </View>
 
@@ -998,7 +1000,7 @@ function SignedInHome() {
                 <Text style={styles.errorText}>Ваш профиль ещё создаётся.</Text>
               ) : isViewer ? (
                 <Text style={styles.mutedText}>
-                  Все 12 мест игроков уже заняты. Вы можете смотреть таблицу, но выбор команд для этого аккаунта закрыт.
+                  Все {dashboard.maxParticipants} мест игроков уже заняты. Вы можете смотреть таблицу, но выбор команд для этого аккаунта закрыт.
                 </Text>
               ) : null}
 
@@ -1215,7 +1217,24 @@ function MissingEnv() {
   );
 }
 
+function MaintenanceScreen() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.maintenanceShell}>
+        <View style={styles.maintenancePanel}>
+          <Text style={styles.title}>Сайт временно недоступен</Text>
+        </View>
+      </View>
+      <StatusBar style="dark" />
+    </SafeAreaView>
+  );
+}
+
 export default function App() {
+  if (isMaintenanceMode) {
+    return <MaintenanceScreen />;
+  }
+
   if (!publishableKey || !convex) {
     return <MissingEnv />;
   }
@@ -1309,6 +1328,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     padding: 24,
+  },
+  maintenanceShell: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  maintenancePanel: {
+    width: "100%",
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    padding: 24,
+    alignItems: "center",
   },
   title: {
     color: "#111827",

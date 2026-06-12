@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { getCurrentUser } from "./authHelpers";
-import { Pot, potValidator, teamStageValidator } from "./validators";
+import { POTS, Pot, TEAMS_PER_POT, potValidator, teamStageValidator } from "./validators";
 
 type TeamSeed = {
   name: string;
@@ -21,11 +21,11 @@ const TEAM_SEED: TeamSeed[] = [
   { name: "Германия", pot: 1 },
   { name: "Хорватия", pot: 1 },
   { name: "Колумбия", pot: 1 },
+  { name: "Мексика", pot: 1 },
+  { name: "Сенегал", pot: 1 },
+  { name: "Уругвай", pot: 1 },
+  { name: "США", pot: 1 },
 
-  { name: "Мексика", pot: 2 },
-  { name: "Сенегал", pot: 2 },
-  { name: "Уругвай", pot: 2 },
-  { name: "США", pot: 2 },
   { name: "Япония", pot: 2 },
   { name: "Швейцария", pot: 2 },
   { name: "Иран", pot: 2 },
@@ -34,32 +34,31 @@ const TEAM_SEED: TeamSeed[] = [
   { name: "Австрия", pot: 2 },
   { name: "Южная Корея", pot: 2 },
   { name: "Австралия", pot: 2 },
+  { name: "Алжир", pot: 2 },
+  { name: "Египет", pot: 2 },
+  { name: "Канада", pot: 2 },
+  { name: "Норвегия", pot: 2 },
+  { name: "Кот-д’Ивуар", pot: 2 },
+  { name: "Панама", pot: 2 },
+  { name: "Швеция", pot: 2 },
+  { name: "Чехия", pot: 2 },
 
-  { name: "Алжир", pot: 3 },
-  { name: "Египет", pot: 3 },
-  { name: "Канада", pot: 3 },
-  { name: "Норвегия", pot: 3 },
-  { name: "Кот-д’Ивуар", pot: 3 },
-  { name: "Панама", pot: 3 },
-  { name: "Швеция", pot: 3 },
-  { name: "Чехия", pot: 3 },
   { name: "Парагвай", pot: 3 },
   { name: "Шотландия", pot: 3 },
   { name: "Тунис", pot: 3 },
   { name: "ДР Конго", pot: 3 },
-
-  { name: "Узбекистан", pot: 4 },
-  { name: "Катар", pot: 4 },
-  { name: "Ирак", pot: 4 },
-  { name: "ЮАР", pot: 4 },
-  { name: "Саудовская Аравия", pot: 4 },
-  { name: "Иордания", pot: 4 },
-  { name: "Босния и Герцеговина", pot: 4 },
-  { name: "Кабо-Верде", pot: 4 },
-  { name: "Гана", pot: 4 },
-  { name: "Кюрасао", pot: 4 },
-  { name: "Гаити", pot: 4 },
-  { name: "Новая Зеландия", pot: 4 },
+  { name: "Узбекистан", pot: 3 },
+  { name: "Катар", pot: 3 },
+  { name: "Ирак", pot: 3 },
+  { name: "ЮАР", pot: 3 },
+  { name: "Саудовская Аравия", pot: 3 },
+  { name: "Иордания", pot: 3 },
+  { name: "Босния и Герцеговина", pot: 3 },
+  { name: "Кабо-Верде", pot: 3 },
+  { name: "Гана", pot: 3 },
+  { name: "Кюрасао", pot: 3 },
+  { name: "Гаити", pot: 3 },
+  { name: "Новая Зеландия", pot: 3 },
 ];
 
 function normalizeName(name: string) {
@@ -88,9 +87,9 @@ function validateTeamSeed() {
     potCounts.set(team.pot, (potCounts.get(team.pot) ?? 0) + 1);
   }
 
-  for (const pot of [1, 2, 3, 4] as const) {
-    if ((potCounts.get(pot) ?? 0) !== 12) {
-      throw new Error(`В корзине ${pot} должно быть ровно 12 команд.`);
+  for (const pot of POTS) {
+    if ((potCounts.get(pot) ?? 0) !== TEAMS_PER_POT) {
+      throw new Error(`В корзине ${pot} должно быть ровно ${TEAMS_PER_POT} команд.`);
     }
   }
 }
