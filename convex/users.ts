@@ -8,17 +8,33 @@ function normalizeOptional(value: string | undefined) {
   return trimmed ? trimmed : undefined;
 }
 
+function capitalizeNamePart(value: string) {
+  if (!value) return value;
+
+  const [firstLetter, ...restLetters] = Array.from(value);
+  return `${firstLetter.toLocaleUpperCase("ru-RU")}${restLetters.join("").toLocaleLowerCase("ru-RU")}`;
+}
+
+function formatPersonName(name: string) {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((word) => word.split(/([-’'])/).map(capitalizeNamePart).join(""))
+    .join(" ");
+}
+
 function resolveName(identity: Awaited<ReturnType<typeof requireIdentity>>, name?: string, email?: string) {
   const normalizedName = normalizeOptional(name);
-  if (normalizedName) return normalizedName;
+  if (normalizedName) return formatPersonName(normalizedName);
 
-  if (identity.name?.trim()) return identity.name.trim();
-  if (identity.nickname?.trim()) return identity.nickname.trim();
+  if (identity.name?.trim()) return formatPersonName(identity.name);
+  if (identity.nickname?.trim()) return formatPersonName(identity.nickname);
 
   const resolvedEmail = normalizeOptional(email) ?? normalizeOptional(identity.email);
-  if (resolvedEmail) return resolvedEmail.split("@")[0] || "Player";
+  if (resolvedEmail) return formatPersonName(resolvedEmail.split("@")[0] || "Игрок");
 
-  return `Player ${identity.subject.slice(-6)}`;
+  return `Игрок ${identity.subject.slice(-6)}`;
 }
 
 function toUserView(user: {
@@ -26,7 +42,7 @@ function toUserView(user: {
   clerkId: string;
   email?: string;
   name: string;
-  participantNumber: number;
+  participantNumber?: number;
   createdAt: number;
 }) {
   return {
@@ -34,9 +50,29 @@ function toUserView(user: {
     clerkId: user.clerkId,
     email: user.email ?? null,
     name: user.name,
-    participantNumber: user.participantNumber,
+    participantNumber: user.participantNumber ?? null,
+    isParticipant: user.participantNumber !== undefined,
     createdAt: user.createdAt,
   };
+}
+
+function getParticipants(users: Array<{ participantNumber?: number }>) {
+  return users.filter((user) => user.participantNumber !== undefined);
+}
+
+function getNextParticipantNumber(users: Array<{ participantNumber?: number }>) {
+  const participants = getParticipants(users);
+
+  if (participants.length >= MAX_PARTICIPANTS) {
+    return undefined;
+  }
+
+  return (
+    participants.reduce(
+      (highest, user) => Math.max(highest, user.participantNumber ?? 0),
+      0,
+    ) + 1
+  );
 }
 
 export const upsertCurrentUser = mutation({
@@ -52,40 +88,33 @@ export const upsertCurrentUser = mutation({
       .first();
 
     const users = await ctx.db.query("users").collect();
+    const participantCount = getParticipants(users).length;
     const email = normalizeOptional(args.email) ?? normalizeOptional(identity.email);
     const name = resolveName(identity, args.name, email);
     const now = Date.now();
 
     if (existing) {
+      const participantNumber = existing.participantNumber ?? getNextParticipantNumber(users);
       await ctx.db.patch(existing._id, {
         email,
         name,
+        participantNumber,
         updatedAt: now,
       });
 
       return {
-        accepted: true as const,
-        user: toUserView({ ...existing, email, name }),
-        participantCount: users.length,
+        accepted: participantNumber !== undefined,
+        user: toUserView({ ...existing, email, name, participantNumber }),
+        participantCount:
+          existing.participantNumber === undefined && participantNumber !== undefined
+            ? participantCount + 1
+            : participantCount,
+        userCount: users.length,
         maxParticipants: MAX_PARTICIPANTS,
       };
     }
 
-    if (users.length >= MAX_PARTICIPANTS) {
-      return {
-        accepted: false as const,
-        reason: "full" as const,
-        user: null,
-        participantCount: users.length,
-        maxParticipants: MAX_PARTICIPANTS,
-      };
-    }
-
-    const highestParticipantNumber = users.reduce(
-      (highest, user) => Math.max(highest, user.participantNumber),
-      0,
-    );
-    const participantNumber = highestParticipantNumber + 1;
+    const participantNumber = getNextParticipantNumber(users);
     const userId = await ctx.db.insert("users", {
       clerkId: identity.subject,
       email,
@@ -96,16 +125,18 @@ export const upsertCurrentUser = mutation({
     });
 
     return {
-      accepted: true as const,
+      accepted: participantNumber !== undefined,
       user: {
         id: userId,
         clerkId: identity.subject,
         email: email ?? null,
         name,
-        participantNumber,
+        participantNumber: participantNumber ?? null,
+        isParticipant: participantNumber !== undefined,
         createdAt: now,
       },
-      participantCount: users.length + 1,
+      participantCount: participantNumber !== undefined ? participantCount + 1 : participantCount,
+      userCount: users.length + 1,
       maxParticipants: MAX_PARTICIPANTS,
     };
   },
@@ -115,12 +146,14 @@ export const me = query({
   args: {},
   handler: async (ctx) => {
     const { user } = await getCurrentUser(ctx);
-    const participantCount = (await ctx.db.query("users").collect()).length;
+    const users = await ctx.db.query("users").collect();
+    const participantCount = getParticipants(users).length;
 
     return {
-      accepted: Boolean(user),
+      accepted: Boolean(user?.participantNumber !== undefined),
       user: user ? toUserView(user) : null,
       participantCount,
+      userCount: users.length,
       maxParticipants: MAX_PARTICIPANTS,
     };
   },

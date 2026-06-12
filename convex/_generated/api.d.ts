@@ -11,6 +11,7 @@
 import type * as authHelpers from "../authHelpers.js";
 import type * as draw from "../draw.js";
 import type * as health from "../health.js";
+import type * as matches from "../matches.js";
 import type * as teams from "../teams.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
   draw: typeof draw;
   health: typeof health;
+  matches: typeof matches;
   teams: typeof teams;
   users: typeof users;
   validators: typeof validators;

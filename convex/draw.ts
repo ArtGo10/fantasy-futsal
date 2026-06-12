@@ -2,10 +2,10 @@ import { mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./authHelpers";
-import { MAX_PARTICIPANTS, POTS, Pot, potValidator } from "./validators";
+import { MAX_PARTICIPANTS, POTS, Pot, TeamStage, potValidator } from "./validators";
 
 function potLabel(pot: Pot) {
-  return `Pot ${pot}`;
+  return `корзина ${pot}`;
 }
 
 async function getParticipantAssignments(ctx: QueryCtx) {
@@ -17,6 +17,8 @@ async function getParticipantAssignments(ctx: QueryCtx) {
     pot: Pot;
     teamId: Id<"teams">;
     teamName: string;
+    stageReached: TeamStage;
+    isEliminated: boolean;
     createdAt: number;
   }>>();
 
@@ -30,6 +32,8 @@ async function getParticipantAssignments(ctx: QueryCtx) {
       pot: assignment.pot,
       teamId: assignment.teamId,
       teamName: team.name,
+      stageReached: team.stageReached ?? "group",
+      isEliminated: team.isEliminated ?? false,
       createdAt: assignment.createdAt,
     });
     assignmentsByUser.set(assignment.userId, current);
@@ -47,7 +51,10 @@ export const getDashboard = query({
   handler: async (ctx) => {
     const { user } = await getCurrentUser(ctx);
     const users = await ctx.db.query("users").collect();
-    const sortedUsers = [...users].sort((a, b) => a.participantNumber - b.participantNumber);
+    const participantUsers = users.filter((participant) => participant.participantNumber !== undefined);
+    const sortedUsers = [...participantUsers].sort(
+      (a, b) => (a.participantNumber ?? 0) - (b.participantNumber ?? 0),
+    );
     const { assignments, teams, assignmentsByUser } = await getParticipantAssignments(ctx);
     const userById = new Map(users.map((participant) => [participant._id, participant]));
     const assignmentByTeamId = new Map(assignments.map((assignment) => [assignment.teamId, assignment]));
@@ -73,11 +80,13 @@ export const getDashboard = query({
               id: team._id,
               name: team.name,
               pot: team.pot,
+              stageReached: team.stageReached ?? "group",
+              isEliminated: team.isEliminated ?? false,
               assignedTo: assignedUser
                 ? {
                     id: assignedUser._id,
                     name: assignedUser.name,
-                    participantNumber: assignedUser.participantNumber,
+                    participantNumber: assignedUser.participantNumber ?? null,
                   }
                 : null,
             };
@@ -89,7 +98,7 @@ export const getDashboard = query({
       id: participant._id,
       name: participant.name,
       email: participant.email ?? null,
-      participantNumber: participant.participantNumber,
+      participantNumber: participant.participantNumber ?? null,
       assignments: assignmentsByUser.get(participant._id) ?? [],
       isCurrentUser: user?._id === participant._id,
     }));
@@ -100,14 +109,17 @@ export const getDashboard = query({
             id: user._id,
             name: user.name,
             email: user.email ?? null,
-            participantNumber: user.participantNumber,
+            participantNumber: user.participantNumber ?? null,
+            isParticipant: user.participantNumber !== undefined,
             assignments: assignmentsByUser.get(user._id) ?? [],
           }
         : null,
       participants,
-      participantCount: users.length,
+      participantCount: participantUsers.length,
+      userCount: users.length,
+      spectatorCount: users.length - participantUsers.length,
       maxParticipants: MAX_PARTICIPANTS,
-      isFull: users.length >= MAX_PARTICIPANTS,
+      isFull: participantUsers.length >= MAX_PARTICIPANTS,
       totalTeams: teams.length,
       teamsReady: teams.length === 48 && teamsByPot.every((pot) => pot.total === 12),
       teamsByPot,
@@ -122,7 +134,11 @@ export const drawTeam = mutation({
   handler: async (ctx, args) => {
     const { user } = await getCurrentUser(ctx);
     if (!user) {
-      throw new Error("The participant list is full or your profile is not ready.");
+      throw new Error("Ваш профиль ещё не готов.");
+    }
+
+    if (user.participantNumber === undefined) {
+      throw new Error("Все 12 мест игроков уже заняты. Вы можете смотреть жеребьёвку как зритель.");
     }
 
     const userAssignments = await ctx.db
@@ -135,7 +151,7 @@ export const drawTeam = mutation({
       return {
         complete: false as const,
         alreadyAssigned: true as const,
-        message: `You already drew from ${potLabel(args.pot)}.`,
+        message: `Вы уже вытаскивали команду из корзины ${args.pot}.`,
         team: team
           ? {
               id: team._id,
@@ -152,7 +168,7 @@ export const drawTeam = mutation({
       .collect();
 
     if (teamsInPot.length === 0) {
-      throw new Error(`${potLabel(args.pot)} is not configured yet.`);
+      throw new Error(`Команды из корзины ${args.pot} ещё не настроены.`);
     }
 
     const assignedInPot = await ctx.db
@@ -163,7 +179,7 @@ export const drawTeam = mutation({
     const availableTeams = teamsInPot.filter((team) => !assignedTeamIds.has(team._id));
 
     if (availableTeams.length === 0) {
-      throw new Error(`${potLabel(args.pot)} has no available teams left.`);
+      throw new Error(`В корзине ${args.pot} не осталось свободных команд.`);
     }
 
     const selectedTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
@@ -173,7 +189,7 @@ export const drawTeam = mutation({
       .first();
 
     if (existingTeamAssignment) {
-      throw new Error("This team was just drawn by another participant. Try again.");
+      throw new Error("Эту команду только что вытащил другой игрок. Попробуйте ещё раз.");
     }
 
     await ctx.db.insert("teamAssignments", {

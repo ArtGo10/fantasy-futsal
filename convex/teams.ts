@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { getCurrentUser } from "./authHelpers";
-import { Pot, potValidator } from "./validators";
+import { Pot, potValidator, teamStageValidator } from "./validators";
 
 type TeamSeed = {
   name: string;
@@ -68,17 +68,17 @@ function normalizeName(name: string) {
 
 function validateTeamSeed() {
   if (TEAM_SEED.length !== 48) {
-    throw new Error("Team seed is not configured yet.");
+    throw new Error("Список команд ещё не настроен.");
   }
 
   const names = new Set<string>();
   for (const team of TEAM_SEED) {
     const normalized = normalizeName(team.name);
     if (!normalized) {
-      throw new Error("Team names cannot be empty.");
+      throw new Error("Названия команд не могут быть пустыми.");
     }
     if (names.has(normalized.toLowerCase())) {
-      throw new Error(`Duplicate team in seed: ${normalized}`);
+      throw new Error(`Команда повторяется в списке: ${normalized}`);
     }
     names.add(normalized.toLowerCase());
   }
@@ -90,7 +90,7 @@ function validateTeamSeed() {
 
   for (const pot of [1, 2, 3, 4] as const) {
     if ((potCounts.get(pot) ?? 0) !== 12) {
-      throw new Error(`Pot ${pot} must contain exactly 12 teams.`);
+      throw new Error(`В корзине ${pot} должно быть ровно 12 команд.`);
     }
   }
 }
@@ -100,7 +100,7 @@ async function insertSeedTeams(ctx: MutationCtx) {
 
   const existingAssignments = await ctx.db.query("teamAssignments").first();
   if (existingAssignments) {
-    throw new Error("Teams cannot be reseeded after the draw has started.");
+    throw new Error("Нельзя перезагрузить команды после начала жеребьёвки.");
   }
 
   const existingTeams = await ctx.db.query("teams").collect();
@@ -117,7 +117,10 @@ async function insertSeedTeams(ctx: MutationCtx) {
     await ctx.db.insert("teams", {
       name: normalizeName(team.name),
       pot: team.pot,
+      stageReached: "group",
+      isEliminated: false,
       createdAt: now,
+      updatedAt: now,
     });
   }
 
@@ -137,6 +140,8 @@ export const list = query({
         id: team._id,
         name: team.name,
         pot: team.pot,
+        stageReached: team.stageReached ?? "group",
+        isEliminated: team.isEliminated ?? false,
       }))
       .sort((a, b) => a.pot - b.pot || a.name.localeCompare(b.name));
   },
@@ -147,7 +152,7 @@ export const seedFromCode = mutation({
   handler: async (ctx) => {
     const { user } = await getCurrentUser(ctx);
     if (!user || user.participantNumber !== 1) {
-      throw new Error("Only participant #1 can seed teams.");
+      throw new Error("Загрузить команды может только игрок номер 1.");
     }
 
     return await insertSeedTeams(ctx);
@@ -166,4 +171,11 @@ export const validatePot = mutation({
     pot: potValidator,
   },
   handler: async (_ctx, args) => args.pot,
+});
+
+export const validateStageReached = mutation({
+  args: {
+    stageReached: teamStageValidator,
+  },
+  handler: async (_ctx, args) => args.stageReached,
 });

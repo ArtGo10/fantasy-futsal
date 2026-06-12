@@ -14,6 +14,7 @@ import {
   useUser,
 } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { ConvexReactClient } from "convex/react";
 import {
   Authenticated,
@@ -28,6 +29,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   ActivityIndicator,
   Pressable,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -43,14 +45,20 @@ const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 const POTS = [1, 2, 3, 4] as const;
+const WEB_OAUTH_CALLBACK_PATH = "/sso-callback";
 
 type AuthMode = "sign_in" | "sign_up";
 type Pot = (typeof POTS)[number];
+type TeamStage = "group" | "round_of_32" | "round_of_16" | "quarter_final" | "semi_final" | "final" | "champion";
+type MatchStage = Exclude<TeamStage, "champion">;
+type MatchDecision = "regular" | "extra_time" | "penalties";
 type AssignmentView = {
   id: string;
   pot: Pot;
   teamId: string;
   teamName: string;
+  stageReached: TeamStage;
+  isEliminated: boolean;
   createdAt: number;
 };
 type ParticipantView = {
@@ -65,10 +73,12 @@ type PotTeamView = {
   id: string;
   name: string;
   pot: Pot;
+  stageReached: TeamStage;
+  isEliminated: boolean;
   assignedTo: null | {
     id: string;
     name: string;
-    participantNumber: number;
+    participantNumber: number | null;
   };
 };
 type PotView = {
@@ -84,16 +94,44 @@ type DashboardView = {
     id: string;
     name: string;
     email: string | null;
-    participantNumber: number;
+    participantNumber: number | null;
+    isParticipant: boolean;
     assignments: AssignmentView[];
   };
   participants: ParticipantView[];
   participantCount: number;
+  userCount: number;
+  spectatorCount: number;
   maxParticipants: number;
   isFull: boolean;
   totalTeams: number;
   teamsReady: boolean;
   teamsByPot: PotView[];
+};
+type MatchView = {
+  id: string;
+  externalId: string;
+  matchNumber: number;
+  stage: MatchStage;
+  group: string | null;
+  scheduledAt: number;
+  sourceKickoff: string;
+  homeTeam: {
+    id: string;
+    name: string;
+  };
+  awayTeam: {
+    id: string;
+    name: string;
+  };
+  homeScore: number | null;
+  awayScore: number | null;
+  winnerTeamId: string | null;
+  decidedBy: MatchDecision | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  status: "scheduled" | "completed";
+  venue: string | null;
 };
 type AuthStatusView = {
   authenticated: boolean;
@@ -104,6 +142,119 @@ type AuthStatusView = {
   name: string | null;
 };
 type ClerkGetToken = ReturnType<typeof useAuth>["getToken"];
+
+const TEAM_STAGE_BONUSES: Record<TeamStage, number> = {
+  group: 0,
+  round_of_32: 3,
+  round_of_16: 4,
+  quarter_final: 5,
+  semi_final: 6,
+  final: 8,
+  champion: 10,
+};
+const TEAM_STAGE_ORDER: TeamStage[] = [
+  "group",
+  "round_of_32",
+  "round_of_16",
+  "quarter_final",
+  "semi_final",
+  "final",
+  "champion",
+];
+const MATCH_STAGE_LABELS: Record<MatchStage, string> = {
+  group: "Группа",
+  round_of_32: "1/16 финала",
+  round_of_16: "1/8 финала",
+  quarter_final: "1/4 финала",
+  semi_final: "Полуфинал",
+  final: "Финал",
+};
+
+function getTeamStageBonus(stageReached: TeamStage) {
+  const stageIndex = TEAM_STAGE_ORDER.indexOf(stageReached);
+  if (stageIndex <= 0) return 0;
+
+  return TEAM_STAGE_ORDER.slice(1, stageIndex + 1).reduce((total, stage) => total + TEAM_STAGE_BONUSES[stage], 0);
+}
+
+function getTeamMatchPoints(teamId: string, match: MatchView) {
+  if (match.status !== "completed" || match.homeScore === null || match.awayScore === null) {
+    return 0;
+  }
+
+  const isHomeTeam = match.homeTeam.id === teamId;
+  const isAwayTeam = match.awayTeam.id === teamId;
+  if (!isHomeTeam && !isAwayTeam) return 0;
+
+  if (match.stage !== "group") {
+    if (match.winnerTeamId) return match.winnerTeamId === teamId ? 3 : 0;
+    if (match.homeScore === match.awayScore) return 0;
+  }
+
+  if (match.homeScore === match.awayScore) return 1;
+
+  const teamWon =
+    (isHomeTeam && match.homeScore > match.awayScore) ||
+    (isAwayTeam && match.awayScore > match.homeScore);
+
+  return teamWon ? 3 : 0;
+}
+
+function getTeamPointsById(matches: MatchView[]) {
+  const pointsByTeamId = new Map<string, number>();
+
+  for (const match of matches) {
+    const homePoints = getTeamMatchPoints(match.homeTeam.id, match);
+    const awayPoints = getTeamMatchPoints(match.awayTeam.id, match);
+
+    pointsByTeamId.set(match.homeTeam.id, (pointsByTeamId.get(match.homeTeam.id) ?? 0) + homePoints);
+    pointsByTeamId.set(match.awayTeam.id, (pointsByTeamId.get(match.awayTeam.id) ?? 0) + awayPoints);
+  }
+
+  return pointsByTeamId;
+}
+
+function getAssignmentPoints(assignment: AssignmentView, pointsByTeamId: Map<string, number>) {
+  return (pointsByTeamId.get(assignment.teamId) ?? 0) + getTeamStageBonus(assignment.stageReached);
+}
+
+function getParticipantTotalPoints(participant: ParticipantView, pointsByTeamId: Map<string, number>) {
+  return participant.assignments.reduce((total, assignment) => total + getAssignmentPoints(assignment, pointsByTeamId), 0);
+}
+
+function capitalizeNamePart(value: string) {
+  if (!value) return value;
+
+  const [firstLetter, ...restLetters] = Array.from(value);
+  return `${firstLetter.toLocaleUpperCase("ru-RU")}${restLetters.join("").toLocaleLowerCase("ru-RU")}`;
+}
+
+function formatPersonName(name: string | null | undefined) {
+  return (name ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((word) => word.split(/([-’'])/).map(capitalizeNamePart).join(""))
+    .join(" ");
+}
+
+function getWebOAuthRedirectUrls() {
+  if (typeof window === "undefined") {
+    return {
+      redirectUrl: WEB_OAUTH_CALLBACK_PATH,
+      redirectUrlComplete: "/",
+    };
+  }
+
+  return {
+    redirectUrl: `${window.location.origin}${WEB_OAUTH_CALLBACK_PATH}`,
+    redirectUrlComplete: `${window.location.origin}/`,
+  };
+}
+
+function isWebOAuthCallbackPath() {
+  return Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname === WEB_OAUTH_CALLBACK_PATH;
+}
 const TOKEN_FETCH_TIMEOUT_MS = 8000;
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
@@ -113,7 +264,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("Timed out fetching Clerk token.")), timeoutMs);
+        timeoutId = setTimeout(() => reject(new Error("Не удалось вовремя получить токен авторизации.")), timeoutMs);
       }),
     ]);
   } finally {
@@ -146,18 +297,45 @@ async function getClerkConvexToken(
 }
 
 function getErrorMessage(error: unknown): string {
+  let rawMessage: string | null = null;
+
   if (error && typeof error === "object" && "errors" in error) {
     const maybeErrors = (error as { errors?: Array<{ message?: string }> }).errors;
     if (Array.isArray(maybeErrors) && maybeErrors[0]?.message) {
-      return maybeErrors[0].message;
+      rawMessage = maybeErrors[0].message;
     }
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  if (!rawMessage && error instanceof Error) {
+    rawMessage = error.message;
   }
 
-  return "Something went wrong. Please try again.";
+  if (!rawMessage) {
+    return "Что-то пошло не так. Попробуйте ещё раз.";
+  }
+
+  if (/[А-Яа-яЁё]/.test(rawMessage)) {
+    return rawMessage;
+  }
+
+  const normalized = rawMessage.toLowerCase();
+  if (normalized.includes("password") && (normalized.includes("incorrect") || normalized.includes("invalid"))) {
+    return "Неверная почта или пароль.";
+  }
+  if (normalized.includes("identifier") && normalized.includes("not found")) {
+    return "Пользователь с такими данными не найден.";
+  }
+  if (normalized.includes("already") && normalized.includes("exist")) {
+    return "Такой аккаунт уже существует.";
+  }
+  if (normalized.includes("verification") || normalized.includes("code")) {
+    return "Не удалось подтвердить код. Проверьте код и попробуйте ещё раз.";
+  }
+  if (normalized.includes("network") || normalized.includes("fetch")) {
+    return "Проблема с подключением. Попробуйте ещё раз.";
+  }
+
+  return "Не удалось выполнить действие. Проверьте данные и попробуйте ещё раз.";
 }
 
 function getMetadataDisplayName(metadata: unknown): string | undefined {
@@ -170,13 +348,76 @@ function getMetadataDisplayName(metadata: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function LoadingBlock({ text = "Loading..." }: { text?: string }) {
+function LoadingBlock({ text = "Загрузка..." }: { text?: string }) {
   return (
     <View style={styles.centerBlock}>
       <ActivityIndicator size="small" />
       <Text style={styles.mutedText}>{text}</Text>
     </View>
   );
+}
+
+function formatMatchDate(timestamp: number) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(timestamp));
+}
+
+function formatMatchTime(timestamp: number) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function formatMatchScore(match: MatchView) {
+  if (match.homeScore === null || match.awayScore === null) {
+    return "-";
+  }
+
+  const score = `${match.homeScore} - ${match.awayScore}`;
+
+  if (match.decidedBy === "extra_time") {
+    return `${score} д.в.`;
+  }
+
+  if (match.decidedBy === "penalties") {
+    if (match.homePenaltyScore !== null && match.awayPenaltyScore !== null) {
+      return `${score} пен. ${match.homePenaltyScore}:${match.awayPenaltyScore}`;
+    }
+
+    return `${score} пен.`;
+  }
+
+  return score;
+}
+
+function getMatchMeta(match: MatchView) {
+  if (match.stage === "group" && match.group) return `Группа ${match.group}`;
+
+  return MATCH_STAGE_LABELS[match.stage];
+}
+
+function groupMatchesByLocalDate(matches: MatchView[]) {
+  const grouped: Array<{ dateLabel: string; matches: MatchView[] }> = [];
+  const groupByDate = new Map<string, { dateLabel: string; matches: MatchView[] }>();
+
+  for (const match of matches) {
+    const dateLabel = formatMatchDate(match.scheduledAt);
+    let group = groupByDate.get(dateLabel);
+
+    if (!group) {
+      group = { dateLabel, matches: [] };
+      groupByDate.set(dateLabel, group);
+      grouped.push(group);
+    }
+
+    group.matches.push(match);
+  }
+
+  return grouped;
 }
 
 function useClerkConvexAuth() {
@@ -263,37 +504,37 @@ function ConvexAuthProblem() {
   return (
     <View style={styles.authShell}>
       <View style={styles.panel}>
-        <Text style={styles.title}>Convex auth is not ready</Text>
+        <Text style={styles.title}>Авторизация Convex не готова</Text>
         <Text style={styles.bodyText}>
-          Clerk sign-in worked, but Convex did not receive a valid Clerk token yet.
+          Вход через Clerk прошёл, но Convex пока не получил корректный токен Clerk.
         </Text>
         <Text style={styles.bodyText}>
-          Convex JWT template:{" "}
-          {templateTokenStatus === "checking" ? "checking..." : templateTokenStatus === "ok" ? "found" : "missing"}
+          JWT-шаблон Convex:{" "}
+          {templateTokenStatus === "checking" ? "проверяем..." : templateTokenStatus === "ok" ? "найден" : "не найден"}
         </Text>
         <Text style={styles.bodyText}>
-          Clerk default token:{" "}
-          {defaultTokenStatus === "checking" ? "checking..." : defaultTokenStatus === "ok" ? "found" : "missing"}
+          Стандартный токен Clerk:{" "}
+          {defaultTokenStatus === "checking" ? "проверяем..." : defaultTokenStatus === "ok" ? "найден" : "не найден"}
         </Text>
         <Text style={styles.bodyText}>
-          Session audience: {String(sessionClaims?.aud ?? "missing")}
+          Аудитория сессии: {String(sessionClaims?.aud ?? "не найдена")}
         </Text>
         <Text style={styles.bodyText}>
-          Convex identity:{" "}
+          Пользователь Convex:{" "}
           {convexAuthStatus === undefined
-            ? "checking..."
+            ? "проверяем..."
             : convexAuthStatus.authenticated
-              ? `authenticated as ${convexAuthStatus.subject}`
-              : "missing"}
+              ? `подключён как ${convexAuthStatus.subject}`
+              : "не найден"}
         </Text>
         {convexAuthStatus?.issuer ? (
-          <Text style={styles.mutedText}>Issuer: {convexAuthStatus.issuer}</Text>
+          <Text style={styles.mutedText}>Источник: {convexAuthStatus.issuer}</Text>
         ) : null}
         <Text style={styles.mutedText}>
-          In Clerk, enable the Convex integration or create a JWT template named `convex`, then sign out and sign in again.
+          В Clerk включите интеграцию Convex или создайте JWT-шаблон `convex`, затем выйдите и войдите снова.
         </Text>
         <Pressable style={styles.secondaryButton} onPress={() => void signOut()}>
-          <Text style={styles.secondaryButtonText}>Sign out</Text>
+          <Text style={styles.secondaryButtonText}>Выйти</Text>
         </Pressable>
       </View>
     </View>
@@ -336,7 +577,7 @@ function AuthScreen() {
       if (attempt.status === "complete" && attempt.createdSessionId) {
         await setActive({ session: attempt.createdSessionId });
       } else {
-        setErrorText("Sign-in did not complete.");
+        setErrorText("Вход не был завершён.");
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
@@ -383,7 +624,7 @@ function AuthScreen() {
       if (verification.status === "complete" && verification.createdSessionId) {
         await setActive({ session: verification.createdSessionId });
       } else {
-        setErrorText("Verification is not complete yet.");
+        setErrorText("Подтверждение ещё не завершено.");
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
@@ -410,6 +651,34 @@ function AuthScreen() {
     try {
       setErrorText(null);
       setIsLoading(true);
+
+      if (Platform.OS === "web") {
+        const { redirectUrl, redirectUrlComplete } = getWebOAuthRedirectUrls();
+        const googleAuthParams = {
+          strategy: "oauth_google" as const,
+          redirectUrl,
+          redirectUrlComplete,
+        };
+
+        if (mode === "sign_up" && signUp) {
+          await signUp.authenticateWithRedirect({
+            ...googleAuthParams,
+            unsafeMetadata: {
+              displayName: displayName.trim(),
+            },
+          });
+          return;
+        }
+
+        if (signIn) {
+          await signIn.authenticateWithRedirect(googleAuthParams);
+          return;
+        }
+
+        setErrorText("Вход через Google пока не готов.");
+        return;
+      }
+
       const result = await startSSOFlow({
         strategy: "oauth_google",
       });
@@ -417,7 +686,7 @@ function AuthScreen() {
       if (result.createdSessionId && result.setActive) {
         await result.setActive({ session: result.createdSessionId });
       } else {
-        setErrorText("Google sign-in was cancelled.");
+        setErrorText("Вход через Google был отменён.");
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
@@ -429,7 +698,7 @@ function AuthScreen() {
   return (
     <View style={styles.authShell}>
       <View style={styles.panel}>
-        <Text style={styles.title}>World Cup Draw</Text>
+        <Text style={styles.title}>Чемпионат мира 2026</Text>
 
         <View style={styles.segment}>
           <Pressable
@@ -440,7 +709,7 @@ function AuthScreen() {
               setErrorText(null);
             }}
           >
-            <Text style={mode === "sign_in" ? styles.segmentTextActive : styles.segmentText}>Sign in</Text>
+            <Text style={mode === "sign_in" ? styles.segmentTextActive : styles.segmentText}>Вход</Text>
           </Pressable>
           <Pressable
             style={[styles.segmentButton, mode === "sign_up" ? styles.segmentButtonActive : null]}
@@ -451,7 +720,7 @@ function AuthScreen() {
               setErrorText(null);
             }}
           >
-            <Text style={mode === "sign_up" ? styles.segmentTextActive : styles.segmentText}>Sign up</Text>
+            <Text style={mode === "sign_up" ? styles.segmentTextActive : styles.segmentText}>Регистрация</Text>
           </Pressable>
         </View>
 
@@ -460,7 +729,7 @@ function AuthScreen() {
             {mode === "sign_up" ? (
               <TextInput
                 style={styles.input}
-                placeholder="Name"
+                placeholder="Имя"
                 autoCapitalize="words"
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -468,7 +737,7 @@ function AuthScreen() {
             ) : null}
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Почта"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
@@ -476,7 +745,7 @@ function AuthScreen() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder="Пароль"
               secureTextEntry
               autoCapitalize="none"
               value={password}
@@ -486,7 +755,7 @@ function AuthScreen() {
         ) : (
           <TextInput
             style={styles.input}
-            placeholder="Verification code"
+            placeholder="Код подтверждения"
             autoCapitalize="none"
             value={code}
             onChangeText={setCode}
@@ -502,45 +771,66 @@ function AuthScreen() {
         >
           <Text style={styles.primaryButtonText}>
             {isLoading
-              ? "Working..."
+              ? "Подождите..."
               : mode === "sign_in"
-                ? "Sign in"
+                ? "Войти"
                 : awaitingVerification
-                  ? "Verify email"
-                  : "Create account"}
+                  ? "Подтвердить почту"
+                  : "Создать аккаунт"}
           </Text>
         </Pressable>
 
         <Pressable
-          style={[styles.secondaryButton, isLoading ? styles.buttonDisabled : null]}
-          disabled={isLoading}
+          style={[styles.secondaryButton, isLoading || !isReady ? styles.buttonDisabled : null]}
+          disabled={isLoading || !isReady}
           onPress={handleGoogleAuth}
         >
-          <Text style={styles.secondaryButtonText}>Continue with Google</Text>
+          <Text style={styles.secondaryButtonText}>Продолжить с Google</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function AssignmentCells({ assignments }: { assignments: Array<{ pot: Pot; teamName: string }> }) {
+function AssignmentCells({
+  assignments,
+  pointsByTeamId,
+}: {
+  assignments: AssignmentView[];
+  pointsByTeamId: Map<string, number>;
+}) {
   return (
-    <View style={styles.assignmentCells}>
+    <>
       {POTS.map((pot) => {
         const assignment = assignments.find((item) => item.pot === pot);
+        const points = assignment ? getAssignmentPoints(assignment, pointsByTeamId) : 0;
+
         return (
           <View
             key={pot}
-            style={[styles.assignmentCell, !assignment ? styles.assignmentCellEmpty : null]}
+            style={[
+              styles.playerTableCell,
+              styles.playerTableTeamCell,
+              assignment
+                ? assignment.isEliminated
+                  ? styles.playerTableTeamCellEliminated
+                  : styles.playerTableTeamCellActive
+                : null,
+              !assignment ? styles.playerTableCellEmpty : null,
+            ]}
           >
-            <Text style={styles.assignmentCellLabel}>Pot {pot}</Text>
-            <Text style={assignment ? styles.assignmentText : styles.mutedText}>
-              {assignment?.teamName ?? "-"}
-            </Text>
+            {assignment ? (
+              <View style={styles.assignmentCellContent}>
+                <Text style={styles.assignmentText} numberOfLines={2}>{assignment.teamName}</Text>
+                <Text style={styles.assignmentPoints}>{points}</Text>
+              </View>
+            ) : (
+              <Text style={styles.emptyCellText}>-</Text>
+            )}
           </View>
         );
       })}
-    </View>
+    </>
   );
 }
 
@@ -551,14 +841,16 @@ function SignedInHome() {
   const drawTeam = useMutation(api.draw.drawTeam);
   const seedTeams = useMutation(api.teams.seedFromCode);
   const dashboard = useQuery(api.draw.getDashboard) as DashboardView | undefined;
+  const matches = useQuery(api.matches.list) as MatchView[] | undefined;
 
   const [profileReady, setProfileReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const profileName =
+  const rawProfileName =
     user?.fullName ?? getMetadataDisplayName(user?.unsafeMetadata) ?? user?.username ?? undefined;
+  const profileName = rawProfileName ? formatPersonName(rawProfileName) : undefined;
   const profileEmail = user?.primaryEmailAddress?.emailAddress ?? undefined;
 
   useEffect(() => {
@@ -593,13 +885,43 @@ function SignedInHome() {
   }, [profileEmail, profileName, upsertCurrentUser, user?.id]);
 
   const currentAssignments = dashboard?.currentUser?.assignments ?? [];
+  const isViewer = Boolean(dashboard?.currentUser && !dashboard.currentUser.isParticipant);
   const hasRemainingTeams = dashboard?.teamsByPot.some((pot) => pot.remaining > 0) ?? false;
   const remainingTeamCount =
     dashboard?.teamsByPot.reduce((total, pot) => total + pot.remaining, 0) ?? 0;
+  const showDrawSetupPanel = dashboard ? !dashboard.teamsReady || hasRemainingTeams : false;
+  const matchGroups = useMemo(() => groupMatchesByLocalDate(matches ?? []), [matches]);
+  const pointsByTeamId = useMemo(() => getTeamPointsById(matches ?? []), [matches]);
+  const teamOwnersById = useMemo(() => {
+    const owners = new Map<string, string>();
+
+    for (const participant of dashboard?.participants ?? []) {
+      for (const assignment of participant.assignments) {
+        owners.set(assignment.teamId, formatPersonName(participant.name));
+      }
+    }
+
+    return owners;
+  }, [dashboard?.participants]);
+  const sortedParticipants = useMemo(() => {
+    return [...(dashboard?.participants ?? [])].sort((first, second) => {
+      const pointsDiff =
+        getParticipantTotalPoints(second, pointsByTeamId) - getParticipantTotalPoints(first, pointsByTeamId);
+      if (pointsDiff !== 0) return pointsDiff;
+      return first.participantNumber - second.participantNumber;
+    });
+  }, [dashboard?.participants, pointsByTeamId]);
 
   const handleDraw = async (pot: Pot) => {
     const alreadyDrawn = currentAssignments.some((assignment) => assignment.pot === pot);
-    if (alreadyDrawn || !dashboard?.currentUser || !dashboard.teamsReady || isBusy) return;
+    if (
+      alreadyDrawn ||
+      !dashboard?.currentUser?.isParticipant ||
+      !dashboard.teamsReady ||
+      isBusy
+    ) {
+      return;
+    }
 
     try {
       setIsBusy(true);
@@ -608,9 +930,9 @@ function SignedInHome() {
       const result = await drawTeam({ pot });
 
       if (result.team) {
-        setStatusText(`Drawn: ${result.team.name}`);
+        setStatusText(`Выпала команда: ${result.team.name}`);
       } else if (result.complete) {
-        setStatusText("All teams are already drawn.");
+        setStatusText("Все команды уже разобраны.");
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
@@ -625,7 +947,7 @@ function SignedInHome() {
       setErrorText(null);
       setStatusText(null);
       const result = await seedTeams({});
-      setStatusText(result.alreadySeeded ? "Teams are already loaded." : `Loaded ${result.inserted} teams.`);
+      setStatusText(result.alreadySeeded ? "Команды уже загружены." : `Загружено команд: ${result.inserted}.`);
     } catch (error) {
       setErrorText(getErrorMessage(error));
     } finally {
@@ -637,87 +959,136 @@ function SignedInHome() {
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>World Cup Draw</Text>
-          <Text style={styles.mutedText}>{profileEmail ?? "Signed in"}</Text>
+          <Text style={styles.title}>Чемпионат мира 2026</Text>
+          <Text style={styles.mutedText}>{profileEmail ?? "Вы вошли"}</Text>
         </View>
         <Pressable style={styles.secondaryButton} onPress={() => void signOut()}>
-          <Text style={styles.secondaryButtonText}>Sign out</Text>
+          <Text style={styles.secondaryButtonText}>Выйти</Text>
         </Pressable>
       </View>
 
       {!profileReady || dashboard === undefined ? (
-        <LoadingBlock text="Preparing draw..." />
+        <LoadingBlock text="Готовим данные..." />
       ) : (
         <>
-          <View style={styles.panel}>
-            <View style={styles.summaryRow}>
-              <View>
-                <Text style={styles.label}>Players</Text>
-                <Text style={styles.metric}>
-                  {dashboard.participantCount}/{dashboard.maxParticipants}
-                </Text>
-              </View>
-              <View>
-                <Text style={styles.label}>Available teams</Text>
-                <Text style={styles.metric}>{remainingTeamCount}/{dashboard.totalTeams}</Text>
-              </View>
-              <View>
-                <Text style={styles.label}>My draw</Text>
-                <Text style={styles.metric}>{currentAssignments.length}/4</Text>
-              </View>
-            </View>
-
-            {!dashboard.currentUser ? (
-              <Text style={styles.errorText}>The 12 participant slots are already filled.</Text>
-            ) : null}
-
-            {!dashboard.teamsReady ? (
-              <View style={styles.notice}>
-                <Text style={styles.noticeText}>Teams are not loaded yet.</Text>
-                {dashboard.currentUser?.participantNumber === 1 ? (
-                  <Pressable
-                    style={[styles.secondaryButton, isBusy ? styles.buttonDisabled : null]}
-                    disabled={isBusy}
-                    onPress={handleSeedTeams}
-                  >
-                    <Text style={styles.secondaryButtonText}>Load teams</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-
-            {statusText ? <Text style={styles.successText}>{statusText}</Text> : null}
-            {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-          </View>
-
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Players</Text>
-            <View style={styles.playerList}>
-              {dashboard.participants.map((participant) => (
-                <View
-                  key={participant.id}
-                  style={[
-                    styles.playerRow,
-                    participant.isCurrentUser ? styles.currentPlayerRow : null,
-                  ]}
-                >
-                  <View style={styles.playerNameColumn}>
-                    <Text style={styles.playerName}>#{participant.participantNumber} {participant.name}</Text>
-                  </View>
-                  <AssignmentCells assignments={participant.assignments} />
+          {showDrawSetupPanel ? (
+            <View style={styles.panel}>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.label}>Игроки</Text>
+                  <Text style={styles.metric}>
+                    {dashboard.participantCount}/{dashboard.maxParticipants}
+                  </Text>
                 </View>
-              ))}
+                <View style={styles.summaryItem}>
+                  <Text style={styles.label}>Зрители</Text>
+                  <Text style={styles.metric}>{dashboard.spectatorCount}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.label}>Свободные команды</Text>
+                  <Text style={styles.metric}>{remainingTeamCount}/{dashboard.totalTeams}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.label}>{isViewer ? "Моя роль" : "Мой выбор"}</Text>
+                  <Text style={styles.metric}>{isViewer ? "Зритель" : `${currentAssignments.length}/4`}</Text>
+                </View>
+              </View>
+
+              {!dashboard.currentUser ? (
+                <Text style={styles.errorText}>Ваш профиль ещё создаётся.</Text>
+              ) : isViewer ? (
+                <Text style={styles.mutedText}>
+                  Все 12 мест игроков уже заняты. Вы можете смотреть таблицу, но выбор команд для этого аккаунта закрыт.
+                </Text>
+              ) : null}
+
+              {!dashboard.teamsReady ? (
+                <View style={styles.notice}>
+                  <Text style={styles.noticeText}>Команды ещё не загружены.</Text>
+                  {dashboard.currentUser?.participantNumber === 1 ? (
+                    <Pressable
+                      style={[styles.secondaryButton, isBusy ? styles.buttonDisabled : null]}
+                      disabled={isBusy}
+                      onPress={handleSeedTeams}
+                    >
+                      <Text style={styles.secondaryButtonText}>Загрузить команды</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {statusText ? <Text style={styles.successText}>{statusText}</Text> : null}
+              {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+            </View>
+          ) : null}
+
+          <View style={styles.panel}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.playerTableScrollContent}
+            >
+              <View style={styles.playerTable}>
+                <View style={[styles.playerTableRow, styles.playerTableHeaderRow]}>
+                  <View style={[styles.playerTableCell, styles.playerTableNameCell]}>
+                    <Text style={styles.playerTableHeaderText}>Игрок</Text>
+                  </View>
+                  {POTS.map((pot) => (
+                    <View key={pot} style={[styles.playerTableCell, styles.playerTableTeamCell]}>
+                      <Text style={styles.playerTableHeaderText}>Команда</Text>
+                    </View>
+                  ))}
+                  <View style={[styles.playerTableCell, styles.playerTableTotalCell]}>
+                    <Text style={styles.playerTableHeaderText}>Всего</Text>
+                  </View>
+                </View>
+
+                {sortedParticipants.map((participant) => {
+                  const totalPoints = getParticipantTotalPoints(participant, pointsByTeamId);
+                  const hasAssignments = participant.assignments.length > 0;
+                  const hasActiveTeam = participant.assignments.some((assignment) => !assignment.isEliminated);
+                  const playerStatusCellStyle = hasAssignments
+                    ? hasActiveTeam
+                      ? styles.playerTableStatusCellActive
+                      : styles.playerTableStatusCellEliminated
+                    : null;
+
+                  return (
+                    <View key={participant.id} style={styles.playerTableRow}>
+                      <View style={[styles.playerTableCell, styles.playerTableNameCell, playerStatusCellStyle]}>
+                        <Text style={styles.playerName} numberOfLines={2}>{formatPersonName(participant.name)}</Text>
+                      </View>
+                      <AssignmentCells assignments={participant.assignments} pointsByTeamId={pointsByTeamId} />
+                      <View style={[styles.playerTableCell, styles.playerTableTotalCell, playerStatusCellStyle]}>
+                        <Text style={styles.playerTotalPoints}>{totalPoints}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            <View style={styles.scoringRules}>
+              <Text style={styles.scoringRulesTitle}>Система начисления очков</Text>
+              <Text style={styles.scoringRulesText}>
+                Матчи: победа +3, ничья +1, поражение 0. В плей-офф победа после дополнительного времени или пенальти считается как победа.
+              </Text>
+              <Text style={styles.scoringRulesText}>
+                Бонусы за проход стадий: 1/16 финала +3, 1/8 финала +4, 1/4 финала +5, полуфинал +6, финал +8, победа в турнире +10.
+              </Text>
+              <Text style={styles.scoringRulesText}>
+                Бонусы суммируются с очками за матчи и добавляются к команде, которая дошла до соответствующей стадии.
+              </Text>
             </View>
           </View>
 
           {dashboard.totalTeams > 0 && hasRemainingTeams ? (
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Teams</Text>
+              <Text style={styles.sectionTitle}>Команды</Text>
               <View style={styles.teamColumns}>
                 {dashboard.teamsByPot.map((pot) => {
                   const alreadyDrawn = currentAssignments.some((assignment) => assignment.pot === pot.pot);
                   const canDrawPot = Boolean(
-                    dashboard.currentUser &&
+                    dashboard.currentUser?.isParticipant &&
                       dashboard.teamsReady &&
                       !alreadyDrawn &&
                       pot.remaining > 0 &&
@@ -727,7 +1098,7 @@ function SignedInHome() {
                   return (
                     <View key={pot.pot} style={styles.teamColumn}>
                       <View style={styles.teamColumnHeader}>
-                        <Text style={styles.label}>Pot {pot.pot}</Text>
+                        <Text style={styles.label}>Корзина {pot.pot}</Text>
                         <Text style={styles.potCount}>{pot.remaining}/{pot.total}</Text>
                       </View>
 
@@ -745,7 +1116,10 @@ function SignedInHome() {
                             </Text>
                             {team.assignedTo ? (
                               <Text style={styles.teamOwner}>
-                                #{team.assignedTo.participantNumber} {team.assignedTo.name}
+                                {team.assignedTo.participantNumber
+                                  ? `#${team.assignedTo.participantNumber} `
+                                  : ""}
+                                {formatPersonName(team.assignedTo.name)}
                               </Text>
                             ) : null}
                           </View>
@@ -758,7 +1132,7 @@ function SignedInHome() {
                         onPress={() => void handleDraw(pot.pot)}
                       >
                         <Text style={styles.primaryButtonText}>
-                          {alreadyDrawn ? "Drawn" : isBusy ? "Drawing..." : "Draw"}
+                          {alreadyDrawn ? "Выбрано" : isBusy ? "Выбираем..." : "Вытащить"}
                         </Text>
                       </Pressable>
                     </View>
@@ -767,6 +1141,61 @@ function SignedInHome() {
               </View>
             </View>
           ) : null}
+
+          <View style={styles.panel}>
+            <Text style={styles.sectionTitle}>Матчи</Text>
+
+            {matches === undefined ? (
+              <LoadingBlock text="Загружаем матчи..." />
+            ) : matches.length === 0 ? (
+              <Text style={styles.mutedText}>Расписание матчей ещё не загружено.</Text>
+            ) : (
+              <View style={styles.matchSchedule}>
+                {matchGroups.map((group) => (
+                  <View key={group.dateLabel} style={styles.matchDateGroup}>
+                    <Text style={styles.matchDateTitle}>{group.dateLabel}</Text>
+
+                    <View style={styles.matchList}>
+                      {group.matches.map((match) => {
+                        const homeOwnerName = teamOwnersById.get(match.homeTeam.id);
+                        const awayOwnerName = teamOwnersById.get(match.awayTeam.id);
+
+                        return (
+                          <View key={match.id} style={styles.matchRow}>
+                            <View style={styles.matchTimeColumn}>
+                              <Text style={styles.matchTime}>{formatMatchTime(match.scheduledAt)}</Text>
+                              <Text style={styles.matchMeta} numberOfLines={1}>{getMatchMeta(match)}</Text>
+                            </View>
+
+                            <View style={styles.matchTeamsColumn}>
+                              <Text style={styles.matchTeams}>
+                                {match.homeTeam.name}
+                                {homeOwnerName ? <Text style={styles.matchTeamOwner}> ({homeOwnerName})</Text> : null}
+                                {" - "}
+                                {match.awayTeam.name}
+                                {awayOwnerName ? <Text style={styles.matchTeamOwner}> ({awayOwnerName})</Text> : null}
+                              </Text>
+                            </View>
+
+                            <View style={styles.matchScoreBox}>
+                              <Text
+                                style={[
+                                  styles.matchScore,
+                                  match.status === "completed" ? styles.matchScoreCompleted : null,
+                                ]}
+                              >
+                                {formatMatchScore(match)}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </>
       )}
     </ScrollView>
@@ -777,7 +1206,7 @@ function MissingEnv() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.panel}>
-        <Text style={styles.title}>Environment setup needed</Text>
+        <Text style={styles.title}>Нужно настроить окружение</Text>
         <Text style={styles.bodyText}>EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY</Text>
         <Text style={styles.bodyText}>EXPO_PUBLIC_CONVEX_URL</Text>
       </View>
@@ -791,6 +1220,9 @@ export default function App() {
     return <MissingEnv />;
   }
 
+  const isCompletingOAuthRedirect = isWebOAuthCallbackPath();
+  const { redirectUrlComplete } = getWebOAuthRedirectUrls();
+
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ConvexClerkProvider>
@@ -800,20 +1232,33 @@ export default function App() {
           </ClerkLoading>
 
           <ClerkLoaded>
-            <SignedIn>
-              <AuthLoading>
-                <LoadingBlock text="Checking session..." />
-              </AuthLoading>
-              <Authenticated>
-                <SignedInHome />
-              </Authenticated>
-              <Unauthenticated>
-                <ConvexAuthProblem />
-              </Unauthenticated>
-            </SignedIn>
-            <SignedOut>
-              <AuthScreen />
-            </SignedOut>
+            {isCompletingOAuthRedirect ? (
+              <>
+                <AuthenticateWithRedirectCallback
+                  signInForceRedirectUrl={redirectUrlComplete}
+                  signUpForceRedirectUrl={redirectUrlComplete}
+                  transferable
+                />
+                <LoadingBlock text="Завершаем вход через Google..." />
+              </>
+            ) : (
+              <>
+                <SignedIn>
+                  <AuthLoading>
+                    <LoadingBlock text="Проверяем сессию..." />
+                  </AuthLoading>
+                  <Authenticated>
+                    <SignedInHome />
+                  </Authenticated>
+                  <Unauthenticated>
+                    <ConvexAuthProblem />
+                  </Unauthenticated>
+                </SignedIn>
+                <SignedOut>
+                  <AuthScreen />
+                </SignedOut>
+              </>
+            )}
           </ClerkLoaded>
 
           <StatusBar style="dark" />
@@ -965,8 +1410,13 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     justifyContent: "space-between",
+  },
+  summaryItem: {
+    minWidth: 120,
+    flex: 1,
   },
   label: {
     color: "#6b7280",
@@ -1010,58 +1460,121 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
   },
-  playerList: {
-    gap: 8,
-  },
-  playerRow: {
+  playerTable: {
+    width: "100%",
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 8,
-    padding: 12,
-    gap: 10,
+    overflow: "hidden",
   },
-  currentPlayerRow: {
-    borderColor: "#174ea6",
-    backgroundColor: "#f4f8ff",
+  playerTableScrollContent: {
+    minWidth: "100%",
   },
-  playerNameColumn: {
-    gap: 2,
+  playerTableRow: {
+    flexDirection: "row",
+    backgroundColor: "#ffffff",
+  },
+  playerTableHeaderRow: {
+    backgroundColor: "#f9fafb",
+  },
+  playerTableCell: {
+    minHeight: 58,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#e5e7eb",
+    justifyContent: "center",
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  playerTableCellEmpty: {
+    backgroundColor: "#ffffff",
+  },
+  playerTableStatusCellActive: {
+    backgroundColor: "#eef8f1",
+  },
+  playerTableStatusCellEliminated: {
+    backgroundColor: "#fff1f1",
+  },
+  playerTableNameCell: {
+    minWidth: 150,
+    flex: 1.15,
+  },
+  playerTableTeamCell: {
+    minWidth: 120,
+    flex: 1,
+  },
+  playerTableTeamCellActive: {
+    backgroundColor: "#eef8f1",
+  },
+  playerTableTeamCellEliminated: {
+    backgroundColor: "#fff1f1",
+  },
+  playerTableTotalCell: {
+    minWidth: 64,
+    flex: 0.45,
+    alignItems: "center",
+  },
+  playerTableHeaderText: {
+    color: "#6b7280",
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 15,
+    textTransform: "uppercase",
   },
   playerName: {
+    flexShrink: 1,
     color: "#111827",
     fontSize: 15,
     fontWeight: "700",
+    lineHeight: 20,
   },
-  assignmentCells: {
+  assignmentCellContent: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
   },
-  assignmentCell: {
-    minWidth: 118,
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#c9d8ee",
-    borderRadius: 8,
-    backgroundColor: "#f8fbff",
-    padding: 8,
-    gap: 2,
-  },
-  assignmentCellEmpty: {
-    borderColor: "#e5e7eb",
-    backgroundColor: "#ffffff",
-  },
-  assignmentCellLabel: {
-    color: "#6b7280",
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
   assignmentText: {
+    flex: 1,
     color: "#1f2937",
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+  },
+  assignmentPoints: {
+    color: "#174ea6",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 18,
+    minWidth: 16,
+    textAlign: "right",
+  },
+  emptyCellText: {
+    color: "#9ca3af",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  playerTotalPoints: {
+    color: "#111827",
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  scoringRules: {
+    marginTop: 12,
+    gap: 4,
+  },
+  scoringRulesTitle: {
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+  scoringRulesText: {
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 17,
   },
   teamColumns: {
     flexDirection: "row",
@@ -1117,5 +1630,83 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 11,
     lineHeight: 15,
+  },
+  matchSchedule: {
+    gap: 14,
+  },
+  matchDateGroup: {
+    gap: 8,
+  },
+  matchDateTitle: {
+    color: "#374151",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  matchList: {
+    gap: 6,
+  },
+  matchRow: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  matchTimeColumn: {
+    minWidth: 88,
+    flexShrink: 0,
+    gap: 2,
+  },
+  matchTime: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+  matchMeta: {
+    color: "#6b7280",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+    textTransform: "uppercase",
+  },
+  matchTeamsColumn: {
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+    gap: 2,
+  },
+  matchTeams: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 19,
+  },
+  matchTeamOwner: {
+    color: "#6b7280",
+    fontWeight: "700",
+  },
+  matchScoreBox: {
+    minWidth: 68,
+    minHeight: 36,
+    flexShrink: 0,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  matchScore: {
+    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  matchScoreCompleted: {
+    color: "#067647",
   },
 });

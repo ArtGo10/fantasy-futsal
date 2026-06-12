@@ -4,7 +4,7 @@ export async function requireIdentity(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
 
   if (!identity) {
-    throw new Error("Not authenticated.");
+    throw new Error("Вы не авторизованы.");
   }
 
   return identity;
