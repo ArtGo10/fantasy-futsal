@@ -4,6 +4,8 @@ import type { Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./authHelpers";
 import { MAX_PARTICIPANTS, POTS, Pot, TEAMS_PER_POT, TeamStage, potValidator } from "./validators";
 
+const DRAW_IS_LOCKED = true;
+
 function potLabel(pot: Pot) {
   return `корзина ${pot}`;
 }
@@ -132,6 +134,10 @@ export const drawTeam = mutation({
     pot: potValidator,
   },
   handler: async (ctx, args) => {
+    if (DRAW_IS_LOCKED) {
+      throw new Error("Выбор команд временно закрыт.");
+    }
+
     const { user } = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Ваш профиль ещё не готов.");

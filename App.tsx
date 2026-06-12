@@ -42,10 +42,10 @@ import { api } from "./convex/_generated/api";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
-const isMaintenanceMode = process.env.EXPO_PUBLIC_MAINTENANCE_MODE === "true";
 
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 const POTS = [1, 2, 3] as const;
+const DRAW_IS_LOCKED = true;
 const WEB_OAUTH_CALLBACK_PATH = "/sso-callback";
 
 type AuthMode = "sign_in" | "sign_up";
@@ -915,6 +915,11 @@ function SignedInHome() {
   }, [dashboard?.participants, pointsByTeamId]);
 
   const handleDraw = async (pot: Pot) => {
+    if (DRAW_IS_LOCKED) {
+      setErrorText("Выбор команд временно закрыт.");
+      return;
+    }
+
     const alreadyDrawn = currentAssignments.some((assignment) => assignment.pot === pot);
     if (
       alreadyDrawn ||
@@ -1001,6 +1006,10 @@ function SignedInHome() {
               ) : isViewer ? (
                 <Text style={styles.mutedText}>
                   Все {dashboard.maxParticipants} мест игроков уже заняты. Вы можете смотреть таблицу, но выбор команд для этого аккаунта закрыт.
+                </Text>
+              ) : DRAW_IS_LOCKED ? (
+                <Text style={styles.mutedText}>
+                  Выбор команд временно закрыт. Ждём регистрацию новых игроков.
                 </Text>
               ) : null}
 
@@ -1090,6 +1099,7 @@ function SignedInHome() {
                 {dashboard.teamsByPot.map((pot) => {
                   const alreadyDrawn = currentAssignments.some((assignment) => assignment.pot === pot.pot);
                   const canDrawPot = Boolean(
+                    !DRAW_IS_LOCKED &&
                     dashboard.currentUser?.isParticipant &&
                       dashboard.teamsReady &&
                       !alreadyDrawn &&
@@ -1134,7 +1144,7 @@ function SignedInHome() {
                         onPress={() => void handleDraw(pot.pot)}
                       >
                         <Text style={styles.primaryButtonText}>
-                          {alreadyDrawn ? "Выбрано" : isBusy ? "Выбираем..." : "Вытащить"}
+                          {alreadyDrawn ? "Выбрано" : DRAW_IS_LOCKED ? "Пауза" : isBusy ? "Выбираем..." : "Вытащить"}
                         </Text>
                       </Pressable>
                     </View>
@@ -1217,24 +1227,7 @@ function MissingEnv() {
   );
 }
 
-function MaintenanceScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.maintenanceShell}>
-        <View style={styles.maintenancePanel}>
-          <Text style={styles.title}>Сайт временно недоступен</Text>
-        </View>
-      </View>
-      <StatusBar style="dark" />
-    </SafeAreaView>
-  );
-}
-
 export default function App() {
-  if (isMaintenanceMode) {
-    return <MaintenanceScreen />;
-  }
-
   if (!publishableKey || !convex) {
     return <MissingEnv />;
   }
@@ -1328,23 +1321,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     padding: 24,
-  },
-  maintenanceShell: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  maintenancePanel: {
-    width: "100%",
-    maxWidth: 420,
-    borderWidth: 1,
-    borderColor: "#d8dee9",
-    borderRadius: 8,
-    backgroundColor: "#ffffff",
-    padding: 24,
-    alignItems: "center",
   },
   title: {
     color: "#111827",
