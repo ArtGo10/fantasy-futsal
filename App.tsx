@@ -52,6 +52,16 @@ type Pot = (typeof POTS)[number];
 type TeamStage = "group" | "round_of_32" | "round_of_16" | "quarter_final" | "semi_final" | "final" | "champion";
 type MatchStage = Exclude<TeamStage, "champion">;
 type MatchDecision = "regular" | "extra_time" | "penalties";
+type ClerkEmailCodeSecondFactor = {
+  strategy?: string;
+};
+type ClerkSignInAttempt = {
+  status?: string | null;
+  createdSessionId?: string | null;
+  supportedSecondFactors?: ClerkEmailCodeSecondFactor[] | null;
+  prepareSecondFactor?: (params: { strategy: "email_code" }) => Promise<unknown>;
+  attemptSecondFactor?: (params: { strategy: "email_code"; code: string }) => Promise<ClerkSignInAttempt>;
+};
 type AssignmentView = {
   id: string;
   pot: Pot;
@@ -346,12 +356,24 @@ function getIncompleteSignInMessage(status: string | null | undefined) {
     case "needs_first_factor":
       return "Clerk ждёт подтверждение первого шага входа. Попробуйте ещё раз или напишите организатору.";
     case "needs_second_factor":
-      return "Для этого аккаунта включена дополнительная проверка входа, а в приложении она пока не поддержана.";
+      return "Для этого аккаунта нужен дополнительный шаг входа, который пока не поддержан.";
+    case "needs_client_trust":
+      return "Clerk просит подтвердить это устройство, но подходящий способ подтверждения не найден.";
     case "needs_new_password":
       return "Для этого аккаунта нужно обновить пароль через Clerk.";
     default:
       return "Вход не был завершён. Попробуйте ещё раз или напишите организатору.";
   }
+}
+
+function shouldConfirmSignInWithEmailCode(attempt: ClerkSignInAttempt) {
+  const status = String(attempt.status ?? "");
+  const needsTrustCheck = status === "needs_second_factor" || status === "needs_client_trust";
+  const hasEmailCodeFactor = Boolean(
+    attempt.supportedSecondFactors?.some((factor) => factor.strategy === "email_code"),
+  );
+
+  return needsTrustCheck && hasEmailCodeFactor && typeof attempt.prepareSecondFactor === "function";
 }
 
 function getMetadataDisplayName(metadata: unknown): string | undefined {
@@ -589,32 +611,81 @@ function AuthScreen() {
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [infoText, setInfoText] = useState<string | null>(null);
   const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [awaitingSignInVerification, setAwaitingSignInVerification] = useState(false);
 
   const isReady = signInLoaded && signUpLoaded;
+  const isAwaitingCode = awaitingVerification || awaitingSignInVerification;
   const canSubmit = useMemo(() => {
     if (isLoading || !isReady) return false;
-    if (mode === "sign_in") return Boolean(email.trim() && password.trim());
+    if (mode === "sign_in") {
+      if (awaitingSignInVerification) return Boolean(code.trim());
+      return Boolean(email.trim() && password.trim());
+    }
     if (awaitingVerification) return Boolean(code.trim());
     return Boolean(displayName.trim() && email.trim() && password.trim());
-  }, [awaitingVerification, code, displayName, email, isLoading, isReady, mode, password]);
+  }, [awaitingSignInVerification, awaitingVerification, code, displayName, email, isLoading, isReady, mode, password]);
+
+  const startSignInEmailCodeVerification = async (attempt: ClerkSignInAttempt) => {
+    if (!shouldConfirmSignInWithEmailCode(attempt) || !attempt.prepareSecondFactor) {
+      setErrorText(getIncompleteSignInMessage(String(attempt.status ?? "")));
+      return;
+    }
+
+    await attempt.prepareSecondFactor({ strategy: "email_code" });
+    setAwaitingSignInVerification(true);
+    setCode("");
+    setInfoText("Мы отправили код подтверждения на почту. Введите его ниже.");
+  };
 
   const handleSignIn = async () => {
     if (!signIn || !setActive) return;
 
     try {
       setErrorText(null);
+      setInfoText(null);
+      setAwaitingSignInVerification(false);
       setIsLoading(true);
       const attempt = await signIn.create({
         identifier: email.trim(),
         strategy: "password",
         password,
       });
+      const signInAttempt = attempt as ClerkSignInAttempt;
 
-      if (attempt.status === "complete" && attempt.createdSessionId) {
+      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
+        await setActive({ session: signInAttempt.createdSessionId });
+      } else if (shouldConfirmSignInWithEmailCode(signInAttempt)) {
+        await startSignInEmailCodeVerification(signInAttempt);
+      } else {
+        setErrorText(getIncompleteSignInMessage(String(signInAttempt.status ?? "")));
+      }
+    } catch (error) {
+      setErrorText(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignInVerify = async () => {
+    if (!signIn || !setActive) return;
+
+    try {
+      setErrorText(null);
+      setInfoText(null);
+      setIsLoading(true);
+      const attempt = await (signIn as unknown as ClerkSignInAttempt).attemptSecondFactor?.({
+        strategy: "email_code",
+        code: code.trim(),
+      });
+
+      if (!attempt) {
+        setErrorText("Не удалось проверить код. Попробуйте войти ещё раз.");
+      } else if (attempt.status === "complete" && attempt.createdSessionId) {
         await setActive({ session: attempt.createdSessionId });
       } else {
-        setErrorText(getIncompleteSignInMessage(attempt.status));
+        setErrorText(getIncompleteSignInMessage(String(attempt.status ?? "")));
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
@@ -628,6 +699,7 @@ function AuthScreen() {
 
     try {
       setErrorText(null);
+      setInfoText(null);
       setIsLoading(true);
       const normalizedDisplayName = displayName.trim();
       await signUp.create({
@@ -641,6 +713,8 @@ function AuthScreen() {
         strategy: "email_code",
       });
       setAwaitingVerification(true);
+      setCode("");
+      setInfoText("Мы отправили код подтверждения на почту. Введите его ниже.");
     } catch (error) {
       setErrorText(getErrorMessage(error));
     } finally {
@@ -653,6 +727,7 @@ function AuthScreen() {
 
     try {
       setErrorText(null);
+      setInfoText(null);
       setIsLoading(true);
       const verification = await signUp.attemptEmailAddressVerification({
         code: code.trim(),
@@ -670,8 +745,37 @@ function AuthScreen() {
     }
   };
 
+  const handleResendCode = async () => {
+    try {
+      setErrorText(null);
+      setInfoText(null);
+      setIsLoading(true);
+
+      if (awaitingSignInVerification) {
+        await (signIn as unknown as ClerkSignInAttempt | null)?.prepareSecondFactor?.({
+          strategy: "email_code",
+        });
+      } else if (awaitingVerification) {
+        await signUp?.prepareEmailAddressVerification({
+          strategy: "email_code",
+        });
+      }
+
+      setInfoText("Новый код отправлен.");
+    } catch (error) {
+      setErrorText(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePrimaryPress = async () => {
     if (mode === "sign_in") {
+      if (awaitingSignInVerification) {
+        await handleSignInVerify();
+        return;
+      }
+
       await handleSignIn();
       return;
     }
@@ -687,6 +791,7 @@ function AuthScreen() {
   const handleGoogleAuth = async () => {
     try {
       setErrorText(null);
+      setInfoText(null);
       setIsLoading(true);
 
       if (Platform.OS === "web") {
@@ -743,7 +848,10 @@ function AuthScreen() {
             onPress={() => {
               setMode("sign_in");
               setAwaitingVerification(false);
+              setAwaitingSignInVerification(false);
+              setCode("");
               setErrorText(null);
+              setInfoText(null);
             }}
           >
             <Text style={mode === "sign_in" ? styles.segmentTextActive : styles.segmentText}>Вход</Text>
@@ -753,15 +861,17 @@ function AuthScreen() {
             onPress={() => {
               setMode("sign_up");
               setAwaitingVerification(false);
+              setAwaitingSignInVerification(false);
               setCode("");
               setErrorText(null);
+              setInfoText(null);
             }}
           >
             <Text style={mode === "sign_up" ? styles.segmentTextActive : styles.segmentText}>Регистрация</Text>
           </Pressable>
         </View>
 
-        {!awaitingVerification ? (
+        {!isAwaitingCode ? (
           <>
             {mode === "sign_up" ? (
               <TextInput
@@ -792,13 +902,15 @@ function AuthScreen() {
         ) : (
           <TextInput
             style={styles.input}
-            placeholder="Код подтверждения"
+            placeholder={awaitingSignInVerification ? "Код из письма" : "Код подтверждения"}
             autoCapitalize="none"
+            keyboardType="number-pad"
             value={code}
             onChangeText={setCode}
           />
         )}
 
+        {infoText ? <Text style={styles.successText}>{infoText}</Text> : null}
         {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
 
         <Pressable
@@ -810,20 +922,34 @@ function AuthScreen() {
             {isLoading
               ? "Подождите..."
               : mode === "sign_in"
-                ? "Войти"
+                ? awaitingSignInVerification
+                  ? "Подтвердить вход"
+                  : "Войти"
                 : awaitingVerification
                   ? "Подтвердить почту"
                   : "Создать аккаунт"}
           </Text>
         </Pressable>
 
-        <Pressable
-          style={[styles.secondaryButton, isLoading || !isReady ? styles.buttonDisabled : null]}
-          disabled={isLoading || !isReady}
-          onPress={handleGoogleAuth}
-        >
-          <Text style={styles.secondaryButtonText}>Продолжить с Google</Text>
-        </Pressable>
+        {isAwaitingCode ? (
+          <Pressable
+            style={[styles.secondaryButton, isLoading || !isReady ? styles.buttonDisabled : null]}
+            disabled={isLoading || !isReady}
+            onPress={handleResendCode}
+          >
+            <Text style={styles.secondaryButtonText}>Отправить код ещё раз</Text>
+          </Pressable>
+        ) : null}
+
+        {!isAwaitingCode ? (
+          <Pressable
+            style={[styles.secondaryButton, isLoading || !isReady ? styles.buttonDisabled : null]}
+            disabled={isLoading || !isReady}
+            onPress={handleGoogleAuth}
+          >
+            <Text style={styles.secondaryButtonText}>Продолжить с Google</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
