@@ -397,6 +397,17 @@ function formatDrawUnlockTime(timestamp: number) {
   }).format(new Date(timestamp));
 }
 
+function formatDrawCountdown(unlockAt: number, now: number) {
+  const totalSeconds = Math.max(0, Math.ceil((unlockAt - now) / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+
+  return days > 0 ? `${days}д ${clock}` : clock;
+}
+
 function formatMatchScore(match: MatchView) {
   if (match.homeScore === null || match.awayScore === null) {
     return "-";
@@ -919,6 +930,7 @@ function SignedInHome() {
   const maxUserAssignments = dashboard?.teamsByPot.length ?? POTS.length;
   const drawUnlockAt = dashboard?.drawUnlockAt ?? null;
   const drawIsLocked = drawUnlockAt === null || nowMs < drawUnlockAt;
+  const drawCountdownText = drawUnlockAt ? formatDrawCountdown(drawUnlockAt, nowMs) : "Пауза";
   const drawLockText = drawUnlockAt
     ? `Жеребьёвка откроется ${formatDrawUnlockTime(drawUnlockAt)}. Ждём регистрацию новых игроков.`
     : "Выбор команд временно закрыт. Ждём регистрацию новых игроков.";
@@ -1182,7 +1194,7 @@ function SignedInHome() {
                         onPress={() => void handleDraw(pot.pot)}
                       >
                         <Text style={styles.primaryButtonText}>
-                          {alreadyDrawn ? "Выбрано" : drawIsLocked ? "Пауза" : isBusy ? "Выбираем..." : "Вытащить"}
+                          {alreadyDrawn ? "Выбрано" : drawIsLocked ? drawCountdownText : isBusy ? "Выбираем..." : "Вытащить"}
                         </Text>
                       </Pressable>
                     </View>
