@@ -339,6 +339,21 @@ function getErrorMessage(error: unknown): string {
   return "Не удалось выполнить действие. Проверьте данные и попробуйте ещё раз.";
 }
 
+function getIncompleteSignInMessage(status: string | null | undefined) {
+  switch (status) {
+    case "needs_identifier":
+      return "Укажите почту, с которой был создан аккаунт.";
+    case "needs_first_factor":
+      return "Clerk ждёт подтверждение первого шага входа. Попробуйте ещё раз или напишите организатору.";
+    case "needs_second_factor":
+      return "Для этого аккаунта включена дополнительная проверка входа, а в приложении она пока не поддержана.";
+    case "needs_new_password":
+      return "Для этого аккаунта нужно обновить пароль через Clerk.";
+    default:
+      return "Вход не был завершён. Попробуйте ещё раз или напишите организатору.";
+  }
+}
+
 function getMetadataDisplayName(metadata: unknown): string | undefined {
   if (!metadata || typeof metadata !== "object") return undefined;
 
@@ -581,13 +596,14 @@ function AuthScreen() {
       setIsLoading(true);
       const attempt = await signIn.create({
         identifier: email.trim(),
+        strategy: "password",
         password,
       });
 
       if (attempt.status === "complete" && attempt.createdSessionId) {
         await setActive({ session: attempt.createdSessionId });
       } else {
-        setErrorText("Вход не был завершён.");
+        setErrorText(getIncompleteSignInMessage(attempt.status));
       }
     } catch (error) {
       setErrorText(getErrorMessage(error));
