@@ -55,6 +55,12 @@ export default defineSchema({
     homePenaltyScore: v.optional(v.number()),
     awayPenaltyScore: v.optional(v.number()),
     status: matchStatusValidator,
+    apiFootballFixtureId: v.optional(v.number()),
+    apiFootballStatus: v.optional(v.string()),
+    apiFootballUpdatedAt: v.optional(v.number()),
+    espnEventId: v.optional(v.string()),
+    espnStatus: v.optional(v.string()),
+    espnUpdatedAt: v.optional(v.number()),
     venue: v.optional(v.string()),
     source: v.optional(v.string()),
     createdAt: v.number(),
@@ -63,5 +69,7 @@ export default defineSchema({
     .index("by_scheduled_at", ["scheduledAt"])
     .index("by_external_id", ["externalId"])
     .index("by_match_number", ["matchNumber"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_api_football_fixture_id", ["apiFootballFixtureId"])
+    .index("by_espn_event_id", ["espnEventId"]),
 });

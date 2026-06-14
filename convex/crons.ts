@@ -10,4 +10,10 @@ crons.interval(
   internal.matches.syncLiveStatusesInternal,
 );
 
+crons.interval(
+  "sync match results from ESPN",
+  { hours: 1 },
+  internal.matches.syncFromEspnInternal,
+);
+
 export default crons;

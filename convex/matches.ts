@@ -1,6 +1,8 @@
-import { internalMutation, mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
-import { matchDecisionValidator } from "./validators";
+import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
+import type { ActionCtx, MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import { matchDecisionValidator, matchStatusValidator } from "./validators";
 import type { MatchStage } from "./validators";
 import { v } from "convex/values";
 
@@ -17,6 +19,38 @@ type MatchSeed = {
   awayScore?: number;
   status: "scheduled" | "completed";
   venue: string;
+};
+
+type MatchStatus = "scheduled" | "live" | "completed";
+type ApiFootballFixtureUpdate = {
+  fixtureId: number;
+  kickoffAt: number;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  apiStatus: string;
+  status: MatchStatus;
+  decidedBy?: "regular" | "extra_time" | "penalties";
+  homeWinner: boolean | null;
+  awayWinner: boolean | null;
+};
+type EspnFixtureUpdate = {
+  eventId: string;
+  kickoffAt: number;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  apiStatus: string;
+  status: MatchStatus;
+  decidedBy?: "regular" | "extra_time" | "penalties";
+  homeWinner: boolean | null;
+  awayWinner: boolean | null;
 };
 
 const MATCH_SEED: MatchSeed[] = [
@@ -94,14 +128,329 @@ const MATCH_SEED: MatchSeed[] = [
   {"matchNumber":72,"externalId":"L6","group":"L","scheduledAt":"2026-06-27T21:00:00.000Z","sourceKickoff":"5:00 p.m. UTC−4","homeTeam":"Хорватия","awayTeam":"Гана","status":"scheduled","venue":"Lincoln Financial Field, Philadelphia"},
 ];
 
+const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
+const ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
+const ESPN_SYNC_WINDOW_BEFORE_MS = 2 * 24 * 60 * 60 * 1000;
+const ESPN_SYNC_WINDOW_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
+const LIVE_API_STATUSES = new Set(["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"]);
+const COMPLETED_API_STATUSES = new Set(["FT", "AET", "PEN"]);
+const SCHEDULED_API_STATUSES = new Set(["TBD", "NS", "PST"]);
+const API_TEAM_NAME_ALIASES: Record<string, string> = {
+  argentina: "Аргентина",
+  spain: "Испания",
+  france: "Франция",
+  england: "Англия",
+  portugal: "Португалия",
+  brazil: "Бразилия",
+  morocco: "Марокко",
+  netherlands: "Нидерланды",
+  belgium: "Бельгия",
+  germany: "Германия",
+  croatia: "Хорватия",
+  colombia: "Колумбия",
+  mexico: "Мексика",
+  senegal: "Сенегал",
+  uruguay: "Уругвай",
+  usa: "США",
+  "united states": "США",
+  japan: "Япония",
+  switzerland: "Швейцария",
+  iran: "Иран",
+  turkey: "Турция",
+  turkiye: "Турция",
+  ecuador: "Эквадор",
+  austria: "Австрия",
+  "south korea": "Южная Корея",
+  "korea republic": "Южная Корея",
+  "republic of korea": "Южная Корея",
+  australia: "Австралия",
+  algeria: "Алжир",
+  egypt: "Египет",
+  canada: "Канада",
+  norway: "Норвегия",
+  "cote divoire": "Кот-д’Ивуар",
+  "cote d ivoire": "Кот-д’Ивуар",
+  "ivory coast": "Кот-д’Ивуар",
+  panama: "Панама",
+  sweden: "Швеция",
+  czechia: "Чехия",
+  "czech republic": "Чехия",
+  paraguay: "Парагвай",
+  scotland: "Шотландия",
+  tunisia: "Тунис",
+  "dr congo": "ДР Конго",
+  "congo dr": "ДР Конго",
+  "democratic republic of the congo": "ДР Конго",
+  uzbekistan: "Узбекистан",
+  qatar: "Катар",
+  iraq: "Ирак",
+  "south africa": "ЮАР",
+  "saudi arabia": "Саудовская Аравия",
+  jordan: "Иордания",
+  "bosnia and herzegovina": "Босния и Герцеговина",
+  "bosnia herzegovina": "Босния и Герцеговина",
+  "bosnia-herzegovina": "Босния и Герцеговина",
+  "cape verde": "Кабо-Верде",
+  "cape verde islands": "Кабо-Верде",
+  ghana: "Гана",
+  curacao: "Кюрасао",
+  haiti: "Гаити",
+  "new zealand": "Новая Зеландия",
+};
+
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
 }
 
-function getVisibleMatchStatus(status: "scheduled" | "live" | "completed", scheduledAt: number, now: number) {
+function normalizeComparableName(name: string) {
+  return name
+    .trim()
+    .toLocaleLowerCase("ru-RU")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-zа-яё0-9]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toKnownTeamName(name: string) {
+  const comparableName = normalizeComparableName(name);
+
+  return API_TEAM_NAME_ALIASES[comparableName] ?? normalizeName(name);
+}
+
+function getVisibleMatchStatus(status: MatchStatus, scheduledAt: number, now: number) {
   if (status === "scheduled" && scheduledAt <= now) return "live";
 
   return status;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getApiFootballMatchStatus(statusShort: string): MatchStatus | null {
+  if (COMPLETED_API_STATUSES.has(statusShort)) return "completed";
+  if (LIVE_API_STATUSES.has(statusShort)) return "live";
+  if (SCHEDULED_API_STATUSES.has(statusShort)) return "scheduled";
+
+  return null;
+}
+
+function getApiFootballDecision(statusShort: string) {
+  if (statusShort === "AET") return "extra_time";
+  if (statusShort === "PEN") return "penalties";
+
+  return "regular";
+}
+
+const nullableNumberValidator = v.union(v.number(), v.null());
+const nullableBooleanValidator = v.union(v.boolean(), v.null());
+const apiFootballFixtureUpdateValidator = v.object({
+  fixtureId: v.number(),
+  kickoffAt: v.number(),
+  homeTeamName: v.string(),
+  awayTeamName: v.string(),
+  homeScore: nullableNumberValidator,
+  awayScore: nullableNumberValidator,
+  homePenaltyScore: nullableNumberValidator,
+  awayPenaltyScore: nullableNumberValidator,
+  apiStatus: v.string(),
+  status: matchStatusValidator,
+  decidedBy: v.optional(matchDecisionValidator),
+  homeWinner: nullableBooleanValidator,
+  awayWinner: nullableBooleanValidator,
+});
+const espnFixtureUpdateValidator = v.object({
+  eventId: v.string(),
+  kickoffAt: v.number(),
+  homeTeamName: v.string(),
+  awayTeamName: v.string(),
+  homeScore: nullableNumberValidator,
+  awayScore: nullableNumberValidator,
+  homePenaltyScore: nullableNumberValidator,
+  awayPenaltyScore: nullableNumberValidator,
+  apiStatus: v.string(),
+  status: matchStatusValidator,
+  decidedBy: v.optional(matchDecisionValidator),
+  homeWinner: nullableBooleanValidator,
+  awayWinner: nullableBooleanValidator,
+});
+
+function getObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function getNestedObject(value: Record<string, unknown> | null, key: string) {
+  return value ? getObject(value[key]) : null;
+}
+
+function getNestedString(value: Record<string, unknown> | null, key: string) {
+  const result = value?.[key];
+
+  return typeof result === "string" ? result : null;
+}
+
+function getNestedBoolean(value: Record<string, unknown> | null, key: string) {
+  const result = value?.[key];
+
+  return typeof result === "boolean" ? result : null;
+}
+
+function toNullableScore(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) return Number(value.trim());
+
+  return null;
+}
+
+function toIdString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  return null;
+}
+
+function getEspnStatus(statusType: Record<string, unknown> | null): MatchStatus | null {
+  const state = getNestedString(statusType, "state");
+  const completed = getNestedBoolean(statusType, "completed");
+
+  if (completed || state === "post") return "completed";
+  if (state === "in") return "live";
+  if (state === "pre") return "scheduled";
+
+  return null;
+}
+
+function getEspnDecision(statusType: Record<string, unknown> | null) {
+  const statusText = [
+    getNestedString(statusType, "name"),
+    getNestedString(statusType, "description"),
+    getNestedString(statusType, "detail"),
+    getNestedString(statusType, "shortDetail"),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase("en-US");
+
+  if (statusText.includes("pen")) return "penalties";
+  if (statusText.includes("aet") || statusText.includes("extra")) return "extra_time";
+
+  return "regular";
+}
+
+function getEspnCompetitorName(competitor: Record<string, unknown> | null) {
+  const team = getNestedObject(competitor, "team");
+
+  return (
+    getNestedString(team, "displayName") ??
+    getNestedString(team, "shortDisplayName") ??
+    getNestedString(team, "name") ??
+    getNestedString(team, "location")
+  );
+}
+
+function normalizeEspnEvent(rawEvent: unknown): EspnFixtureUpdate | null {
+  const event = getObject(rawEvent);
+  const rawCompetitions = event && Array.isArray(event.competitions) ? event.competitions : [];
+  const competition = rawCompetitions.map(getObject).find(Boolean) ?? null;
+  const status = getNestedObject(competition, "status") ?? getNestedObject(event, "status");
+  const statusType = getNestedObject(status, "type");
+  const matchStatus = getEspnStatus(statusType);
+  const rawCompetitors = competition && Array.isArray(competition.competitors) ? competition.competitors : [];
+  const competitors = rawCompetitors.map(getObject).filter((competitor): competitor is Record<string, unknown> => Boolean(competitor));
+  const homeCompetitor = competitors.find((competitor) => getNestedString(competitor, "homeAway") === "home") ?? null;
+  const awayCompetitor = competitors.find((competitor) => getNestedString(competitor, "homeAway") === "away") ?? null;
+  const eventId = toIdString(event?.id ?? competition?.id);
+  const kickoffAt = Date.parse(
+    getNestedString(competition, "startDate") ??
+    getNestedString(competition, "date") ??
+    getNestedString(event, "date") ??
+    "",
+  );
+  const homeTeamName = getEspnCompetitorName(homeCompetitor);
+  const awayTeamName = getEspnCompetitorName(awayCompetitor);
+  const apiStatus =
+    getNestedString(statusType, "name") ??
+    getNestedString(statusType, "description") ??
+    getNestedString(statusType, "shortDetail") ??
+    "UNKNOWN";
+
+  if (
+    !eventId ||
+    !Number.isFinite(kickoffAt) ||
+    !homeTeamName ||
+    !awayTeamName ||
+    !matchStatus
+  ) {
+    return null;
+  }
+
+  return {
+    eventId,
+    kickoffAt,
+    homeTeamName,
+    awayTeamName,
+    homeScore: matchStatus === "scheduled" ? null : toNullableScore(homeCompetitor?.score),
+    awayScore: matchStatus === "scheduled" ? null : toNullableScore(awayCompetitor?.score),
+    homePenaltyScore: null,
+    awayPenaltyScore: null,
+    apiStatus,
+    status: matchStatus,
+    decidedBy: matchStatus === "completed" ? getEspnDecision(statusType) : undefined,
+    homeWinner: getNestedBoolean(homeCompetitor, "winner"),
+    awayWinner: getNestedBoolean(awayCompetitor, "winner"),
+  };
+}
+
+function normalizeApiFootballFixture(rawFixture: unknown): ApiFootballFixtureUpdate | null {
+  const fixtureResponse = getObject(rawFixture);
+  const fixture = getNestedObject(fixtureResponse, "fixture");
+  const fixtureStatus = getNestedObject(fixture, "status");
+  const teams = getNestedObject(fixtureResponse, "teams");
+  const homeTeam = getNestedObject(teams, "home");
+  const awayTeam = getNestedObject(teams, "away");
+  const goals = getNestedObject(fixtureResponse, "goals");
+  const score = getNestedObject(fixtureResponse, "score");
+  const penaltyScore = getNestedObject(score, "penalty");
+
+  const fixtureId = toNullableNumber(fixture?.id);
+  const timestamp = toNullableNumber(fixture?.timestamp);
+  const fixtureDate = getNestedString(fixture, "date");
+  const kickoffAt = timestamp !== null ? timestamp * 1000 : Date.parse(fixtureDate ?? "");
+  const homeTeamName = getNestedString(homeTeam, "name");
+  const awayTeamName = getNestedString(awayTeam, "name");
+  const apiStatus = getNestedString(fixtureStatus, "short");
+  const status = apiStatus ? getApiFootballMatchStatus(apiStatus) : null;
+
+  if (
+    fixtureId === null ||
+    !Number.isFinite(kickoffAt) ||
+    !homeTeamName ||
+    !awayTeamName ||
+    !apiStatus ||
+    !status
+  ) {
+    return null;
+  }
+
+  return {
+    fixtureId,
+    kickoffAt,
+    homeTeamName,
+    awayTeamName,
+    homeScore: toNullableNumber(goals?.home),
+    awayScore: toNullableNumber(goals?.away),
+    homePenaltyScore: toNullableNumber(penaltyScore?.home),
+    awayPenaltyScore: toNullableNumber(penaltyScore?.away),
+    apiStatus,
+    status,
+    decidedBy: status === "completed" ? getApiFootballDecision(apiStatus) : undefined,
+    homeWinner: getNestedBoolean(homeTeam, "winner"),
+    awayWinner: getNestedBoolean(awayTeam, "winner"),
+  };
 }
 
 async function insertSeedMatches(ctx: MutationCtx) {
@@ -190,6 +539,12 @@ export const list = query({
         awayPenaltyScore: match.awayPenaltyScore ?? null,
         status: getVisibleMatchStatus(match.status, match.scheduledAt, now),
         storedStatus: match.status,
+        apiFootballFixtureId: match.apiFootballFixtureId ?? null,
+        apiFootballStatus: match.apiFootballStatus ?? null,
+        apiFootballUpdatedAt: match.apiFootballUpdatedAt ?? null,
+        espnEventId: match.espnEventId ?? null,
+        espnStatus: match.espnStatus ?? null,
+        espnUpdatedAt: match.espnUpdatedAt ?? null,
         venue: match.venue ?? null,
       }))
       .sort((a, b) => a.scheduledAt - b.scheduledAt || a.matchNumber - b.matchNumber);
@@ -250,6 +605,441 @@ export const setResult = mutation({
       winnerTeamId,
       status: "completed",
     };
+  },
+});
+
+function findMatchForApiFixture(matches: Doc<"matches">[], fixture: ApiFootballFixtureUpdate) {
+  const matchByFixtureId = matches.find((match) => match.apiFootballFixtureId === fixture.fixtureId);
+  if (matchByFixtureId) return { match: matchByFixtureId, isReversed: false };
+
+  const apiHomeTeamName = normalizeName(toKnownTeamName(fixture.homeTeamName));
+  const apiAwayTeamName = normalizeName(toKnownTeamName(fixture.awayTeamName));
+  const candidates = matches
+    .map((match) => {
+      const exactTeams = match.homeTeamName === apiHomeTeamName && match.awayTeamName === apiAwayTeamName;
+      const reversedTeams = match.homeTeamName === apiAwayTeamName && match.awayTeamName === apiHomeTeamName;
+
+      if (!exactTeams && !reversedTeams) return null;
+
+      return {
+        match,
+        isReversed: reversedTeams,
+        kickoffDiffMs: Math.abs(match.scheduledAt - fixture.kickoffAt),
+      };
+    })
+    .filter((candidate): candidate is { match: Doc<"matches">; isReversed: boolean; kickoffDiffMs: number } => Boolean(candidate))
+    .sort((first, second) => first.kickoffDiffMs - second.kickoffDiffMs);
+
+  return candidates[0] ?? null;
+}
+
+function findMatchForEspnFixture(matches: Doc<"matches">[], fixture: EspnFixtureUpdate) {
+  const matchByEventId = matches.find((match) => match.espnEventId === fixture.eventId);
+  if (matchByEventId) return { match: matchByEventId, isReversed: false };
+
+  const espnHomeTeamName = normalizeName(toKnownTeamName(fixture.homeTeamName));
+  const espnAwayTeamName = normalizeName(toKnownTeamName(fixture.awayTeamName));
+  const candidates = matches
+    .map((match) => {
+      const exactTeams = match.homeTeamName === espnHomeTeamName && match.awayTeamName === espnAwayTeamName;
+      const reversedTeams = match.homeTeamName === espnAwayTeamName && match.awayTeamName === espnHomeTeamName;
+
+      if (!exactTeams && !reversedTeams) return null;
+
+      return {
+        match,
+        isReversed: reversedTeams,
+        kickoffDiffMs: Math.abs(match.scheduledAt - fixture.kickoffAt),
+      };
+    })
+    .filter((candidate): candidate is { match: Doc<"matches">; isReversed: boolean; kickoffDiffMs: number } => Boolean(candidate))
+    .sort((first, second) => first.kickoffDiffMs - second.kickoffDiffMs);
+
+  return candidates[0] ?? null;
+}
+
+function getLocalWinnerTeamId(
+  match: Doc<"matches">,
+  fixture: ApiFootballFixtureUpdate | EspnFixtureUpdate,
+  isReversed: boolean,
+  homeScore: number,
+  awayScore: number,
+): Id<"teams"> | undefined {
+  if (homeScore > awayScore) return match.homeTeamId;
+  if (awayScore > homeScore) return match.awayTeamId;
+
+  const apiWinnerSide = fixture.homeWinner ? "home" : fixture.awayWinner ? "away" : null;
+  if (!apiWinnerSide) return undefined;
+
+  const localWinnerSide =
+    !isReversed ? apiWinnerSide : apiWinnerSide === "home" ? "away" : "home";
+
+  return localWinnerSide === "home" ? match.homeTeamId : match.awayTeamId;
+}
+
+export const applyApiFootballFixtures = internalMutation({
+  args: {
+    fixtures: v.array(apiFootballFixtureUpdateValidator),
+  },
+  handler: async (ctx, args) => {
+    const matches = await ctx.db.query("matches").collect();
+    const now = Date.now();
+    let matched = 0;
+    let updated = 0;
+    let completed = 0;
+    let live = 0;
+    let scheduled = 0;
+    const unmatched: Array<{ fixtureId: number; homeTeamName: string; awayTeamName: string; apiStatus: string }> = [];
+
+    for (const fixture of args.fixtures) {
+      const matchResult = findMatchForApiFixture(matches, fixture);
+
+      if (!matchResult) {
+        unmatched.push({
+          fixtureId: fixture.fixtureId,
+          homeTeamName: fixture.homeTeamName,
+          awayTeamName: fixture.awayTeamName,
+          apiStatus: fixture.apiStatus,
+        });
+        continue;
+      }
+
+      const { match, isReversed } = matchResult;
+      const homeScore = isReversed ? fixture.awayScore : fixture.homeScore;
+      const awayScore = isReversed ? fixture.homeScore : fixture.awayScore;
+      const homePenaltyScore = isReversed ? fixture.awayPenaltyScore : fixture.homePenaltyScore;
+      const awayPenaltyScore = isReversed ? fixture.homePenaltyScore : fixture.awayPenaltyScore;
+      const patch: Partial<Doc<"matches">> = {
+        apiFootballFixtureId: fixture.fixtureId,
+        apiFootballStatus: fixture.apiStatus,
+        apiFootballUpdatedAt: now,
+        updatedAt: now,
+      };
+
+      matched += 1;
+
+      if (fixture.status === "completed" && homeScore !== null && awayScore !== null) {
+        patch.status = "completed";
+        patch.homeScore = homeScore;
+        patch.awayScore = awayScore;
+        patch.homePenaltyScore = homePenaltyScore ?? undefined;
+        patch.awayPenaltyScore = awayPenaltyScore ?? undefined;
+        patch.decidedBy = fixture.decidedBy ?? "regular";
+        patch.winnerTeamId = getLocalWinnerTeamId(match, fixture, isReversed, homeScore, awayScore);
+        completed += 1;
+      } else if (fixture.status === "live" && match.status !== "completed") {
+        patch.status = "live";
+        if (homeScore !== null && awayScore !== null) {
+          patch.homeScore = homeScore;
+          patch.awayScore = awayScore;
+        }
+        live += 1;
+      } else if (fixture.status === "scheduled" && match.status !== "completed") {
+        patch.status = "scheduled";
+        scheduled += 1;
+      }
+
+      await ctx.db.patch(match._id, patch);
+      Object.assign(match, patch);
+      updated += 1;
+    }
+
+    return {
+      received: args.fixtures.length,
+      matched,
+      updated,
+      completed,
+      live,
+      scheduled,
+      unmatched: unmatched.slice(0, 12),
+    };
+  },
+});
+
+export const applyEspnFixtures = internalMutation({
+  args: {
+    fixtures: v.array(espnFixtureUpdateValidator),
+  },
+  handler: async (ctx, args) => {
+    const matches = await ctx.db.query("matches").collect();
+    const now = Date.now();
+    let matched = 0;
+    let updated = 0;
+    let completed = 0;
+    let live = 0;
+    let scheduled = 0;
+    const unmatched: Array<{ eventId: string; homeTeamName: string; awayTeamName: string; apiStatus: string }> = [];
+
+    for (const fixture of args.fixtures) {
+      const matchResult = findMatchForEspnFixture(matches, fixture);
+
+      if (!matchResult) {
+        unmatched.push({
+          eventId: fixture.eventId,
+          homeTeamName: fixture.homeTeamName,
+          awayTeamName: fixture.awayTeamName,
+          apiStatus: fixture.apiStatus,
+        });
+        continue;
+      }
+
+      const { match, isReversed } = matchResult;
+      const homeScore = isReversed ? fixture.awayScore : fixture.homeScore;
+      const awayScore = isReversed ? fixture.homeScore : fixture.awayScore;
+      const homePenaltyScore = isReversed ? fixture.awayPenaltyScore : fixture.homePenaltyScore;
+      const awayPenaltyScore = isReversed ? fixture.homePenaltyScore : fixture.awayPenaltyScore;
+      const patch: Partial<Doc<"matches">> = {
+        espnEventId: fixture.eventId,
+        espnStatus: fixture.apiStatus,
+        espnUpdatedAt: now,
+        updatedAt: now,
+      };
+
+      matched += 1;
+
+      if (fixture.status === "completed" && homeScore !== null && awayScore !== null) {
+        patch.status = "completed";
+        patch.homeScore = homeScore;
+        patch.awayScore = awayScore;
+        patch.homePenaltyScore = homePenaltyScore ?? undefined;
+        patch.awayPenaltyScore = awayPenaltyScore ?? undefined;
+        patch.decidedBy = fixture.decidedBy ?? "regular";
+        patch.winnerTeamId = getLocalWinnerTeamId(match, fixture, isReversed, homeScore, awayScore);
+        completed += 1;
+      } else if (fixture.status === "live" && match.status !== "completed") {
+        patch.status = "live";
+        if (homeScore !== null && awayScore !== null) {
+          patch.homeScore = homeScore;
+          patch.awayScore = awayScore;
+        }
+        live += 1;
+      } else if (fixture.status === "scheduled" && match.status !== "completed") {
+        patch.status = "scheduled";
+        scheduled += 1;
+      }
+
+      await ctx.db.patch(match._id, patch);
+      Object.assign(match, patch);
+      updated += 1;
+    }
+
+    return {
+      received: args.fixtures.length,
+      matched,
+      updated,
+      completed,
+      live,
+      scheduled,
+      unmatched: unmatched.slice(0, 12),
+    };
+  },
+});
+
+function formatEspnDateKey(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${year}${month}${day}`;
+}
+
+function normalizeEspnDateInput(value: string) {
+  const trimmedValue = value.trim();
+
+  if (/^\d{8}$/.test(trimmedValue)) return trimmedValue;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) return trimmedValue.replaceAll("-", "");
+
+  throw new Error("Дата для ESPN sync должна быть в формате YYYYMMDD или YYYY-MM-DD.");
+}
+
+function getEspnDateParam(args: { date?: string; startDate?: string; endDate?: string }) {
+  if (args.date) return normalizeEspnDateInput(args.date);
+
+  if (args.startDate || args.endDate) {
+    if (!args.startDate || !args.endDate) {
+      throw new Error("Для диапазона ESPN sync нужно указать и startDate, и endDate.");
+    }
+
+    return `${normalizeEspnDateInput(args.startDate)}-${normalizeEspnDateInput(args.endDate)}`;
+  }
+
+  const now = Date.now();
+  return `${formatEspnDateKey(now - ESPN_SYNC_WINDOW_BEFORE_MS)}-${formatEspnDateKey(now + ESPN_SYNC_WINDOW_AFTER_MS)}`;
+}
+
+function getSyncErrorMessage(error: unknown, provider = "провайдера") {
+  return error instanceof Error ? error.message : `Неизвестная ошибка ${provider}.`;
+}
+
+async function syncFromEspnHandler(
+  ctx: ActionCtx,
+  args: { date?: string; startDate?: string; endDate?: string },
+): Promise<Record<string, unknown>> {
+  const dateParam = getEspnDateParam(args);
+
+  try {
+    const url = new URL(ESPN_SCOREBOARD_URL);
+    url.searchParams.set("dates", dateParam);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        provider: "espn",
+        dateParam,
+        error: `ESPN вернул HTTP ${response.status}.`,
+      };
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    const rawEvents = Array.isArray(payload.events) ? payload.events : [];
+    const fixtureMap = new Map<string, EspnFixtureUpdate>();
+
+    for (const rawEvent of rawEvents) {
+      const fixture = normalizeEspnEvent(rawEvent);
+      if (fixture) {
+        fixtureMap.set(fixture.eventId, fixture);
+      }
+    }
+
+    const fixtures = [...fixtureMap.values()];
+    const applyResult: Record<string, unknown> = await ctx.runMutation(internal.matches.applyEspnFixtures, {
+      fixtures,
+    });
+
+    return {
+      ok: true,
+      provider: "espn",
+      dateParam,
+      fetched: rawEvents.length,
+      normalized: fixtures.length,
+      ...applyResult,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      provider: "espn",
+      dateParam,
+      error: getSyncErrorMessage(error, "ESPN"),
+    };
+  }
+}
+
+export const syncFromEspn = action({
+  args: {
+    date: v.optional(v.string()),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await syncFromEspnHandler(ctx, args);
+  },
+});
+
+export const syncFromEspnInternal = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    return await syncFromEspnHandler(ctx, {});
+  },
+});
+
+function hasApiFootballErrors(errors: unknown) {
+  if (Array.isArray(errors)) return errors.length > 0;
+  if (errors && typeof errors === "object") return Object.keys(errors).length > 0;
+
+  return Boolean(errors);
+}
+
+async function syncFromApiFootballHandler(ctx: ActionCtx): Promise<Record<string, unknown>> {
+  const apiKey = process.env.FOOTBALL_API_KEY;
+  const leagueId = process.env.FOOTBALL_API_LEAGUE_ID;
+  const season = process.env.FOOTBALL_API_SEASON;
+
+  if (!apiKey || !leagueId || !season) {
+    return {
+      ok: false,
+      provider: "api-football",
+      error: "Не настроены FOOTBALL_API_KEY, FOOTBALL_API_LEAGUE_ID или FOOTBALL_API_SEASON в Convex env.",
+    };
+  }
+
+  try {
+    const url = new URL(`${API_FOOTBALL_BASE_URL}/fixtures`);
+    url.searchParams.set("league", leagueId);
+    url.searchParams.set("season", season);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        "x-apisports-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        provider: "api-football",
+        leagueId,
+        season,
+        error: `API-Football вернул HTTP ${response.status}.`,
+      };
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    if (hasApiFootballErrors(payload.errors)) {
+      return {
+        ok: false,
+        provider: "api-football",
+        leagueId,
+        season,
+        error: `API-Football вернул ошибку: ${JSON.stringify(payload.errors)}`,
+      };
+    }
+
+    const rawFixtures = Array.isArray(payload.response) ? payload.response : [];
+    const fixtures = rawFixtures
+      .map(normalizeApiFootballFixture)
+      .filter((fixture): fixture is ApiFootballFixtureUpdate => Boolean(fixture));
+    const applyResult: Record<string, unknown> = await ctx.runMutation(internal.matches.applyApiFootballFixtures, {
+      fixtures,
+    });
+
+    return {
+      ok: true,
+      provider: "api-football",
+      leagueId,
+      season,
+      fetched: rawFixtures.length,
+      normalized: fixtures.length,
+      ...applyResult,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      provider: "api-football",
+      leagueId,
+      season,
+      error: getSyncErrorMessage(error),
+    };
+  }
+}
+
+export const syncFromApiFootball = action({
+  args: {},
+  handler: async (ctx) => {
+    return await syncFromApiFootballHandler(ctx);
+  },
+});
+
+export const syncFromApiFootballInternal = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    return await syncFromApiFootballHandler(ctx);
   },
 });
 

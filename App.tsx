@@ -143,6 +143,12 @@ type MatchView = {
   awayPenaltyScore: number | null;
   status: "scheduled" | "live" | "completed";
   storedStatus?: "scheduled" | "live" | "completed";
+  apiFootballFixtureId?: number | null;
+  apiFootballStatus?: string | null;
+  apiFootballUpdatedAt?: number | null;
+  espnEventId?: string | null;
+  espnStatus?: string | null;
+  espnUpdatedAt?: number | null;
   venue: string | null;
 };
 type AuthStatusView = {
