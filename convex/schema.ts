@@ -37,6 +37,13 @@ export default defineSchema({
     .index("by_pot", ["pot"])
     .index("by_user_pot", ["userId", "pot"]),
 
+  gameSettings: defineTable({
+    key: v.string(),
+    drawLocked: v.optional(v.boolean()),
+    drawUnlockAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
   matches: defineTable({
     externalId: v.string(),
     matchNumber: v.number(),
@@ -72,4 +79,22 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_api_football_fixture_id", ["apiFootballFixtureId"])
     .index("by_espn_event_id", ["espnEventId"]),
+
+  syncLogs: defineTable({
+    provider: v.string(),
+    ok: v.boolean(),
+    dateParam: v.optional(v.string()),
+    fetched: v.optional(v.number()),
+    normalized: v.optional(v.number()),
+    matched: v.optional(v.number()),
+    updated: v.optional(v.number()),
+    completed: v.optional(v.number()),
+    live: v.optional(v.number()),
+    scheduled: v.optional(v.number()),
+    unmatched: v.optional(v.number()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_created_at", ["createdAt"])
+    .index("by_provider_created_at", ["provider", "createdAt"]),
 });

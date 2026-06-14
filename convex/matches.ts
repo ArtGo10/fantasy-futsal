@@ -2,7 +2,8 @@ import { action, internalAction, internalMutation, mutation, query } from "./_ge
 import type { ActionCtx, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { matchDecisionValidator, matchStatusValidator } from "./validators";
+import { requireAdmin } from "./authHelpers";
+import { matchDecisionValidator, matchStageValidator, matchStatusValidator } from "./validators";
 import type { MatchStage } from "./validators";
 import { v } from "convex/values";
 
@@ -278,6 +279,20 @@ const espnFixtureUpdateValidator = v.object({
   homeWinner: nullableBooleanValidator,
   awayWinner: nullableBooleanValidator,
 });
+const syncLogValidator = v.object({
+  provider: v.string(),
+  ok: v.boolean(),
+  dateParam: v.optional(v.string()),
+  fetched: v.optional(v.number()),
+  normalized: v.optional(v.number()),
+  matched: v.optional(v.number()),
+  updated: v.optional(v.number()),
+  completed: v.optional(v.number()),
+  live: v.optional(v.number()),
+  scheduled: v.optional(v.number()),
+  unmatched: v.optional(v.number()),
+  error: v.optional(v.string()),
+});
 
 function getObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -551,6 +566,45 @@ export const list = query({
   },
 });
 
+export const syncStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const latestLog = await ctx.db
+      .query("syncLogs")
+      .withIndex("by_created_at")
+      .order("desc")
+      .first();
+    const matches = await ctx.db.query("matches").collect();
+
+    return {
+      latest: latestLog
+        ? {
+            id: latestLog._id,
+            provider: latestLog.provider,
+            ok: latestLog.ok,
+            dateParam: latestLog.dateParam ?? null,
+            fetched: latestLog.fetched ?? null,
+            normalized: latestLog.normalized ?? null,
+            matched: latestLog.matched ?? null,
+            updated: latestLog.updated ?? null,
+            completed: latestLog.completed ?? null,
+            live: latestLog.live ?? null,
+            scheduled: latestLog.scheduled ?? null,
+            unmatched: latestLog.unmatched ?? null,
+            error: latestLog.error ?? null,
+            createdAt: latestLog.createdAt,
+          }
+        : null,
+      matches: {
+        total: matches.length,
+        scheduled: matches.filter((match) => match.status === "scheduled").length,
+        live: matches.filter((match) => match.status === "live").length,
+        completed: matches.filter((match) => match.status === "completed").length,
+      },
+    };
+  },
+});
+
 export const seedIfEmpty = mutation({
   args: {},
   handler: async (ctx) => {
@@ -604,6 +658,72 @@ export const setResult = mutation({
       awayScore: args.awayScore,
       winnerTeamId,
       status: "completed",
+    };
+  },
+});
+
+export const adminSetMatchState = mutation({
+  args: {
+    externalId: v.string(),
+    stage: v.optional(matchStageValidator),
+    status: v.optional(matchStatusValidator),
+    homeScore: v.optional(nullableNumberValidator),
+    awayScore: v.optional(nullableNumberValidator),
+    decidedBy: v.optional(matchDecisionValidator),
+    homePenaltyScore: v.optional(nullableNumberValidator),
+    awayPenaltyScore: v.optional(nullableNumberValidator),
+    winnerSide: v.optional(v.union(v.literal("home"), v.literal("away"), v.literal("none"))),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const match = await ctx.db
+      .query("matches")
+      .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId.trim()))
+      .first();
+
+    if (!match) {
+      throw new Error(`Матч ${args.externalId} не найден.`);
+    }
+
+    const homeScore = args.homeScore === undefined ? match.homeScore ?? null : args.homeScore;
+    const awayScore = args.awayScore === undefined ? match.awayScore ?? null : args.awayScore;
+    const patch: Partial<Doc<"matches">> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.stage !== undefined) patch.stage = args.stage;
+    if (args.status !== undefined) patch.status = args.status;
+    if (args.homeScore !== undefined) patch.homeScore = args.homeScore ?? undefined;
+    if (args.awayScore !== undefined) patch.awayScore = args.awayScore ?? undefined;
+    if (args.decidedBy !== undefined) patch.decidedBy = args.decidedBy;
+    if (args.homePenaltyScore !== undefined) patch.homePenaltyScore = args.homePenaltyScore ?? undefined;
+    if (args.awayPenaltyScore !== undefined) patch.awayPenaltyScore = args.awayPenaltyScore ?? undefined;
+
+    if (args.winnerSide === "home") {
+      patch.winnerTeamId = match.homeTeamId;
+    } else if (args.winnerSide === "away") {
+      patch.winnerTeamId = match.awayTeamId;
+    } else if (args.winnerSide === "none") {
+      patch.winnerTeamId = undefined;
+    } else if (homeScore !== null && awayScore !== null) {
+      patch.winnerTeamId =
+        homeScore > awayScore
+          ? match.homeTeamId
+          : awayScore > homeScore
+            ? match.awayTeamId
+            : undefined;
+    }
+
+    await ctx.db.patch(match._id, patch);
+
+    return {
+      id: match._id,
+      externalId: match.externalId,
+      homeTeamName: match.homeTeamName,
+      awayTeamName: match.awayTeamName,
+      status: patch.status ?? match.status,
+      winnerTeamId: patch.winnerTeamId ?? null,
     };
   },
 });
@@ -835,6 +955,64 @@ export const applyEspnFixtures = internalMutation({
   },
 });
 
+export const recordSyncLog = internalMutation({
+  args: {
+    log: syncLogValidator,
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("syncLogs", {
+      ...args.log,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+function toOptionalLogNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function toOptionalLogString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function getUnmatchedLogCount(value: unknown) {
+  return Array.isArray(value) ? value.length : toOptionalLogNumber(value);
+}
+
+async function recordActionSyncLog(ctx: ActionCtx, result: Record<string, unknown>) {
+  const dateParam = toOptionalLogString(result.dateParam);
+  const fetched = toOptionalLogNumber(result.fetched);
+  const normalized = toOptionalLogNumber(result.normalized);
+  const matched = toOptionalLogNumber(result.matched);
+  const updated = toOptionalLogNumber(result.updated);
+  const completed = toOptionalLogNumber(result.completed);
+  const live = toOptionalLogNumber(result.live);
+  const scheduled = toOptionalLogNumber(result.scheduled);
+  const unmatched = getUnmatchedLogCount(result.unmatched);
+  const error = toOptionalLogString(result.error);
+
+  try {
+    await ctx.runMutation(internal.matches.recordSyncLog, {
+      log: {
+        provider: String(result.provider ?? "unknown"),
+        ok: result.ok === true,
+        ...(dateParam === undefined ? {} : { dateParam }),
+        ...(fetched === undefined ? {} : { fetched }),
+        ...(normalized === undefined ? {} : { normalized }),
+        ...(matched === undefined ? {} : { matched }),
+        ...(updated === undefined ? {} : { updated }),
+        ...(completed === undefined ? {} : { completed }),
+        ...(live === undefined ? {} : { live }),
+        ...(scheduled === undefined ? {} : { scheduled }),
+        ...(unmatched === undefined ? {} : { unmatched }),
+        ...(error === undefined ? {} : { error }),
+      },
+    });
+  } catch {
+    // Sync should still succeed even if logging fails.
+  }
+}
+
 function formatEspnDateKey(timestamp: number) {
   const date = new Date(timestamp);
   const year = date.getUTCFullYear();
@@ -889,12 +1067,15 @@ async function syncFromEspnHandler(
     });
 
     if (!response.ok) {
-      return {
+      const result = {
         ok: false,
         provider: "espn",
         dateParam,
         error: `ESPN вернул HTTP ${response.status}.`,
       };
+
+      await recordActionSyncLog(ctx, result);
+      return result;
     }
 
     const payload = await response.json() as Record<string, unknown>;
@@ -913,7 +1094,7 @@ async function syncFromEspnHandler(
       fixtures,
     });
 
-    return {
+    const result = {
       ok: true,
       provider: "espn",
       dateParam,
@@ -921,13 +1102,19 @@ async function syncFromEspnHandler(
       normalized: fixtures.length,
       ...applyResult,
     };
+
+    await recordActionSyncLog(ctx, result);
+    return result;
   } catch (error) {
-    return {
+    const result = {
       ok: false,
       provider: "espn",
       dateParam,
       error: getSyncErrorMessage(error, "ESPN"),
     };
+
+    await recordActionSyncLog(ctx, result);
+    return result;
   }
 }
 
@@ -962,11 +1149,14 @@ async function syncFromApiFootballHandler(ctx: ActionCtx): Promise<Record<string
   const season = process.env.FOOTBALL_API_SEASON;
 
   if (!apiKey || !leagueId || !season) {
-    return {
+    const result = {
       ok: false,
       provider: "api-football",
       error: "Не настроены FOOTBALL_API_KEY, FOOTBALL_API_LEAGUE_ID или FOOTBALL_API_SEASON в Convex env.",
     };
+
+    await recordActionSyncLog(ctx, result);
+    return result;
   }
 
   try {
@@ -981,24 +1171,30 @@ async function syncFromApiFootballHandler(ctx: ActionCtx): Promise<Record<string
     });
 
     if (!response.ok) {
-      return {
+      const result = {
         ok: false,
         provider: "api-football",
         leagueId,
         season,
         error: `API-Football вернул HTTP ${response.status}.`,
       };
+
+      await recordActionSyncLog(ctx, result);
+      return result;
     }
 
     const payload = await response.json() as Record<string, unknown>;
     if (hasApiFootballErrors(payload.errors)) {
-      return {
+      const result = {
         ok: false,
         provider: "api-football",
         leagueId,
         season,
         error: `API-Football вернул ошибку: ${JSON.stringify(payload.errors)}`,
       };
+
+      await recordActionSyncLog(ctx, result);
+      return result;
     }
 
     const rawFixtures = Array.isArray(payload.response) ? payload.response : [];
@@ -1009,7 +1205,7 @@ async function syncFromApiFootballHandler(ctx: ActionCtx): Promise<Record<string
       fixtures,
     });
 
-    return {
+    const result = {
       ok: true,
       provider: "api-football",
       leagueId,
@@ -1018,14 +1214,20 @@ async function syncFromApiFootballHandler(ctx: ActionCtx): Promise<Record<string
       normalized: fixtures.length,
       ...applyResult,
     };
+
+    await recordActionSyncLog(ctx, result);
+    return result;
   } catch (error) {
-    return {
+    const result = {
       ok: false,
       provider: "api-football",
       leagueId,
       season,
       error: getSyncErrorMessage(error),
     };
+
+    await recordActionSyncLog(ctx, result);
+    return result;
   }
 }
 

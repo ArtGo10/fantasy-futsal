@@ -1,7 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { getCurrentUser } from "./authHelpers";
+import { requireAdmin } from "./authHelpers";
 import { POTS, Pot, TEAMS_PER_POT, potValidator, teamStageValidator } from "./validators";
+import { v } from "convex/values";
 
 type TeamSeed = {
   name: string;
@@ -149,10 +150,7 @@ export const list = query({
 export const seedFromCode = mutation({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getCurrentUser(ctx);
-    if (!user || user.participantNumber !== 1) {
-      throw new Error("Загрузить команды может только игрок номер 1.");
-    }
+    await requireAdmin(ctx);
 
     return await insertSeedTeams(ctx);
   },
@@ -177,4 +175,38 @@ export const validateStageReached = mutation({
     stageReached: teamStageValidator,
   },
   handler: async (_ctx, args) => args.stageReached,
+});
+
+export const updateStatus = mutation({
+  args: {
+    teamName: v.string(),
+    stageReached: teamStageValidator,
+    isEliminated: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const normalizedTeamName = normalizeName(args.teamName);
+    const teams = await ctx.db.query("teams").collect();
+    const team = teams.find(
+      (item) => item.name.toLocaleLowerCase("ru-RU") === normalizedTeamName.toLocaleLowerCase("ru-RU"),
+    );
+
+    if (!team) {
+      throw new Error(`Команда ${normalizedTeamName} не найдена.`);
+    }
+
+    await ctx.db.patch(team._id, {
+      stageReached: args.stageReached,
+      isEliminated: args.isEliminated,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      id: team._id,
+      name: team.name,
+      stageReached: args.stageReached,
+      isEliminated: args.isEliminated,
+    };
+  },
 });

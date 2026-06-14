@@ -21,6 +21,7 @@ import {
   AuthLoading,
   ConvexProviderWithAuth,
   Unauthenticated,
+  useAction,
   useMutation,
   useQuery,
 } from "convex/react";
@@ -46,8 +47,11 @@ const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 const POTS = [1, 2, 3] as const;
 const WEB_OAUTH_CALLBACK_PATH = "/sso-callback";
+const TOURNAMENT_LAST_MATCH_AT = Date.UTC(2026, 6, 19, 19, 0, 0);
+const TOURNAMENT_LAST_DAY = getLocalDayStart(TOURNAMENT_LAST_MATCH_AT);
 
 type AuthMode = "sign_in" | "sign_up";
+type DashboardTab = "admin" | "table" | "points" | "schedule";
 type Pot = (typeof POTS)[number];
 type TeamStage = "group" | "round_of_32" | "round_of_16" | "quarter_final" | "semi_final" | "final" | "champion";
 type MatchStage = Exclude<TeamStage, "champion">;
@@ -106,6 +110,7 @@ type DashboardView = {
     email: string | null;
     participantNumber: number | null;
     isParticipant: boolean;
+    isAdmin: boolean;
     assignments: AssignmentView[];
   };
   participants: ParticipantView[];
@@ -116,6 +121,7 @@ type DashboardView = {
   isFull: boolean;
   totalTeams: number;
   teamsReady: boolean;
+  drawLocked: boolean;
   drawUnlockAt: number | null;
   teamsByPot: PotView[];
 };
@@ -151,6 +157,37 @@ type MatchView = {
   espnUpdatedAt?: number | null;
   venue: string | null;
 };
+type SyncStatusView = {
+  latest: null | {
+    id: string;
+    provider: string;
+    ok: boolean;
+    dateParam: string | null;
+    fetched: number | null;
+    normalized: number | null;
+    matched: number | null;
+    updated: number | null;
+    completed: number | null;
+    live: number | null;
+    scheduled: number | null;
+    unmatched: number | null;
+    error: string | null;
+    createdAt: number;
+  };
+  matches: {
+    total: number;
+    scheduled: number;
+    live: number;
+    completed: number;
+  };
+};
+type TeamPointDetails = {
+  matchPoints: number;
+  stageBonus: number;
+  total: number;
+  lines: string[];
+};
+type AdminWinnerSide = "auto" | "home" | "away" | "none";
 type AuthStatusView = {
   authenticated: boolean;
   issuer: string | null;
@@ -187,6 +224,25 @@ const MATCH_STAGE_LABELS: Record<MatchStage, string> = {
   semi_final: "Полуфинал",
   final: "Финал",
 };
+const TEAM_STAGE_LABELS: Record<TeamStage, string> = {
+  group: "Группа",
+  round_of_32: "1/16 финала",
+  round_of_16: "1/8 финала",
+  quarter_final: "1/4 финала",
+  semi_final: "Полуфинал",
+  final: "Финал",
+  champion: "Чемпион",
+};
+const MATCH_STATUS_LABELS: Record<MatchView["status"], string> = {
+  scheduled: "Запланирован",
+  live: "LIVE",
+  completed: "Завершён",
+};
+const MATCH_DECISION_LABELS: Record<MatchDecision, string> = {
+  regular: "Основное время",
+  extra_time: "Доп. время",
+  penalties: "Пенальти",
+};
 
 function getTeamStageBonus(stageReached: TeamStage) {
   const stageIndex = TEAM_STAGE_ORDER.indexOf(stageReached);
@@ -203,6 +259,10 @@ function getTeamMatchPoints(teamId: string, match: MatchView) {
   const isHomeTeam = match.homeTeam.id === teamId;
   const isAwayTeam = match.awayTeam.id === teamId;
   if (!isHomeTeam && !isAwayTeam) return 0;
+
+  if (match.decidedBy === "penalties" && match.homeScore === match.awayScore) {
+    return 1;
+  }
 
   if (match.stage !== "group") {
     if (match.winnerTeamId) return match.winnerTeamId === teamId ? 3 : 0;
@@ -238,6 +298,63 @@ function getAssignmentPoints(assignment: AssignmentView, pointsByTeamId: Map<str
 
 function getParticipantTotalPoints(participant: ParticipantView, pointsByTeamId: Map<string, number>) {
   return participant.assignments.reduce((total, assignment) => total + getAssignmentPoints(assignment, pointsByTeamId), 0);
+}
+
+function getTeamPointDetailsById(matches: MatchView[], participants: ParticipantView[]) {
+  const detailsByTeamId = new Map<string, TeamPointDetails>();
+
+  const ensureDetails = (teamId: string) => {
+    const existing = detailsByTeamId.get(teamId);
+    if (existing) return existing;
+
+    const details: TeamPointDetails = {
+      matchPoints: 0,
+      stageBonus: 0,
+      total: 0,
+      lines: [],
+    };
+    detailsByTeamId.set(teamId, details);
+
+    return details;
+  };
+
+  for (const match of matches) {
+    if (match.status !== "completed") continue;
+
+    const homePoints = getTeamMatchPoints(match.homeTeam.id, match);
+    const awayPoints = getTeamMatchPoints(match.awayTeam.id, match);
+    const scoreText = formatMatchScore(match);
+
+    if (homePoints > 0) {
+      const details = ensureDetails(match.homeTeam.id);
+      details.matchPoints += homePoints;
+      details.total += homePoints;
+      details.lines.push(`${match.homeTeam.name} - ${match.awayTeam.name} ${scoreText}: +${homePoints}`);
+    }
+
+    if (awayPoints > 0) {
+      const details = ensureDetails(match.awayTeam.id);
+      details.matchPoints += awayPoints;
+      details.total += awayPoints;
+      details.lines.push(`${match.homeTeam.name} - ${match.awayTeam.name} ${scoreText}: +${awayPoints}`);
+    }
+  }
+
+  for (const participant of participants) {
+    for (const assignment of participant.assignments) {
+      const stageBonus = getTeamStageBonus(assignment.stageReached);
+      const details = ensureDetails(assignment.teamId);
+
+      details.stageBonus = stageBonus;
+      details.total = details.matchPoints + stageBonus;
+
+      if (stageBonus > 0) {
+        details.lines.push(`${TEAM_STAGE_LABELS[assignment.stageReached]}: +${stageBonus}`);
+      }
+    }
+  }
+
+  return detailsByTeamId;
 }
 
 function capitalizeNamePart(value: string) {
@@ -426,6 +543,32 @@ function formatDrawUnlockTime(timestamp: number) {
   }).format(new Date(timestamp));
 }
 
+function formatDateTime(timestamp: number) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function isSameLocalDay(timestamp: number, referenceTimestamp: number) {
+  return getLocalDayStart(timestamp) === getLocalDayStart(referenceTimestamp);
+}
+
+function getLocalDayStart(timestamp: number) {
+  const date = new Date(timestamp);
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function addLocalDays(timestamp: number, days: number) {
+  const date = new Date(timestamp);
+  date.setDate(date.getDate() + days);
+
+  return getLocalDayStart(date.getTime());
+}
+
 function formatDrawCountdown(unlockAt: number, now: number) {
   const totalSeconds = Math.max(0, Math.ceil((unlockAt - now) / 1000));
   const days = Math.floor(totalSeconds / 86400);
@@ -467,26 +610,6 @@ function getMatchMeta(match: MatchView) {
   const stageLabel = match.stage === "group" && match.group ? `Группа ${match.group}` : MATCH_STAGE_LABELS[match.stage];
 
   return stageLabel;
-}
-
-function groupMatchesByLocalDate(matches: MatchView[]) {
-  const grouped: Array<{ dateLabel: string; matches: MatchView[] }> = [];
-  const groupByDate = new Map<string, { dateLabel: string; matches: MatchView[] }>();
-
-  for (const match of matches) {
-    const dateLabel = formatMatchDate(match.scheduledAt);
-    let group = groupByDate.get(dateLabel);
-
-    if (!group) {
-      group = { dateLabel, matches: [] };
-      groupByDate.set(dateLabel, group);
-      grouped.push(group);
-    }
-
-    group.matches.push(match);
-  }
-
-  return grouped;
 }
 
 function useClerkConvexAuth() {
@@ -995,8 +1118,12 @@ function AssignmentCells({
           >
             {assignment ? (
               <View style={styles.assignmentCellContent}>
-                <Text style={styles.assignmentText} numberOfLines={2}>{assignment.teamName}</Text>
-                <Text style={styles.assignmentPoints}>{points}</Text>
+                <View style={styles.assignmentInfo}>
+                  <Text style={styles.assignmentText} numberOfLines={2}>{assignment.teamName}</Text>
+                </View>
+                <View style={styles.assignmentPointsBox}>
+                  <Text style={styles.assignmentPoints}>{points}</Text>
+                </View>
               </View>
             ) : (
               <Text style={styles.emptyCellText}>-</Text>
@@ -1005,6 +1132,464 @@ function AssignmentCells({
         );
       })}
     </>
+  );
+}
+
+function MatchRow({
+  match,
+  teamOwnersById,
+  teamStatusById,
+}: {
+  match: MatchView;
+  teamOwnersById: Map<string, string>;
+  teamStatusById: Map<string, { isEliminated: boolean }>;
+}) {
+  const homeOwnerName = teamOwnersById.get(match.homeTeam.id);
+  const awayOwnerName = teamOwnersById.get(match.awayTeam.id);
+  const homeStatus = teamStatusById.get(match.homeTeam.id);
+  const awayStatus = teamStatusById.get(match.awayTeam.id);
+  const homeTeamStyle = homeStatus?.isEliminated ? styles.matchTeamEliminated : styles.matchTeamActive;
+  const awayTeamStyle = awayStatus?.isEliminated ? styles.matchTeamEliminated : styles.matchTeamActive;
+
+  return (
+    <View style={[styles.matchRow, match.status === "live" ? styles.matchRowLive : null]}>
+      <View style={styles.matchTimeColumn}>
+        <Text style={styles.matchTime}>{formatMatchTime(match.scheduledAt)}</Text>
+        <Text style={styles.matchMeta} numberOfLines={1}>{getMatchMeta(match)}</Text>
+      </View>
+
+      <View style={styles.matchTeamsColumn}>
+        <Text style={styles.matchTeams}>
+          <Text style={homeTeamStyle}>{match.homeTeam.name}</Text>
+          {homeOwnerName ? <Text style={styles.matchTeamOwner}> ({homeOwnerName})</Text> : null}
+          {" - "}
+          <Text style={awayTeamStyle}>{match.awayTeam.name}</Text>
+          {awayOwnerName ? <Text style={styles.matchTeamOwner}> ({awayOwnerName})</Text> : null}
+        </Text>
+      </View>
+
+      <View style={styles.matchScoreBox}>
+        <Text
+          style={[
+            styles.matchScore,
+            match.status === "live" ? styles.matchScoreLive : null,
+            match.status === "completed" ? styles.matchScoreCompleted : null,
+          ]}
+        >
+          {formatMatchScore(match)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ScoringDetailsPanel({
+  participants,
+  detailsByTeamId,
+}: {
+  participants: ParticipantView[];
+  detailsByTeamId: Map<string, TeamPointDetails>;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const participantsWithAssignments = useMemo(
+    () => participants.filter((participant) => participant.assignments.length > 0),
+    [participants],
+  );
+
+  useEffect(() => {
+    if (activeIndex < participantsWithAssignments.length) return;
+    setActiveIndex(Math.max(0, participantsWithAssignments.length - 1));
+  }, [activeIndex, participantsWithAssignments.length]);
+
+  if (participantsWithAssignments.length === 0) return null;
+
+  const activeParticipant = participantsWithAssignments[activeIndex] ?? participantsWithAssignments[0];
+  const activeParticipantTotal = activeParticipant.assignments.reduce((total, assignment) => {
+    const details = detailsByTeamId.get(assignment.teamId);
+    return total + (details?.total ?? getTeamStageBonus(assignment.stageReached));
+  }, 0);
+  const canSwitchPlayers = participantsWithAssignments.length > 1;
+  const goToPreviousPlayer = () => {
+    setActiveIndex((currentIndex) =>
+      currentIndex === 0 ? participantsWithAssignments.length - 1 : currentIndex - 1,
+    );
+  };
+  const goToNextPlayer = () => {
+    setActiveIndex((currentIndex) => (currentIndex + 1) % participantsWithAssignments.length);
+  };
+
+  return (
+    <View style={styles.pointsDetails}>
+      <Text style={styles.scoringRulesTitle}>Детализация очков</Text>
+
+      <View style={styles.pointsSliderHeader}>
+        <Pressable
+          style={[styles.pointsSliderButton, !canSwitchPlayers ? styles.pointsSliderButtonDisabled : null]}
+          disabled={!canSwitchPlayers}
+          onPress={goToPreviousPlayer}
+        >
+          <Text style={styles.pointsSliderButtonText}>‹</Text>
+        </Pressable>
+
+        <View style={styles.pointsSliderPlayerInfo}>
+          <Text style={styles.pointsDetailsPlayerName}>
+            {formatPersonName(activeParticipant.name)} - {activeParticipantTotal}
+          </Text>
+        </View>
+
+        <Pressable
+          style={[styles.pointsSliderButton, !canSwitchPlayers ? styles.pointsSliderButtonDisabled : null]}
+          disabled={!canSwitchPlayers}
+          onPress={goToNextPlayer}
+        >
+          <Text style={styles.pointsSliderButtonText}>›</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.pointsDetailsPlayer}>
+        <View style={styles.pointsDetailsTeamList}>
+          {activeParticipant.assignments.map((assignment) => {
+            const details = detailsByTeamId.get(assignment.teamId) ?? {
+              matchPoints: 0,
+              stageBonus: 0,
+              total: getTeamStageBonus(assignment.stageReached),
+              lines: [],
+            };
+
+            return (
+              <View key={assignment.id} style={styles.pointsDetailsTeam}>
+                <View style={styles.pointsDetailsInfo}>
+                  <Text style={styles.pointsDetailsTeamName}>{assignment.teamName}</Text>
+                  <Text style={styles.pointsDetailsText}>
+                    {details.lines.length > 0 ? details.lines.join(" · ") : "Пока без очков"}
+                  </Text>
+                </View>
+                <View style={styles.pointsDetailsTotalBox}>
+                  <Text style={styles.pointsDetailsTotal}>{details.total}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function AdminPanel({
+  dashboard,
+  matches,
+  syncStatus,
+}: {
+  dashboard: DashboardView;
+  matches: MatchView[];
+  syncStatus: SyncStatusView | undefined;
+}) {
+  const runEspnSync = useAction(api.matches.syncFromEspn);
+  const setDrawLock = useMutation(api.draw.setDrawLock);
+  const updateMatch = useMutation(api.matches.adminSetMatchState);
+  const updateTeamStatus = useMutation(api.teams.updateStatus);
+
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminStatusText, setAdminStatusText] = useState<string | null>(null);
+  const [adminErrorText, setAdminErrorText] = useState<string | null>(null);
+  const [matchExternalId, setMatchExternalId] = useState("");
+  const [matchHomeScore, setMatchHomeScore] = useState("");
+  const [matchAwayScore, setMatchAwayScore] = useState("");
+  const [matchHomePenaltyScore, setMatchHomePenaltyScore] = useState("");
+  const [matchAwayPenaltyScore, setMatchAwayPenaltyScore] = useState("");
+  const [matchStatus, setMatchStatus] = useState<MatchView["status"]>("completed");
+  const [matchStage, setMatchStage] = useState<MatchStage>("group");
+  const [matchDecision, setMatchDecision] = useState<MatchDecision>("regular");
+  const [matchWinnerSide, setMatchWinnerSide] = useState<AdminWinnerSide>("auto");
+  const [teamName, setTeamName] = useState("");
+  const [teamStage, setTeamStage] = useState<TeamStage>("group");
+  const [teamIsEliminated, setTeamIsEliminated] = useState(false);
+
+  const suggestedMatches = useMemo(() => {
+    const now = Date.now();
+    return [...matches]
+      .sort((first, second) => Math.abs(first.scheduledAt - now) - Math.abs(second.scheduledAt - now))
+      .slice(0, 8);
+  }, [matches]);
+
+  const parseNullableScore = (value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return null;
+
+    const parsedValue = Number(trimmedValue);
+    if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+      throw new Error("Счёт должен быть целым числом 0 или больше.");
+    }
+
+    return parsedValue;
+  };
+
+  const prefillMatch = (match: MatchView) => {
+    setMatchExternalId(match.externalId);
+    setMatchHomeScore(match.homeScore === null ? "" : String(match.homeScore));
+    setMatchAwayScore(match.awayScore === null ? "" : String(match.awayScore));
+    setMatchHomePenaltyScore(match.homePenaltyScore === null ? "" : String(match.homePenaltyScore));
+    setMatchAwayPenaltyScore(match.awayPenaltyScore === null ? "" : String(match.awayPenaltyScore));
+    setMatchStatus(match.status);
+    setMatchStage(match.stage);
+    setMatchDecision(match.decidedBy ?? "regular");
+    setMatchWinnerSide("auto");
+  };
+
+  const handleRunSync = async () => {
+    try {
+      setAdminBusy(true);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
+      const result = await runEspnSync({});
+      const matched = typeof result.matched === "number" ? result.matched : 0;
+      const updated = typeof result.updated === "number" ? result.updated : 0;
+      const unmatched = Array.isArray(result.unmatched) ? result.unmatched.length : 0;
+      setAdminStatusText(`ESPN sync: найдено ${matched}, обновлено ${updated}, не сопоставлено ${unmatched}.`);
+    } catch (error) {
+      setAdminErrorText(getErrorMessage(error));
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const handleSetDrawLock = async (locked: boolean) => {
+    try {
+      setAdminBusy(true);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
+      await setDrawLock({ locked });
+      setAdminStatusText(locked ? "Жеребьёвка закрыта." : "Жеребьёвка открыта.");
+    } catch (error) {
+      setAdminErrorText(getErrorMessage(error));
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const handleUpdateMatch = async () => {
+    try {
+      setAdminBusy(true);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
+      const winnerSide = matchWinnerSide === "auto" ? undefined : matchWinnerSide;
+      const result = await updateMatch({
+        externalId: matchExternalId.trim(),
+        stage: matchStage,
+        status: matchStatus,
+        homeScore: parseNullableScore(matchHomeScore),
+        awayScore: parseNullableScore(matchAwayScore),
+        homePenaltyScore: parseNullableScore(matchHomePenaltyScore),
+        awayPenaltyScore: parseNullableScore(matchAwayPenaltyScore),
+        decidedBy: matchDecision,
+        ...(winnerSide ? { winnerSide } : {}),
+      });
+      setAdminStatusText(`Матч ${result.externalId} обновлён.`);
+    } catch (error) {
+      setAdminErrorText(getErrorMessage(error));
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const handleUpdateTeam = async () => {
+    try {
+      setAdminBusy(true);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
+      const result = await updateTeamStatus({
+        teamName: teamName.trim(),
+        stageReached: teamStage,
+        isEliminated: teamIsEliminated,
+      });
+      setAdminStatusText(`Команда ${result.name} обновлена.`);
+    } catch (error) {
+      setAdminErrorText(getErrorMessage(error));
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const latestSync = syncStatus?.latest;
+
+  return (
+    <View style={[styles.panel, styles.adminPanel]}>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Админ-панель</Text>
+        <Text style={styles.adminBadge}>Игрок №1</Text>
+      </View>
+
+      <View style={styles.adminGrid}>
+        <View style={[styles.adminBlock, styles.adminGridBlock]}>
+          <Text style={styles.adminBlockTitle}>Синхронизация</Text>
+          <Text style={styles.mutedText}>
+            {latestSync
+              ? `${latestSync.ok ? "OK" : "Ошибка"} · ${formatDateTime(latestSync.createdAt)} · найдено ${latestSync.matched ?? 0}/${latestSync.normalized ?? 0}`
+              : "Синхронизаций ещё не было."}
+          </Text>
+          {latestSync?.error ? <Text style={styles.errorText}>{latestSync.error}</Text> : null}
+          <Text style={styles.mutedText}>
+            Матчи: {syncStatus?.matches.completed ?? 0} завершено, {syncStatus?.matches.live ?? 0} live, {syncStatus?.matches.scheduled ?? 0} ожидают.
+          </Text>
+          <Pressable
+            style={[styles.secondaryButton, adminBusy ? styles.buttonDisabled : null]}
+            disabled={adminBusy}
+            onPress={handleRunSync}
+          >
+            <Text style={styles.secondaryButtonText}>Запустить ESPN sync</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.adminBlock, styles.adminGridBlock]}>
+          <Text style={styles.adminBlockTitle}>Жеребьёвка</Text>
+          <Text style={styles.mutedText}>{dashboard.drawLocked ? "Сейчас закрыта." : "Сейчас открыта."}</Text>
+          <View style={styles.adminButtonRow}>
+            <Pressable
+              style={[styles.secondaryButton, adminBusy || !dashboard.drawLocked ? styles.buttonDisabled : null]}
+              disabled={adminBusy || !dashboard.drawLocked}
+              onPress={() => void handleSetDrawLock(false)}
+            >
+              <Text style={styles.secondaryButtonText}>Открыть</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.secondaryButton, adminBusy || dashboard.drawLocked ? styles.buttonDisabled : null]}
+              disabled={adminBusy || dashboard.drawLocked}
+              onPress={() => void handleSetDrawLock(true)}
+            >
+              <Text style={styles.secondaryButtonText}>Закрыть</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.adminBlock}>
+        <Text style={styles.adminBlockTitle}>Обновить матч</Text>
+        <View style={styles.adminChipRow}>
+          {suggestedMatches.map((match) => (
+            <Pressable key={match.id} style={styles.adminChip} onPress={() => prefillMatch(match)}>
+              <Text style={styles.adminChipText}>{match.externalId} · {match.homeTeam.name} - {match.awayTeam.name}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.adminFormRow}>
+          <TextInput style={[styles.input, styles.adminSmallInput]} placeholder="ID матча" value={matchExternalId} onChangeText={setMatchExternalId} />
+          <TextInput style={[styles.input, styles.adminScoreInput]} placeholder="1" keyboardType="number-pad" value={matchHomeScore} onChangeText={setMatchHomeScore} />
+          <TextInput style={[styles.input, styles.adminScoreInput]} placeholder="0" keyboardType="number-pad" value={matchAwayScore} onChangeText={setMatchAwayScore} />
+          <TextInput style={[styles.input, styles.adminScoreInput]} placeholder="пен. 1" keyboardType="number-pad" value={matchHomePenaltyScore} onChangeText={setMatchHomePenaltyScore} />
+          <TextInput style={[styles.input, styles.adminScoreInput]} placeholder="пен. 2" keyboardType="number-pad" value={matchAwayPenaltyScore} onChangeText={setMatchAwayPenaltyScore} />
+        </View>
+
+        <View style={styles.adminOptionGroup}>
+          {(["scheduled", "live", "completed"] as MatchView["status"][]).map((status) => (
+            <Pressable
+              key={status}
+              style={[styles.adminOptionButton, matchStatus === status ? styles.adminOptionButtonActive : null]}
+              onPress={() => setMatchStatus(status)}
+            >
+              <Text style={matchStatus === status ? styles.adminOptionTextActive : styles.adminOptionText}>
+                {MATCH_STATUS_LABELS[status]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.adminOptionGroup}>
+          {(Object.keys(MATCH_STAGE_LABELS) as MatchStage[]).map((stage) => (
+            <Pressable
+              key={stage}
+              style={[styles.adminOptionButton, matchStage === stage ? styles.adminOptionButtonActive : null]}
+              onPress={() => setMatchStage(stage)}
+            >
+              <Text style={matchStage === stage ? styles.adminOptionTextActive : styles.adminOptionText}>
+                {MATCH_STAGE_LABELS[stage]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.adminOptionGroup}>
+          {(Object.keys(MATCH_DECISION_LABELS) as MatchDecision[]).map((decision) => (
+            <Pressable
+              key={decision}
+              style={[styles.adminOptionButton, matchDecision === decision ? styles.adminOptionButtonActive : null]}
+              onPress={() => setMatchDecision(decision)}
+            >
+              <Text style={matchDecision === decision ? styles.adminOptionTextActive : styles.adminOptionText}>
+                {MATCH_DECISION_LABELS[decision]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.adminOptionGroup}>
+          {[
+            ["auto", "Победитель по счёту"],
+            ["home", "Победила команда 1"],
+            ["away", "Победила команда 2"],
+            ["none", "Без победителя"],
+          ].map(([value, label]) => (
+            <Pressable
+              key={value}
+              style={[styles.adminOptionButton, matchWinnerSide === value ? styles.adminOptionButtonActive : null]}
+              onPress={() => setMatchWinnerSide(value as AdminWinnerSide)}
+            >
+              <Text style={matchWinnerSide === value ? styles.adminOptionTextActive : styles.adminOptionText}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          style={[styles.primaryButton, adminBusy || !matchExternalId.trim() ? styles.buttonDisabled : null]}
+          disabled={adminBusy || !matchExternalId.trim()}
+          onPress={handleUpdateMatch}
+        >
+          <Text style={styles.primaryButtonText}>Сохранить матч</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.adminBlock}>
+        <Text style={styles.adminBlockTitle}>Статус команды</Text>
+        <TextInput style={styles.input} placeholder="Название команды" value={teamName} onChangeText={setTeamName} />
+        <View style={styles.adminOptionGroup}>
+          {TEAM_STAGE_ORDER.map((stage) => (
+            <Pressable
+              key={stage}
+              style={[styles.adminOptionButton, teamStage === stage ? styles.adminOptionButtonActive : null]}
+              onPress={() => setTeamStage(stage)}
+            >
+              <Text style={teamStage === stage ? styles.adminOptionTextActive : styles.adminOptionText}>
+                {TEAM_STAGE_LABELS[stage]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.adminButtonRow}>
+          <Pressable
+            style={[styles.adminOptionButton, !teamIsEliminated ? styles.teamActiveOption : null]}
+            onPress={() => setTeamIsEliminated(false)}
+          >
+            <Text style={!teamIsEliminated ? styles.adminOptionTextActive : styles.adminOptionText}>Активна</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.adminOptionButton, teamIsEliminated ? styles.teamEliminatedOption : null]}
+            onPress={() => setTeamIsEliminated(true)}
+          >
+            <Text style={teamIsEliminated ? styles.adminOptionTextActive : styles.adminOptionText}>Выбыла</Text>
+          </Pressable>
+        </View>
+        <Pressable
+          style={[styles.primaryButton, adminBusy || !teamName.trim() ? styles.buttonDisabled : null]}
+          disabled={adminBusy || !teamName.trim()}
+          onPress={handleUpdateTeam}
+        >
+          <Text style={styles.primaryButtonText}>Сохранить команду</Text>
+        </Pressable>
+      </View>
+
+      {adminStatusText ? <Text style={styles.successText}>{adminStatusText}</Text> : null}
+      {adminErrorText ? <Text style={styles.errorText}>{adminErrorText}</Text> : null}
+    </View>
   );
 }
 
@@ -1017,12 +1602,15 @@ function SignedInHome() {
   const syncLiveStatuses = useMutation(api.matches.syncLiveStatuses);
   const dashboard = useQuery(api.draw.getDashboard) as DashboardView | undefined;
   const matches = useQuery(api.matches.list) as MatchView[] | undefined;
+  const syncStatus = useQuery(api.matches.syncStatus) as SyncStatusView | undefined;
 
   const [profileReady, setProfileReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [activeDashboardTab, setActiveDashboardTab] = useState<DashboardTab>("table");
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState(() => getLocalDayStart(Date.now()));
 
   const rawProfileName =
     user?.fullName ?? getMetadataDisplayName(user?.unsafeMetadata) ?? user?.username ?? undefined;
@@ -1061,20 +1649,48 @@ function SignedInHome() {
   }, [profileEmail, profileName, upsertCurrentUser, user?.id]);
 
   const currentAssignments = dashboard?.currentUser?.assignments ?? [];
+  const currentUserIsAdmin = Boolean(dashboard?.currentUser?.isAdmin);
+  const dashboardTabs = useMemo<Array<{ id: DashboardTab; label: string }>>(
+    () => [
+      ...(currentUserIsAdmin ? [{ id: "admin" as const, label: "Админ" }] : []),
+      { id: "table" as const, label: "Таблица" },
+      { id: "points" as const, label: "Очки" },
+      { id: "schedule" as const, label: "Расписание" },
+    ],
+    [currentUserIsAdmin],
+  );
   const isViewer = Boolean(dashboard?.currentUser && !dashboard.currentUser.isParticipant);
   const hasRemainingTeams = dashboard?.teamsByPot.some((pot) => pot.remaining > 0) ?? false;
   const remainingTeamCount =
     dashboard?.teamsByPot.reduce((total, pot) => total + pot.remaining, 0) ?? 0;
   const maxUserAssignments = dashboard?.teamsByPot.length ?? POTS.length;
   const drawUnlockAt = dashboard?.drawUnlockAt ?? null;
-  const drawIsLocked = drawUnlockAt === null || nowMs < drawUnlockAt;
-  const drawCountdownText = drawUnlockAt ? formatDrawCountdown(drawUnlockAt, nowMs) : "Пауза";
+  const drawIsLocked = dashboard?.drawLocked ?? true;
+  const drawCountdownText = drawUnlockAt && drawIsLocked ? formatDrawCountdown(drawUnlockAt, nowMs) : "Пауза";
   const drawLockText = drawUnlockAt
     ? `Жеребьёвка откроется ${formatDrawUnlockTime(drawUnlockAt)}. Ждём регистрацию новых игроков.`
     : "Выбор команд временно закрыт. Ждём регистрацию новых игроков.";
   const showDrawSetupPanel = dashboard ? !dashboard.teamsReady || hasRemainingTeams : false;
-  const matchGroups = useMemo(() => groupMatchesByLocalDate(matches ?? []), [matches]);
+  const firstScheduleDay = useMemo(() => {
+    if (!matches?.length) return null;
+
+    return getLocalDayStart(Math.min(...matches.map((match) => match.scheduledAt)));
+  }, [matches]);
+  const selectedScheduleMatches = useMemo(
+    () =>
+      (matches ?? [])
+        .filter((match) => isSameLocalDay(match.scheduledAt, selectedScheduleDay))
+        .sort((first, second) => first.scheduledAt - second.scheduledAt),
+    [matches, selectedScheduleDay],
+  );
+  const selectedScheduleIsToday = isSameLocalDay(selectedScheduleDay, nowMs);
+  const canGoToPreviousScheduleDay = firstScheduleDay === null || selectedScheduleDay > firstScheduleDay;
+  const canGoToNextScheduleDay = selectedScheduleDay < TOURNAMENT_LAST_DAY;
   const pointsByTeamId = useMemo(() => getTeamPointsById(matches ?? []), [matches]);
+  const detailsByTeamId = useMemo(
+    () => getTeamPointDetailsById(matches ?? [], dashboard?.participants ?? []),
+    [dashboard?.participants, matches],
+  );
   const teamOwnersById = useMemo(() => {
     const owners = new Map<string, string>();
 
@@ -1086,6 +1702,17 @@ function SignedInHome() {
 
     return owners;
   }, [dashboard?.participants]);
+  const teamStatusById = useMemo(() => {
+    const statuses = new Map<string, { isEliminated: boolean }>();
+
+    for (const pot of dashboard?.teamsByPot ?? []) {
+      for (const team of pot.teams) {
+        statuses.set(team.id, { isEliminated: team.isEliminated });
+      }
+    }
+
+    return statuses;
+  }, [dashboard?.teamsByPot]);
   const sortedParticipants = useMemo(() => {
     return [...(dashboard?.participants ?? [])].sort((first, second) => {
       const pointsDiff =
@@ -1094,6 +1721,28 @@ function SignedInHome() {
       return first.participantNumber - second.participantNumber;
     });
   }, [dashboard?.participants, pointsByTeamId]);
+
+  useEffect(() => {
+    if (activeDashboardTab === "admin" && !currentUserIsAdmin) {
+      setActiveDashboardTab("table");
+    }
+  }, [activeDashboardTab, currentUserIsAdmin]);
+
+  useEffect(() => {
+    let boundedScheduleDay = selectedScheduleDay;
+
+    if (firstScheduleDay !== null && boundedScheduleDay < firstScheduleDay) {
+      boundedScheduleDay = firstScheduleDay;
+    }
+
+    if (boundedScheduleDay > TOURNAMENT_LAST_DAY) {
+      boundedScheduleDay = TOURNAMENT_LAST_DAY;
+    }
+
+    if (boundedScheduleDay !== selectedScheduleDay) {
+      setSelectedScheduleDay(boundedScheduleDay);
+    }
+  }, [firstScheduleDay, selectedScheduleDay]);
 
   useEffect(() => {
     if (!drawUnlockAt || nowMs >= drawUnlockAt) return;
@@ -1198,7 +1847,27 @@ function SignedInHome() {
         <LoadingBlock text="Готовим данные..." />
       ) : (
         <>
-          {showDrawSetupPanel ? (
+          <View style={styles.tabBar}>
+            {dashboardTabs.map((tab) => {
+              const isActive = activeDashboardTab === tab.id;
+
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={[styles.tabButton, isActive ? styles.tabButtonActive : null]}
+                  onPress={() => setActiveDashboardTab(tab.id)}
+                >
+                  <Text style={isActive ? styles.tabTextActive : styles.tabText}>{tab.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {activeDashboardTab === "admin" && currentUserIsAdmin ? (
+            <AdminPanel dashboard={dashboard} matches={matches ?? []} syncStatus={syncStatus} />
+          ) : null}
+
+          {activeDashboardTab === "table" && showDrawSetupPanel ? (
             <View style={styles.panel}>
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItem}>
@@ -1234,7 +1903,7 @@ function SignedInHome() {
               {!dashboard.teamsReady ? (
                 <View style={styles.notice}>
                   <Text style={styles.noticeText}>Команды ещё не загружены.</Text>
-                  {dashboard.currentUser?.participantNumber === 1 ? (
+                  {dashboard.currentUser?.isAdmin ? (
                     <Pressable
                       style={[styles.secondaryButton, isBusy ? styles.buttonDisabled : null]}
                       disabled={isBusy}
@@ -1251,6 +1920,7 @@ function SignedInHome() {
             </View>
           ) : null}
 
+          {activeDashboardTab === "table" ? (
           <View style={styles.panel}>
             <ScrollView
               horizontal
@@ -1287,7 +1957,10 @@ function SignedInHome() {
                       <View style={[styles.playerTableCell, styles.playerTableNameCell, playerStatusCellStyle]}>
                         <Text style={styles.playerName} numberOfLines={2}>{formatPersonName(participant.name)}</Text>
                       </View>
-                      <AssignmentCells assignments={participant.assignments} pointsByTeamId={pointsByTeamId} />
+                      <AssignmentCells
+                        assignments={participant.assignments}
+                        pointsByTeamId={pointsByTeamId}
+                      />
                       <View style={[styles.playerTableCell, styles.playerTableTotalCell, playerStatusCellStyle]}>
                         <Text style={styles.playerTotalPoints}>{totalPoints}</Text>
                       </View>
@@ -1296,10 +1969,18 @@ function SignedInHome() {
                 })}
               </View>
             </ScrollView>
+          </View>
+          ) : null}
+
+          {activeDashboardTab === "points" ? (
+          <View style={styles.panel}>
             <View style={styles.scoringRules}>
               <Text style={styles.scoringRulesTitle}>Система начисления очков</Text>
               <Text style={styles.scoringRulesText}>
-                Матчи: победа +3, ничья +1, поражение 0. В плей-офф победа после дополнительного времени или пенальти считается как победа.
+                Матчи: победа +3, ничья +1, поражение 0. Победа после дополнительного времени считается победой.
+              </Text>
+              <Text style={styles.scoringRulesText}>
+                Если матч решился по пенальти после ничьей, за сам матч обе команды получают по 1 очку. Победитель серии получает только бонус за проход дальше.
               </Text>
               <Text style={styles.scoringRulesText}>
                 Бонусы за проход стадий: 1/16 финала +3, 1/8 финала +4, 1/4 финала +5, полуфинал +6, финал +8, победа в турнире +10.
@@ -1308,9 +1989,11 @@ function SignedInHome() {
                 Бонусы суммируются с очками за матчи и добавляются к команде, которая дошла до соответствующей стадии.
               </Text>
             </View>
+            <ScoringDetailsPanel participants={sortedParticipants} detailsByTeamId={detailsByTeamId} />
           </View>
+          ) : null}
 
-          {dashboard.totalTeams > 0 && hasRemainingTeams ? (
+          {activeDashboardTab === "table" && dashboard.totalTeams > 0 && hasRemainingTeams ? (
             <View style={styles.panel}>
               <Text style={styles.sectionTitle}>Команды</Text>
               <View style={styles.teamColumns}>
@@ -1338,10 +2021,16 @@ function SignedInHome() {
                             key={team.id}
                             style={[
                               styles.teamRow,
+                              team.isEliminated ? styles.teamRowEliminated : styles.teamRowActive,
                               team.assignedTo ? styles.teamRowAssigned : null,
                             ]}
                           >
-                            <Text style={team.assignedTo ? styles.teamNameAssigned : styles.teamName}>
+                            <Text
+                              style={[
+                                team.assignedTo ? styles.teamNameAssigned : styles.teamName,
+                                team.isEliminated ? styles.teamNameEliminated : styles.teamNameActive,
+                              ]}
+                            >
                               {team.name}
                             </Text>
                             {team.assignedTo ? (
@@ -1372,64 +2061,70 @@ function SignedInHome() {
             </View>
           ) : null}
 
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Матчи</Text>
+          {activeDashboardTab === "schedule" ? (
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Все матчи</Text>
 
-            {matches === undefined ? (
-              <LoadingBlock text="Загружаем матчи..." />
-            ) : matches.length === 0 ? (
-              <Text style={styles.mutedText}>Расписание матчей ещё не загружено.</Text>
-            ) : (
-              <View style={styles.matchSchedule}>
-                {matchGroups.map((group) => (
-                  <View key={group.dateLabel} style={styles.matchDateGroup}>
-                    <Text style={styles.matchDateTitle}>{group.dateLabel}</Text>
+              <View style={styles.scheduleSliderHeader}>
+                <Pressable
+                  style={[
+                    styles.pointsSliderButton,
+                    !canGoToPreviousScheduleDay ? styles.pointsSliderButtonDisabled : null,
+                  ]}
+                  disabled={!canGoToPreviousScheduleDay}
+                  onPress={() =>
+                    setSelectedScheduleDay((day) => {
+                      const previousDay = addLocalDays(day, -1);
+                      return firstScheduleDay === null ? previousDay : Math.max(previousDay, firstScheduleDay);
+                    })
+                  }
+                >
+                  <Text style={styles.pointsSliderButtonText}>‹</Text>
+                </Pressable>
 
-                    <View style={styles.matchList}>
-                      {group.matches.map((match) => {
-                        const homeOwnerName = teamOwnersById.get(match.homeTeam.id);
-                        const awayOwnerName = teamOwnersById.get(match.awayTeam.id);
+                <View style={styles.scheduleSliderDate}>
+                  <Text style={styles.scheduleSliderTitle}>
+                    {selectedScheduleIsToday ? "Сегодня" : formatMatchDate(selectedScheduleDay)}
+                  </Text>
+                  {selectedScheduleIsToday ? (
+                    <Text style={styles.scheduleSliderMeta}>{formatMatchDate(selectedScheduleDay)}</Text>
+                  ) : null}
+                </View>
 
-                        return (
-                          <View
-                            key={match.id}
-                            style={[styles.matchRow, match.status === "live" ? styles.matchRowLive : null]}
-                          >
-                            <View style={styles.matchTimeColumn}>
-                              <Text style={styles.matchTime}>{formatMatchTime(match.scheduledAt)}</Text>
-                              <Text style={styles.matchMeta} numberOfLines={1}>{getMatchMeta(match)}</Text>
-                            </View>
-
-                            <View style={styles.matchTeamsColumn}>
-                              <Text style={styles.matchTeams}>
-                                {match.homeTeam.name}
-                                {homeOwnerName ? <Text style={styles.matchTeamOwner}> ({homeOwnerName})</Text> : null}
-                                {" - "}
-                                {match.awayTeam.name}
-                                {awayOwnerName ? <Text style={styles.matchTeamOwner}> ({awayOwnerName})</Text> : null}
-                              </Text>
-                            </View>
-
-                            <View style={styles.matchScoreBox}>
-                              <Text
-                                style={[
-                                  styles.matchScore,
-                                  match.status === "live" ? styles.matchScoreLive : null,
-                                  match.status === "completed" ? styles.matchScoreCompleted : null,
-                                ]}
-                              >
-                                {formatMatchScore(match)}
-                              </Text>
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
+                <Pressable
+                  style={[
+                    styles.pointsSliderButton,
+                    !canGoToNextScheduleDay ? styles.pointsSliderButtonDisabled : null,
+                  ]}
+                  disabled={!canGoToNextScheduleDay}
+                  onPress={() =>
+                    setSelectedScheduleDay((day) => Math.min(addLocalDays(day, 1), TOURNAMENT_LAST_DAY))
+                  }
+                >
+                  <Text style={styles.pointsSliderButtonText}>›</Text>
+                </Pressable>
               </View>
-            )}
-          </View>
+
+              {matches === undefined ? (
+                <LoadingBlock text="Загружаем матчи..." />
+              ) : matches.length === 0 ? (
+                <Text style={styles.mutedText}>Расписание матчей ещё не загружено.</Text>
+              ) : selectedScheduleMatches.length === 0 ? (
+                <Text style={styles.mutedText}>На этот день матчей нет.</Text>
+              ) : (
+                <View style={styles.matchList}>
+                  {selectedScheduleMatches.map((match) => (
+                    <MatchRow
+                      key={match.id}
+                      match={match}
+                      teamOwnersById={teamOwnersById}
+                      teamStatusById={teamStatusById}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
         </>
       )}
     </ScrollView>
@@ -1554,6 +2249,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   bodyText: {
     color: "#374151",
     fontSize: 15,
@@ -1618,6 +2319,40 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
+  tabBar: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    padding: 6,
+  },
+  tabButton: {
+    minHeight: 38,
+    minWidth: 110,
+    flex: 1,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  tabButtonActive: {
+    backgroundColor: "#174ea6",
+  },
+  tabText: {
+    color: "#4b5563",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  tabTextActive: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
   segment: {
     flexDirection: "row",
     gap: 8,
@@ -1675,6 +2410,115 @@ const styles = StyleSheet.create({
     color: "#8a4b0f",
     fontSize: 14,
     fontWeight: "600",
+  },
+  adminPanel: {
+    borderColor: "#b9c7dc",
+    backgroundColor: "#f8fbff",
+  },
+  adminBadge: {
+    borderRadius: 999,
+    backgroundColor: "#edf4ff",
+    color: "#174ea6",
+    fontSize: 12,
+    fontWeight: "800",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  adminGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  adminBlock: {
+    minWidth: 240,
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    padding: 12,
+    gap: 10,
+  },
+  adminGridBlock: {
+    flex: 1,
+  },
+  adminBlockTitle: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  adminButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  adminChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  adminChip: {
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 999,
+    backgroundColor: "#f9fafb",
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+  },
+  adminChipText: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  adminFormRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  adminSmallInput: {
+    minWidth: 90,
+    flex: 1,
+  },
+  adminScoreInput: {
+    minWidth: 72,
+    flex: 0.7,
+  },
+  adminOptionGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  adminOptionButton: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+  },
+  adminOptionButtonActive: {
+    borderColor: "#174ea6",
+    backgroundColor: "#edf4ff",
+  },
+  adminOptionText: {
+    color: "#4b5563",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  adminOptionTextActive: {
+    color: "#174ea6",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  teamActiveOption: {
+    borderColor: "#9ed9b1",
+    backgroundColor: "#eef8f1",
+  },
+  teamEliminatedOption: {
+    borderColor: "#f2b8b8",
+    backgroundColor: "#fff1f1",
   },
   potGrid: {
     flexDirection: "row",
@@ -1763,17 +2607,29 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   assignmentCellContent: {
+    alignSelf: "stretch",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 10,
+  },
+  assignmentInfo: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
   assignmentText: {
-    flex: 1,
     color: "#1f2937",
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+  },
+  assignmentPointsBox: {
+    alignSelf: "stretch",
+    minWidth: 28,
+    flexShrink: 0,
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
   assignmentPoints: {
     color: "#174ea6",
@@ -1810,6 +2666,96 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 17,
   },
+  pointsDetails: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingTop: 12,
+    gap: 10,
+  },
+  pointsSliderHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  pointsSliderButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pointsSliderButtonDisabled: {
+    opacity: 0.45,
+  },
+  pointsSliderButtonText: {
+    color: "#174ea6",
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 26,
+  },
+  pointsSliderPlayerInfo: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pointsDetailsPlayer: {
+    gap: 6,
+  },
+  pointsDetailsPlayerName: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  pointsDetailsTeamList: {
+    gap: 6,
+  },
+  pointsDetailsTeam: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    backgroundColor: "#f9fafb",
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  pointsDetailsInfo: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+    gap: 4,
+  },
+  pointsDetailsTeamName: {
+    color: "#1f2937",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  pointsDetailsTotal: {
+    color: "#174ea6",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  pointsDetailsTotalBox: {
+    minWidth: 32,
+    flexShrink: 0,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  pointsDetailsText: {
+    color: "#6b7280",
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 15,
+  },
   teamColumns: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1843,6 +2789,14 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 8,
   },
+  teamRowActive: {
+    borderColor: "#d7ecd8",
+    backgroundColor: "#f4fbf5",
+  },
+  teamRowEliminated: {
+    borderColor: "#f4d4d4",
+    backgroundColor: "#fff7f7",
+  },
   teamRowAssigned: {
     borderColor: "#e5e7eb",
     backgroundColor: "#f3f4f6",
@@ -1853,6 +2807,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+  },
+  teamNameActive: {
+    color: "#17683a",
+  },
+  teamNameEliminated: {
+    color: "#a52a2a",
   },
   teamNameAssigned: {
     color: "#6b7280",
@@ -1865,16 +2825,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
-  matchSchedule: {
-    gap: 14,
+  scheduleSliderHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  matchDateGroup: {
-    gap: 8,
+  scheduleSliderDate: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
   },
-  matchDateTitle: {
-    color: "#374151",
-    fontSize: 14,
+  scheduleSliderTitle: {
+    color: "#111827",
+    fontSize: 15,
     fontWeight: "800",
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  scheduleSliderMeta: {
+    color: "#6b7280",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+    textAlign: "center",
   },
   matchList: {
     gap: 6,
@@ -1928,6 +2904,12 @@ const styles = StyleSheet.create({
   matchTeamOwner: {
     color: "#6b7280",
     fontWeight: "700",
+  },
+  matchTeamActive: {
+    color: "#17683a",
+  },
+  matchTeamEliminated: {
+    color: "#a52a2a",
   },
   matchScoreBox: {
     minWidth: 68,

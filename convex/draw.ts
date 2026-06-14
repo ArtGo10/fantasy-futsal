@@ -1,14 +1,17 @@
 import { mutation, query } from "./_generated/server";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { getCurrentUser } from "./authHelpers";
+import { getCurrentUser, isAdminUser, requireAdmin } from "./authHelpers";
 import { MAX_PARTICIPANTS, POTS, Pot, TEAMS_PER_POT, TeamStage, potValidator } from "./validators";
+import { v } from "convex/values";
 
 declare const process: {
   env: Record<string, string | undefined>;
 };
 
-function getDrawUnlockAt() {
+const GAME_SETTINGS_KEY = "main";
+
+function getEnvDrawUnlockAt() {
   const rawValue = process.env.DRAW_UNLOCK_AT?.trim();
   if (!rawValue) return null;
 
@@ -16,9 +19,29 @@ function getDrawUnlockAt() {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function isDrawLocked() {
-  const drawUnlockAt = getDrawUnlockAt();
-  return drawUnlockAt === null || Date.now() < drawUnlockAt;
+async function getStoredDrawSettings(ctx: QueryCtx | MutationCtx) {
+  return await ctx.db
+    .query("gameSettings")
+    .withIndex("by_key", (q) => q.eq("key", GAME_SETTINGS_KEY))
+    .first();
+}
+
+async function getDrawState(ctx: QueryCtx | MutationCtx) {
+  const settings = await getStoredDrawSettings(ctx);
+
+  if (settings?.drawLocked !== undefined) {
+    return {
+      drawLocked: settings.drawLocked,
+      drawUnlockAt: settings.drawUnlockAt ?? null,
+    };
+  }
+
+  const drawUnlockAt = getEnvDrawUnlockAt();
+
+  return {
+    drawLocked: drawUnlockAt === null || Date.now() < drawUnlockAt,
+    drawUnlockAt,
+  };
 }
 
 function potLabel(pot: Pot) {
@@ -66,7 +89,8 @@ async function getParticipantAssignments(ctx: QueryCtx) {
 export const getDashboard = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getCurrentUser(ctx);
+    const { identity, user } = await getCurrentUser(ctx);
+    const drawState = await getDrawState(ctx);
     const users = await ctx.db.query("users").collect();
     const participantUsers = users.filter((participant) => participant.participantNumber !== undefined);
     const sortedUsers = [...participantUsers].sort(
@@ -128,6 +152,7 @@ export const getDashboard = query({
             email: user.email ?? null,
             participantNumber: user.participantNumber ?? null,
             isParticipant: user.participantNumber !== undefined,
+            isAdmin: isAdminUser(identity, user),
             assignments: assignmentsByUser.get(user._id) ?? [],
           }
         : null,
@@ -139,8 +164,44 @@ export const getDashboard = query({
       isFull: participantUsers.length >= MAX_PARTICIPANTS,
       totalTeams: teams.length,
       teamsReady: teams.length === POTS.length * TEAMS_PER_POT && teamsByPot.every((pot) => pot.total === TEAMS_PER_POT),
-      drawUnlockAt: getDrawUnlockAt(),
+      drawLocked: drawState.drawLocked,
+      drawUnlockAt: drawState.drawUnlockAt,
       teamsByPot,
+    };
+  },
+});
+
+export const setDrawLock = mutation({
+  args: {
+    locked: v.boolean(),
+    unlockAt: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const existingSettings = await getStoredDrawSettings(ctx);
+    const now = Date.now();
+    const drawUnlockAt = args.unlockAt ?? undefined;
+    const patch = {
+      drawLocked: args.locked,
+      drawUnlockAt,
+      updatedAt: now,
+    };
+
+    if (existingSettings) {
+      await ctx.db.patch(existingSettings._id, patch);
+    } else {
+      await ctx.db.insert("gameSettings", {
+        key: GAME_SETTINGS_KEY,
+        drawLocked: patch.drawLocked,
+        ...(drawUnlockAt === undefined ? {} : { drawUnlockAt }),
+        updatedAt: patch.updatedAt,
+      });
+    }
+
+    return {
+      drawLocked: args.locked,
+      drawUnlockAt: args.unlockAt ?? null,
     };
   },
 });
@@ -150,7 +211,9 @@ export const drawTeam = mutation({
     pot: potValidator,
   },
   handler: async (ctx, args) => {
-    if (isDrawLocked()) {
+    const drawState = await getDrawState(ctx);
+
+    if (drawState.drawLocked) {
       throw new Error("Выбор команд временно закрыт.");
     }
 
