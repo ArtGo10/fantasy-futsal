@@ -45,6 +45,7 @@ export const matchStageValidator = v.union(
 );
 export const matchStatusValidator = v.union(
   v.literal("scheduled"),
+  v.literal("live"),
   v.literal("completed"),
 );
 export const matchDecisionValidator = v.union(

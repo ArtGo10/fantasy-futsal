@@ -141,7 +141,8 @@ type MatchView = {
   decidedBy: MatchDecision | null;
   homePenaltyScore: number | null;
   awayPenaltyScore: number | null;
-  status: "scheduled" | "completed";
+  status: "scheduled" | "live" | "completed";
+  storedStatus?: "scheduled" | "live" | "completed";
   venue: string | null;
 };
 type AuthStatusView = {
@@ -431,6 +432,10 @@ function formatDrawCountdown(unlockAt: number, now: number) {
 }
 
 function formatMatchScore(match: MatchView) {
+  if (match.status === "live" && (match.homeScore === null || match.awayScore === null)) {
+    return "LIVE";
+  }
+
   if (match.homeScore === null || match.awayScore === null) {
     return "-";
   }
@@ -453,9 +458,9 @@ function formatMatchScore(match: MatchView) {
 }
 
 function getMatchMeta(match: MatchView) {
-  if (match.stage === "group" && match.group) return `Группа ${match.group}`;
+  const stageLabel = match.stage === "group" && match.group ? `Группа ${match.group}` : MATCH_STAGE_LABELS[match.stage];
 
-  return MATCH_STAGE_LABELS[match.stage];
+  return match.status === "live" ? `${stageLabel} · идёт матч` : stageLabel;
 }
 
 function groupMatchesByLocalDate(matches: MatchView[]) {
@@ -1003,6 +1008,7 @@ function SignedInHome() {
   const upsertCurrentUser = useMutation(api.users.upsertCurrentUser);
   const drawTeam = useMutation(api.draw.drawTeam);
   const seedTeams = useMutation(api.teams.seedFromCode);
+  const syncLiveStatuses = useMutation(api.matches.syncLiveStatuses);
   const dashboard = useQuery(api.draw.getDashboard) as DashboardView | undefined;
   const matches = useQuery(api.matches.list) as MatchView[] | undefined;
 
@@ -1091,6 +1097,36 @@ function SignedInHome() {
 
     return () => clearTimeout(timeoutId);
   }, [drawUnlockAt, nowMs]);
+
+  useEffect(() => {
+    if (!matches) return;
+
+    const syncStartedMatches = () => {
+      const hasStartedScheduledMatch = matches.some(
+        (match) => (match.storedStatus ?? match.status) === "scheduled" && match.scheduledAt <= Date.now(),
+      );
+
+      if (hasStartedScheduledMatch) {
+        void syncLiveStatuses({}).catch((error) => {
+          setErrorText(getErrorMessage(error));
+        });
+      }
+    };
+
+    syncStartedMatches();
+
+    const now = Date.now();
+    const nextScheduledMatch = matches
+      .filter((match) => match.status === "scheduled" && match.scheduledAt > now)
+      .sort((first, second) => first.scheduledAt - second.scheduledAt)[0];
+
+    if (!nextScheduledMatch) return;
+
+    const delayMs = Math.min(Math.max(nextScheduledMatch.scheduledAt - now + 1000, 1000), 2147483647);
+    const timeoutId = setTimeout(syncStartedMatches, delayMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [matches, syncLiveStatuses]);
 
   const handleDraw = async (pot: Pot) => {
     if (drawIsLocked) {
@@ -1349,7 +1385,10 @@ function SignedInHome() {
                         const awayOwnerName = teamOwnersById.get(match.awayTeam.id);
 
                         return (
-                          <View key={match.id} style={styles.matchRow}>
+                          <View
+                            key={match.id}
+                            style={[styles.matchRow, match.status === "live" ? styles.matchRowLive : null]}
+                          >
                             <View style={styles.matchTimeColumn}>
                               <Text style={styles.matchTime}>{formatMatchTime(match.scheduledAt)}</Text>
                               <Text style={styles.matchMeta} numberOfLines={1}>{getMatchMeta(match)}</Text>
@@ -1369,6 +1408,7 @@ function SignedInHome() {
                               <Text
                                 style={[
                                   styles.matchScore,
+                                  match.status === "live" ? styles.matchScoreLive : null,
                                   match.status === "completed" ? styles.matchScoreCompleted : null,
                                 ]}
                               >
@@ -1845,6 +1885,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 10,
   },
+  matchRowLive: {
+    borderColor: "#fecaca",
+    backgroundColor: "#fff7f7",
+  },
   matchTimeColumn: {
     minWidth: 88,
     flexShrink: 0,
@@ -1893,6 +1937,9 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     fontWeight: "800",
+  },
+  matchScoreLive: {
+    color: "#dc2626",
   },
   matchScoreCompleted: {
     color: "#067647",

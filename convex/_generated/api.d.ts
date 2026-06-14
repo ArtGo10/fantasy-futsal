@@ -9,6 +9,7 @@
  */
 
 import type * as authHelpers from "../authHelpers.js";
+import type * as crons from "../crons.js";
 import type * as draw from "../draw.js";
 import type * as health from "../health.js";
 import type * as matches from "../matches.js";
@@ -24,6 +25,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
+  crons: typeof crons;
   draw: typeof draw;
   health: typeof health;
   matches: typeof matches;

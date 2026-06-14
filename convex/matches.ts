@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { matchDecisionValidator } from "./validators";
 import type { MatchStage } from "./validators";
@@ -98,6 +98,12 @@ function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
 }
 
+function getVisibleMatchStatus(status: "scheduled" | "live" | "completed", scheduledAt: number, now: number) {
+  if (status === "scheduled" && scheduledAt <= now) return "live";
+
+  return status;
+}
+
 async function insertSeedMatches(ctx: MutationCtx) {
   if (MATCH_SEED.length !== 72) {
     throw new Error("Список матчей должен содержать 72 матча группового этапа.");
@@ -157,6 +163,7 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     const matches = await ctx.db.query("matches").collect();
+    const now = Date.now();
 
     return matches
       .map((match) => ({
@@ -181,7 +188,8 @@ export const list = query({
         decidedBy: match.decidedBy ?? null,
         homePenaltyScore: match.homePenaltyScore ?? null,
         awayPenaltyScore: match.awayPenaltyScore ?? null,
-        status: match.status,
+        status: getVisibleMatchStatus(match.status, match.scheduledAt, now),
+        storedStatus: match.status,
         venue: match.venue ?? null,
       }))
       .sort((a, b) => a.scheduledAt - b.scheduledAt || a.matchNumber - b.matchNumber);
@@ -242,5 +250,41 @@ export const setResult = mutation({
       winnerTeamId,
       status: "completed",
     };
+  },
+});
+
+async function syncLiveStatusesInDb(ctx: MutationCtx, now: number) {
+  const scheduledMatches = await ctx.db
+    .query("matches")
+    .withIndex("by_status", (q) => q.eq("status", "scheduled"))
+    .collect();
+  const startedMatches = scheduledMatches.filter((match) => match.scheduledAt <= now);
+
+  for (const match of startedMatches) {
+    await ctx.db.patch(match._id, {
+      status: "live",
+      updatedAt: now,
+    });
+  }
+
+  return {
+    updated: startedMatches.length,
+    checked: scheduledMatches.length,
+  };
+}
+
+export const syncLiveStatuses = mutation({
+  args: {
+    now: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await syncLiveStatusesInDb(ctx, args.now ?? Date.now());
+  },
+});
+
+export const syncLiveStatusesInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    return await syncLiveStatusesInDb(ctx, Date.now());
   },
 });
