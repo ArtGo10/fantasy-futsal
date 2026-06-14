@@ -466,7 +466,7 @@ function formatMatchScore(match: MatchView) {
 function getMatchMeta(match: MatchView) {
   const stageLabel = match.stage === "group" && match.group ? `Группа ${match.group}` : MATCH_STAGE_LABELS[match.stage];
 
-  return match.status === "live" ? `${stageLabel} · идёт матч` : stageLabel;
+  return stageLabel;
 }
 
 function groupMatchesByLocalDate(matches: MatchView[]) {
