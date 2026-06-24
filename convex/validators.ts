@@ -18,6 +18,7 @@ export const MATCH_STAGES = [
   "round_of_16",
   "quarter_final",
   "semi_final",
+  "third_place",
   "final",
 ] as const;
 
@@ -41,6 +42,7 @@ export const matchStageValidator = v.union(
   v.literal("round_of_16"),
   v.literal("quarter_final"),
   v.literal("semi_final"),
+  v.literal("third_place"),
   v.literal("final"),
 );
 export const matchStatusValidator = v.union(

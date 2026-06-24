@@ -4,7 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireAdmin } from "./authHelpers";
 import { matchDecisionValidator, matchStageValidator, matchStatusValidator } from "./validators";
-import type { MatchStage } from "./validators";
+import type { MatchStage, TeamStage } from "./validators";
 import { v } from "convex/values";
 
 type MatchSeed = {
@@ -19,6 +19,16 @@ type MatchSeed = {
   homeScore?: number;
   awayScore?: number;
   status: "scheduled" | "completed";
+  venue: string;
+};
+type KnockoutMatchSeed = {
+  matchNumber: number;
+  externalId: string;
+  stage: MatchStage;
+  scheduledAt: string;
+  sourceKickoff: string;
+  homeSlot: string;
+  awaySlot: string;
   venue: string;
 };
 
@@ -127,6 +137,41 @@ const MATCH_SEED: MatchSeed[] = [
   {"matchNumber":70,"externalId":"L4","group":"L","scheduledAt":"2026-06-23T23:00:00.000Z","sourceKickoff":"7:00 p.m. UTC−4","homeTeam":"Панама","awayTeam":"Хорватия","status":"scheduled","venue":"BMO Field, Toronto"},
   {"matchNumber":71,"externalId":"L5","group":"L","scheduledAt":"2026-06-27T21:00:00.000Z","sourceKickoff":"5:00 p.m. UTC−4","homeTeam":"Панама","awayTeam":"Англия","status":"scheduled","venue":"MetLife Stadium, East Rutherford"},
   {"matchNumber":72,"externalId":"L6","group":"L","scheduledAt":"2026-06-27T21:00:00.000Z","sourceKickoff":"5:00 p.m. UTC−4","homeTeam":"Хорватия","awayTeam":"Гана","status":"scheduled","venue":"Lincoln Financial Field, Philadelphia"},
+];
+
+const KNOCKOUT_MATCH_SEED: KnockoutMatchSeed[] = [
+  { matchNumber: 73, externalId: "M73", stage: "round_of_32", scheduledAt: "2026-06-28T19:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-7", homeSlot: "2-е место группы A", awaySlot: "2-е место группы B", venue: "SoFi Stadium, Inglewood" },
+  { matchNumber: 74, externalId: "M74", stage: "round_of_32", scheduledAt: "2026-06-29T20:30:00.000Z", sourceKickoff: "4:30 p.m. UTC-4", homeSlot: "Победитель группы E", awaySlot: "3-е место группы A/B/C/D/F", venue: "Gillette Stadium, Foxborough" },
+  { matchNumber: 75, externalId: "M75", stage: "round_of_32", scheduledAt: "2026-06-30T01:00:00.000Z", sourceKickoff: "7:00 p.m. UTC-6", homeSlot: "Победитель группы F", awaySlot: "2-е место группы C", venue: "Estadio BBVA, Guadalupe" },
+  { matchNumber: 76, externalId: "M76", stage: "round_of_32", scheduledAt: "2026-06-29T17:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-5", homeSlot: "Победитель группы C", awaySlot: "2-е место группы F", venue: "NRG Stadium, Houston" },
+  { matchNumber: 77, externalId: "M77", stage: "round_of_32", scheduledAt: "2026-06-30T21:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-4", homeSlot: "Победитель группы I", awaySlot: "3-е место группы C/D/F/G/H", venue: "MetLife Stadium, East Rutherford" },
+  { matchNumber: 78, externalId: "M78", stage: "round_of_32", scheduledAt: "2026-06-30T17:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-5", homeSlot: "2-е место группы E", awaySlot: "2-е место группы I", venue: "AT&T Stadium, Arlington" },
+  { matchNumber: 79, externalId: "M79", stage: "round_of_32", scheduledAt: "2026-07-01T01:00:00.000Z", sourceKickoff: "7:00 p.m. UTC-6", homeSlot: "Победитель группы A", awaySlot: "3-е место группы C/E/F/H/I", venue: "Estadio Azteca, Mexico City" },
+  { matchNumber: 80, externalId: "M80", stage: "round_of_32", scheduledAt: "2026-07-01T16:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-4", homeSlot: "Победитель группы L", awaySlot: "3-е место группы E/H/I/J/K", venue: "Mercedes-Benz Stadium, Atlanta" },
+  { matchNumber: 81, externalId: "M81", stage: "round_of_32", scheduledAt: "2026-07-02T00:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-7", homeSlot: "Победитель группы D", awaySlot: "3-е место группы B/E/F/I/J", venue: "Levi's Stadium, Santa Clara" },
+  { matchNumber: 82, externalId: "M82", stage: "round_of_32", scheduledAt: "2026-07-01T20:00:00.000Z", sourceKickoff: "1:00 p.m. UTC-7", homeSlot: "Победитель группы G", awaySlot: "3-е место группы A/E/H/I/J", venue: "Lumen Field, Seattle" },
+  { matchNumber: 83, externalId: "M83", stage: "round_of_32", scheduledAt: "2026-07-02T23:00:00.000Z", sourceKickoff: "7:00 p.m. UTC-4", homeSlot: "2-е место группы K", awaySlot: "2-е место группы L", venue: "BMO Field, Toronto" },
+  { matchNumber: 84, externalId: "M84", stage: "round_of_32", scheduledAt: "2026-07-02T19:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-7", homeSlot: "Победитель группы H", awaySlot: "2-е место группы J", venue: "SoFi Stadium, Inglewood" },
+  { matchNumber: 85, externalId: "M85", stage: "round_of_32", scheduledAt: "2026-07-03T03:00:00.000Z", sourceKickoff: "8:00 p.m. UTC-7", homeSlot: "Победитель группы B", awaySlot: "3-е место группы E/F/G/I/J", venue: "BC Place, Vancouver" },
+  { matchNumber: 86, externalId: "M86", stage: "round_of_32", scheduledAt: "2026-07-03T22:00:00.000Z", sourceKickoff: "6:00 p.m. UTC-4", homeSlot: "Победитель группы J", awaySlot: "2-е место группы H", venue: "Hard Rock Stadium, Miami Gardens" },
+  { matchNumber: 87, externalId: "M87", stage: "round_of_32", scheduledAt: "2026-07-04T01:30:00.000Z", sourceKickoff: "8:30 p.m. UTC-5", homeSlot: "Победитель группы K", awaySlot: "3-е место группы D/E/I/J/L", venue: "Arrowhead Stadium, Kansas City" },
+  { matchNumber: 88, externalId: "M88", stage: "round_of_32", scheduledAt: "2026-07-03T18:00:00.000Z", sourceKickoff: "1:00 p.m. UTC-5", homeSlot: "2-е место группы D", awaySlot: "2-е место группы G", venue: "AT&T Stadium, Arlington" },
+  { matchNumber: 89, externalId: "M89", stage: "round_of_16", scheduledAt: "2026-07-04T21:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-4", homeSlot: "Победитель матча 74", awaySlot: "Победитель матча 77", venue: "Lincoln Financial Field, Philadelphia" },
+  { matchNumber: 90, externalId: "M90", stage: "round_of_16", scheduledAt: "2026-07-04T17:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-5", homeSlot: "Победитель матча 73", awaySlot: "Победитель матча 75", venue: "NRG Stadium, Houston" },
+  { matchNumber: 91, externalId: "M91", stage: "round_of_16", scheduledAt: "2026-07-05T20:00:00.000Z", sourceKickoff: "4:00 p.m. UTC-4", homeSlot: "Победитель матча 76", awaySlot: "Победитель матча 78", venue: "MetLife Stadium, East Rutherford" },
+  { matchNumber: 92, externalId: "M92", stage: "round_of_16", scheduledAt: "2026-07-06T00:00:00.000Z", sourceKickoff: "6:00 p.m. UTC-6", homeSlot: "Победитель матча 79", awaySlot: "Победитель матча 80", venue: "Estadio Azteca, Mexico City" },
+  { matchNumber: 93, externalId: "M93", stage: "round_of_16", scheduledAt: "2026-07-06T19:00:00.000Z", sourceKickoff: "2:00 p.m. UTC-5", homeSlot: "Победитель матча 83", awaySlot: "Победитель матча 84", venue: "AT&T Stadium, Arlington" },
+  { matchNumber: 94, externalId: "M94", stage: "round_of_16", scheduledAt: "2026-07-07T00:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-7", homeSlot: "Победитель матча 81", awaySlot: "Победитель матча 82", venue: "Lumen Field, Seattle" },
+  { matchNumber: 95, externalId: "M95", stage: "round_of_16", scheduledAt: "2026-07-07T16:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-4", homeSlot: "Победитель матча 86", awaySlot: "Победитель матча 88", venue: "Mercedes-Benz Stadium, Atlanta" },
+  { matchNumber: 96, externalId: "M96", stage: "round_of_16", scheduledAt: "2026-07-07T20:00:00.000Z", sourceKickoff: "1:00 p.m. UTC-7", homeSlot: "Победитель матча 85", awaySlot: "Победитель матча 87", venue: "BC Place, Vancouver" },
+  { matchNumber: 97, externalId: "M97", stage: "quarter_final", scheduledAt: "2026-07-09T20:00:00.000Z", sourceKickoff: "4:00 p.m. UTC-4", homeSlot: "Победитель матча 89", awaySlot: "Победитель матча 90", venue: "Gillette Stadium, Foxborough" },
+  { matchNumber: 98, externalId: "M98", stage: "quarter_final", scheduledAt: "2026-07-10T19:00:00.000Z", sourceKickoff: "12:00 p.m. UTC-7", homeSlot: "Победитель матча 93", awaySlot: "Победитель матча 94", venue: "SoFi Stadium, Inglewood" },
+  { matchNumber: 99, externalId: "M99", stage: "quarter_final", scheduledAt: "2026-07-11T21:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-4", homeSlot: "Победитель матча 91", awaySlot: "Победитель матча 92", venue: "Hard Rock Stadium, Miami Gardens" },
+  { matchNumber: 100, externalId: "M100", stage: "quarter_final", scheduledAt: "2026-07-12T01:00:00.000Z", sourceKickoff: "8:00 p.m. UTC-5", homeSlot: "Победитель матча 95", awaySlot: "Победитель матча 96", venue: "Arrowhead Stadium, Kansas City" },
+  { matchNumber: 101, externalId: "M101", stage: "semi_final", scheduledAt: "2026-07-14T19:00:00.000Z", sourceKickoff: "2:00 p.m. UTC-5", homeSlot: "Победитель матча 97", awaySlot: "Победитель матча 98", venue: "AT&T Stadium, Arlington" },
+  { matchNumber: 102, externalId: "M102", stage: "semi_final", scheduledAt: "2026-07-15T19:00:00.000Z", sourceKickoff: "3:00 p.m. UTC-4", homeSlot: "Победитель матча 99", awaySlot: "Победитель матча 100", venue: "Mercedes-Benz Stadium, Atlanta" },
+  { matchNumber: 103, externalId: "M103", stage: "third_place", scheduledAt: "2026-07-18T21:00:00.000Z", sourceKickoff: "5:00 p.m. UTC-4", homeSlot: "Проигравший матча 101", awaySlot: "Проигравший матча 102", venue: "Hard Rock Stadium, Miami Gardens" },
+  { matchNumber: 104, externalId: "M104", stage: "final", scheduledAt: "2026-07-19T19:00:00.000Z", sourceKickoff: "3:00 p.m. UTC-4", homeSlot: "Победитель матча 101", awaySlot: "Победитель матча 102", venue: "MetLife Stadium, East Rutherford" },
 ];
 
 const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
@@ -367,6 +412,71 @@ function getEspnCompetitorName(competitor: Record<string, unknown> | null) {
   );
 }
 
+function findScoreLikeNumber(value: unknown, depth = 0): number | null {
+  if (depth > 4) return null;
+
+  const directScore = toNullableScore(value);
+  if (directScore !== null) return directScore;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const result = findScoreLikeNumber(item, depth + 1);
+      if (result !== null) return result;
+    }
+
+    return null;
+  }
+
+  const object = getObject(value);
+  if (!object) return null;
+
+  for (const key of ["score", "value", "displayValue", "shootoutScore", "penaltyScore", "penalties"]) {
+    const result = findScoreLikeNumber(object[key], depth + 1);
+    if (result !== null) return result;
+  }
+
+  for (const nestedValue of Object.values(object)) {
+    const result = findScoreLikeNumber(nestedValue, depth + 1);
+    if (result !== null) return result;
+  }
+
+  return null;
+}
+
+function getEspnPenaltyScore(competitor: Record<string, unknown> | null) {
+  if (!competitor) return null;
+
+  for (const key of Object.keys(competitor)) {
+    if (!/(pen|shootout)/i.test(key)) continue;
+
+    const result = findScoreLikeNumber(competitor[key]);
+    if (result !== null) return result;
+  }
+
+  const linescores = Array.isArray(competitor.linescores) ? competitor.linescores : [];
+  for (const rawLineScore of linescores) {
+    const lineScore = getObject(rawLineScore);
+    if (!lineScore) continue;
+
+    const lineScoreText = [
+      getNestedString(lineScore, "period"),
+      getNestedString(lineScore, "periodName"),
+      getNestedString(lineScore, "displayName"),
+      getNestedString(lineScore, "name"),
+      getNestedString(lineScore, "type"),
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    if (!/(pen|shootout)/i.test(lineScoreText)) continue;
+
+    const result = findScoreLikeNumber(lineScore);
+    if (result !== null) return result;
+  }
+
+  return null;
+}
+
 function normalizeEspnEvent(rawEvent: unknown): EspnFixtureUpdate | null {
   const event = getObject(rawEvent);
   const rawCompetitions = event && Array.isArray(event.competitions) ? event.competitions : [];
@@ -410,8 +520,8 @@ function normalizeEspnEvent(rawEvent: unknown): EspnFixtureUpdate | null {
     awayTeamName,
     homeScore: matchStatus === "scheduled" ? null : toNullableScore(homeCompetitor?.score),
     awayScore: matchStatus === "scheduled" ? null : toNullableScore(awayCompetitor?.score),
-    homePenaltyScore: null,
-    awayPenaltyScore: null,
+    homePenaltyScore: getEspnPenaltyScore(homeCompetitor),
+    awayPenaltyScore: getEspnPenaltyScore(awayCompetitor),
     apiStatus,
     status: matchStatus,
     decidedBy: matchStatus === "completed" ? getEspnDecision(statusType) : undefined,
@@ -523,6 +633,70 @@ async function insertSeedMatches(ctx: MutationCtx) {
   };
 }
 
+async function upsertKnockoutMatches(ctx: MutationCtx) {
+  const now = Date.now();
+  let inserted = 0;
+  let updated = 0;
+
+  for (const match of KNOCKOUT_MATCH_SEED) {
+    const existingMatch = await ctx.db
+      .query("matches")
+      .withIndex("by_external_id", (q) => q.eq("externalId", match.externalId))
+      .first();
+    const scheduledAt = Date.parse(match.scheduledAt);
+
+    if (existingMatch) {
+      const patch: Partial<Doc<"matches">> = {
+        matchNumber: match.matchNumber,
+        stage: match.stage,
+        scheduledAt,
+        sourceKickoff: match.sourceKickoff,
+        homeSlotName: match.homeSlot,
+        awaySlotName: match.awaySlot,
+        venue: match.venue,
+        source: "wikipedia:2026-knockout-stage",
+        updatedAt: now,
+      };
+
+      if (!existingMatch.homeTeamId) {
+        patch.homeTeamName = match.homeSlot;
+      }
+
+      if (!existingMatch.awayTeamId) {
+        patch.awayTeamName = match.awaySlot;
+      }
+
+      await ctx.db.patch(existingMatch._id, patch);
+      updated += 1;
+      continue;
+    }
+
+    await ctx.db.insert("matches", {
+      externalId: match.externalId,
+      matchNumber: match.matchNumber,
+      stage: match.stage,
+      scheduledAt,
+      sourceKickoff: match.sourceKickoff,
+      homeTeamName: match.homeSlot,
+      awayTeamName: match.awaySlot,
+      homeSlotName: match.homeSlot,
+      awaySlotName: match.awaySlot,
+      status: "scheduled",
+      venue: match.venue,
+      source: "wikipedia:2026-knockout-stage",
+      createdAt: now,
+      updatedAt: now,
+    });
+    inserted += 1;
+  }
+
+  return {
+    inserted,
+    updated,
+    totalKnockoutMatches: KNOCKOUT_MATCH_SEED.length,
+  };
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -539,12 +713,14 @@ export const list = query({
         scheduledAt: match.scheduledAt,
         sourceKickoff: match.sourceKickoff,
         homeTeam: {
-          id: match.homeTeamId,
+          id: match.homeTeamId ?? null,
           name: match.homeTeamName,
+          slotName: match.homeSlotName ?? null,
         },
         awayTeam: {
-          id: match.awayTeamId,
+          id: match.awayTeamId ?? null,
           name: match.awayTeamName,
+          slotName: match.awaySlotName ?? null,
         },
         homeScore: match.homeScore ?? null,
         awayScore: match.awayScore ?? null,
@@ -612,6 +788,22 @@ export const seedIfEmpty = mutation({
   },
 });
 
+export const seedKnockoutFromCode = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    return await upsertKnockoutMatches(ctx);
+  },
+});
+
+export const ensureKnockoutMatches = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    return await upsertKnockoutMatches(ctx);
+  },
+});
+
 export const setResult = mutation({
   args: {
     externalId: v.string(),
@@ -632,9 +824,9 @@ export const setResult = mutation({
     }
 
     const winnerTeamId =
-      args.homeScore > args.awayScore
+      args.homeScore > args.awayScore && match.homeTeamId
         ? match.homeTeamId
-        : args.awayScore > args.homeScore
+        : args.awayScore > args.homeScore && match.awayTeamId
           ? match.awayTeamId
           : undefined;
 
@@ -648,6 +840,8 @@ export const setResult = mutation({
       status: "completed",
       updatedAt: Date.now(),
     });
+    await propagateKnockoutSlotsFromResults(ctx);
+    await syncTeamProgressFromMatches(ctx);
 
     return {
       id: match._id,
@@ -708,14 +902,16 @@ export const adminSetMatchState = mutation({
       patch.winnerTeamId = undefined;
     } else if (homeScore !== null && awayScore !== null) {
       patch.winnerTeamId =
-        homeScore > awayScore
+        homeScore > awayScore && match.homeTeamId
           ? match.homeTeamId
-          : awayScore > homeScore
+          : awayScore > homeScore && match.awayTeamId
             ? match.awayTeamId
             : undefined;
     }
 
     await ctx.db.patch(match._id, patch);
+    await propagateKnockoutSlotsFromResults(ctx);
+    await syncTeamProgressFromMatches(ctx);
 
     return {
       id: match._id,
@@ -724,6 +920,71 @@ export const adminSetMatchState = mutation({
       awayTeamName: match.awayTeamName,
       status: patch.status ?? match.status,
       winnerTeamId: patch.winnerTeamId ?? null,
+    };
+  },
+});
+
+export const adminSetMatchTeams = mutation({
+  args: {
+    externalId: v.string(),
+    homeTeamName: v.optional(v.string()),
+    awayTeamName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const match = await ctx.db
+      .query("matches")
+      .withIndex("by_external_id", (q) => q.eq("externalId", args.externalId.trim()))
+      .first();
+
+    if (!match) {
+      throw new Error(`Матч ${args.externalId} не найден.`);
+    }
+
+    const teams = await ctx.db.query("teams").collect();
+    const findTeamByName = (name: string) => {
+      const normalizedTeamName = normalizeName(name).toLocaleLowerCase("ru-RU");
+
+      return teams.find((team) => team.name.toLocaleLowerCase("ru-RU") === normalizedTeamName);
+    };
+    const patch: Partial<Doc<"matches">> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.homeTeamName !== undefined) {
+      const homeTeam = findTeamByName(args.homeTeamName);
+      if (!homeTeam) throw new Error(`Команда ${args.homeTeamName} не найдена.`);
+      patch.homeTeamId = homeTeam._id;
+      patch.homeTeamName = homeTeam.name;
+    }
+
+    if (args.awayTeamName !== undefined) {
+      const awayTeam = findTeamByName(args.awayTeamName);
+      if (!awayTeam) throw new Error(`Команда ${args.awayTeamName} не найдена.`);
+      patch.awayTeamId = awayTeam._id;
+      patch.awayTeamName = awayTeam.name;
+    }
+
+    const nextHomeTeamId = patch.homeTeamId ?? match.homeTeamId;
+    const nextAwayTeamId = patch.awayTeamId ?? match.awayTeamId;
+    if (
+      match.winnerTeamId &&
+      match.winnerTeamId !== nextHomeTeamId &&
+      match.winnerTeamId !== nextAwayTeamId
+    ) {
+      patch.winnerTeamId = undefined;
+    }
+
+    await ctx.db.patch(match._id, patch);
+    await propagateKnockoutSlotsFromResults(ctx);
+    await syncTeamProgressFromMatches(ctx);
+
+    return {
+      id: match._id,
+      externalId: match.externalId,
+      homeTeamName: patch.homeTeamName ?? match.homeTeamName,
+      awayTeamName: patch.awayTeamName ?? match.awayTeamName,
     };
   },
 });
@@ -797,6 +1058,218 @@ function getLocalWinnerTeamId(
   return localWinnerSide === "home" ? match.homeTeamId : match.awayTeamId;
 }
 
+const TEAM_STAGE_ORDER: TeamStage[] = [
+  "group",
+  "round_of_32",
+  "round_of_16",
+  "quarter_final",
+  "semi_final",
+  "final",
+  "champion",
+];
+
+const NEXT_TEAM_STAGE_BY_MATCH_STAGE: Partial<Record<MatchStage, TeamStage>> = {
+  round_of_32: "round_of_16",
+  round_of_16: "quarter_final",
+  quarter_final: "semi_final",
+  semi_final: "final",
+  final: "champion",
+};
+
+function getTeamFromMatchOutcome(match: Doc<"matches">, outcome: "winner" | "loser") {
+  if (!match.winnerTeamId || !match.homeTeamId || !match.awayTeamId) return null;
+
+  const winnerIsHome = match.winnerTeamId === match.homeTeamId;
+  const teamId =
+    outcome === "winner"
+      ? match.winnerTeamId
+      : winnerIsHome
+        ? match.awayTeamId
+        : match.homeTeamId;
+  const teamName =
+    teamId === match.homeTeamId
+      ? match.homeTeamName
+      : match.awayTeamName;
+
+  return { teamId, teamName };
+}
+
+function getSlotSource(slotName: string | undefined) {
+  const match = slotName?.match(/^(Победитель|Проигравший) матча (\d+)$/);
+  if (!match) return null;
+
+  return {
+    outcome: match[1] === "Победитель" ? "winner" as const : "loser" as const,
+    matchNumber: Number(match[2]),
+  };
+}
+
+async function propagateKnockoutSlotsFromResults(ctx: MutationCtx) {
+  const matches = await ctx.db.query("matches").collect();
+  const matchByNumber = new Map(matches.map((match) => [match.matchNumber, match]));
+  let updated = 0;
+
+  for (const match of matches) {
+    if (match.status === "completed") continue;
+
+    const patch: Partial<Doc<"matches">> = {};
+
+    for (const side of ["home", "away"] as const) {
+      const slotName = side === "home" ? match.homeSlotName : match.awaySlotName;
+      const source = getSlotSource(slotName);
+      if (!source) continue;
+
+      const sourceMatch = matchByNumber.get(source.matchNumber);
+      if (!sourceMatch || sourceMatch.status !== "completed") continue;
+
+      const sourceTeam = getTeamFromMatchOutcome(sourceMatch, source.outcome);
+      if (!sourceTeam) continue;
+
+      const currentTeamId = side === "home" ? match.homeTeamId : match.awayTeamId;
+      if (currentTeamId === sourceTeam.teamId) continue;
+
+      if (side === "home") {
+        patch.homeTeamId = sourceTeam.teamId;
+        patch.homeTeamName = sourceTeam.teamName;
+      } else {
+        patch.awayTeamId = sourceTeam.teamId;
+        patch.awayTeamName = sourceTeam.teamName;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) continue;
+
+    if (
+      match.winnerTeamId &&
+      match.winnerTeamId !== (patch.homeTeamId ?? match.homeTeamId) &&
+      match.winnerTeamId !== (patch.awayTeamId ?? match.awayTeamId)
+    ) {
+      patch.winnerTeamId = undefined;
+    }
+
+    await ctx.db.patch(match._id, {
+      ...patch,
+      updatedAt: Date.now(),
+    });
+    updated += 1;
+  }
+
+  return { updatedBracketSlots: updated };
+}
+
+function getHigherTeamStage(first: TeamStage, second: TeamStage) {
+  return TEAM_STAGE_ORDER.indexOf(second) > TEAM_STAGE_ORDER.indexOf(first) ? second : first;
+}
+
+async function syncTeamProgressFromMatches(ctx: MutationCtx) {
+  const matches = await ctx.db.query("matches").collect();
+  const teams = await ctx.db.query("teams").collect();
+  const teamUpdates = new Map<Id<"teams">, { stageReached: TeamStage; isEliminated: boolean }>();
+
+  const ensureTeamUpdate = (teamId: Id<"teams">) => {
+    const existing = teamUpdates.get(teamId);
+    if (existing) return existing;
+
+    const team = teams.find((item) => item._id === teamId);
+    const update = {
+      stageReached: (team?.stageReached ?? "group") as TeamStage,
+      isEliminated: team?.isEliminated ?? false,
+    };
+    teamUpdates.set(teamId, update);
+
+    return update;
+  };
+
+  const markTeam = (teamId: Id<"teams"> | undefined, stageReached?: TeamStage, isEliminated?: boolean) => {
+    if (!teamId) return;
+
+    const update = ensureTeamUpdate(teamId);
+    if (stageReached) {
+      update.stageReached = getHigherTeamStage(update.stageReached, stageReached);
+    }
+    if (isEliminated !== undefined) {
+      update.isEliminated = isEliminated;
+    }
+  };
+
+  const roundOf32Matches = matches.filter((match) => match.stage === "round_of_32");
+  const roundOf32Ready =
+    roundOf32Matches.length === 16 &&
+    roundOf32Matches.every((match) => match.homeTeamId && match.awayTeamId);
+
+  if (roundOf32Ready) {
+    const roundOf32TeamIds = new Set<Id<"teams">>();
+
+    for (const match of roundOf32Matches) {
+      if (match.homeTeamId) roundOf32TeamIds.add(match.homeTeamId);
+      if (match.awayTeamId) roundOf32TeamIds.add(match.awayTeamId);
+    }
+
+    for (const team of teams) {
+      if (roundOf32TeamIds.has(team._id)) {
+        markTeam(team._id, "round_of_32", false);
+      } else {
+        markTeam(team._id, "group", true);
+      }
+    }
+  }
+
+  for (const match of matches) {
+    if (match.status !== "completed" || match.stage === "group" || !match.winnerTeamId) continue;
+
+    const winnerTeamId = match.winnerTeamId;
+    const loserTeamId =
+      match.homeTeamId === winnerTeamId
+        ? match.awayTeamId
+        : match.awayTeamId === winnerTeamId
+          ? match.homeTeamId
+          : undefined;
+
+    if (match.stage === "third_place") {
+      markTeam(winnerTeamId, "semi_final", true);
+      markTeam(loserTeamId, "semi_final", true);
+      continue;
+    }
+
+    const nextStage = NEXT_TEAM_STAGE_BY_MATCH_STAGE[match.stage];
+    if (nextStage) {
+      markTeam(winnerTeamId, nextStage, false);
+    }
+
+    if (match.stage === "semi_final") {
+      markTeam(loserTeamId, "semi_final", false);
+    } else if (match.stage === "final") {
+      markTeam(loserTeamId, "final", true);
+    } else {
+      markTeam(loserTeamId, match.stage, true);
+    }
+  }
+
+  const now = Date.now();
+  let updated = 0;
+
+  for (const [teamId, update] of teamUpdates) {
+    const team = teams.find((item) => item._id === teamId);
+    if (!team) continue;
+
+    if (
+      (team.stageReached ?? "group") === update.stageReached &&
+      (team.isEliminated ?? false) === update.isEliminated
+    ) {
+      continue;
+    }
+
+    await ctx.db.patch(teamId, {
+      stageReached: update.stageReached,
+      isEliminated: update.isEliminated,
+      updatedAt: now,
+    });
+    updated += 1;
+  }
+
+  return { updatedTeams: updated };
+}
+
 export const applyApiFootballFixtures = internalMutation({
   args: {
     fixtures: v.array(apiFootballFixtureUpdateValidator),
@@ -864,6 +1337,9 @@ export const applyApiFootballFixtures = internalMutation({
       updated += 1;
     }
 
+    const bracketResult = await propagateKnockoutSlotsFromResults(ctx);
+    const progressResult = await syncTeamProgressFromMatches(ctx);
+
     return {
       received: args.fixtures.length,
       matched,
@@ -871,6 +1347,8 @@ export const applyApiFootballFixtures = internalMutation({
       completed,
       live,
       scheduled,
+      ...bracketResult,
+      ...progressResult,
       unmatched: unmatched.slice(0, 12),
     };
   },
@@ -943,6 +1421,9 @@ export const applyEspnFixtures = internalMutation({
       updated += 1;
     }
 
+    const bracketResult = await propagateKnockoutSlotsFromResults(ctx);
+    const progressResult = await syncTeamProgressFromMatches(ctx);
+
     return {
       received: args.fixtures.length,
       matched,
@@ -950,6 +1431,8 @@ export const applyEspnFixtures = internalMutation({
       completed,
       live,
       scheduled,
+      ...bracketResult,
+      ...progressResult,
       unmatched: unmatched.slice(0, 12),
     };
   },
@@ -1055,8 +1538,10 @@ async function syncFromEspnHandler(
   args: { date?: string; startDate?: string; endDate?: string },
 ): Promise<Record<string, unknown>> {
   const dateParam = getEspnDateParam(args);
+  let seedResult: Record<string, unknown> | null = null;
 
   try {
+    seedResult = await ctx.runMutation(internal.matches.ensureKnockoutMatches, {}) as Record<string, unknown>;
     const url = new URL(ESPN_SCOREBOARD_URL);
     url.searchParams.set("dates", dateParam);
 
@@ -1071,6 +1556,7 @@ async function syncFromEspnHandler(
         ok: false,
         provider: "espn",
         dateParam,
+        knockoutSeed: seedResult,
         error: `ESPN вернул HTTP ${response.status}.`,
       };
 
@@ -1100,6 +1586,7 @@ async function syncFromEspnHandler(
       dateParam,
       fetched: rawEvents.length,
       normalized: fixtures.length,
+      knockoutSeed: seedResult,
       ...applyResult,
     };
 
@@ -1110,6 +1597,7 @@ async function syncFromEspnHandler(
       ok: false,
       provider: "espn",
       dateParam,
+      knockoutSeed: seedResult,
       error: getSyncErrorMessage(error, "ESPN"),
     };
 
