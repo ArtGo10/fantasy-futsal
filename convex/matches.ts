@@ -1220,7 +1220,7 @@ export const applyEspnStandings = internalMutation({
         const rank = standing.rank === null ? null : Math.trunc(standing.rank);
         const isStableTopTwo = groupComplete && (rank === 1 || rank === 2);
         const isKnownQualified = isStableTopTwo || standing.advanced;
-        const isKnownEliminated = standing.eliminated || (groupComplete && rank !== null && rank >= 4);
+        const isKnownEliminated = groupComplete && (standing.eliminated || (rank !== null && rank >= 4));
         const teamPatch: Partial<Doc<"teams">> = {};
 
         if (isKnownQualified) {
