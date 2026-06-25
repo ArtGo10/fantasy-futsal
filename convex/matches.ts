@@ -63,6 +63,15 @@ type EspnFixtureUpdate = {
   homeWinner: boolean | null;
   awayWinner: boolean | null;
 };
+type EspnStandingUpdate = {
+  group: string;
+  teamName: string;
+  rank: number | null;
+  gamesPlayed: number | null;
+  advanced: boolean;
+  eliminated: boolean;
+  note: string | null;
+};
 
 const MATCH_SEED: MatchSeed[] = [
   {"matchNumber":1,"externalId":"A1","group":"A","scheduledAt":"2026-06-11T19:00:00.000Z","sourceKickoff":"1:00 p.m. UTC−6","homeTeam":"Мексика","awayTeam":"ЮАР","homeScore":2,"awayScore":0,"status":"completed","venue":"Estadio Azteca, Mexico City"},
@@ -176,6 +185,7 @@ const KNOCKOUT_MATCH_SEED: KnockoutMatchSeed[] = [
 
 const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
 const ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
+const ESPN_GROUPS_URL = "https://sports.core.api.espn.com/v2/sports/soccer/leagues/fifa.world/seasons/2026/types/1/groups?lang=en&region=us";
 const ESPN_SYNC_WINDOW_BEFORE_MS = 2 * 24 * 60 * 60 * 1000;
 const ESPN_SYNC_WINDOW_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
 const LIVE_API_STATUSES = new Set(["1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"]);
@@ -324,6 +334,15 @@ const espnFixtureUpdateValidator = v.object({
   homeWinner: nullableBooleanValidator,
   awayWinner: nullableBooleanValidator,
 });
+const espnStandingUpdateValidator = v.object({
+  group: v.string(),
+  teamName: v.string(),
+  rank: nullableNumberValidator,
+  gamesPlayed: nullableNumberValidator,
+  advanced: v.boolean(),
+  eliminated: v.boolean(),
+  note: v.union(v.string(), v.null()),
+});
 const syncLogValidator = v.object({
   provider: v.string(),
   ok: v.boolean(),
@@ -351,6 +370,12 @@ function getNestedString(value: Record<string, unknown> | null, key: string) {
   const result = value?.[key];
 
   return typeof result === "string" ? result : null;
+}
+
+function getEspnRefUrl(value: unknown) {
+  const ref = getNestedString(getObject(value), "$ref");
+
+  return ref ? ref.replace(/^http:\/\//, "https://") : null;
 }
 
 function getNestedBoolean(value: Record<string, unknown> | null, key: string) {
@@ -528,6 +553,155 @@ function normalizeEspnEvent(rawEvent: unknown): EspnFixtureUpdate | null {
     homeWinner: getNestedBoolean(homeCompetitor, "winner"),
     awayWinner: getNestedBoolean(awayCompetitor, "winner"),
   };
+}
+
+async function fetchEspnJson(url: string) {
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`ESPN вернул HTTP ${response.status} для ${url}.`);
+  }
+
+  return await response.json() as Record<string, unknown>;
+}
+
+function getEspnCollectionRefs(collection: Record<string, unknown>) {
+  const items = Array.isArray(collection.items) ? collection.items : [];
+
+  return items
+    .map(getEspnRefUrl)
+    .filter((ref): ref is string => Boolean(ref));
+}
+
+function getEspnGroupLetter(group: Record<string, unknown>, fallbackIndex: number) {
+  const groupName = [
+    getNestedString(group, "name"),
+    getNestedString(group, "abbreviation"),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const groupMatch = groupName.match(/\bGroup\s+([A-L])\b/i);
+
+  if (groupMatch) return groupMatch[1].toLocaleUpperCase("en-US");
+
+  const groupId = Number(toIdString(group.id));
+  if (Number.isInteger(groupId) && groupId >= 1 && groupId <= 12) {
+    return String.fromCharCode("A".charCodeAt(0) + groupId - 1);
+  }
+
+  return String.fromCharCode("A".charCodeAt(0) + fallbackIndex);
+}
+
+function getEspnTeamName(team: Record<string, unknown> | null) {
+  return (
+    getNestedString(team, "displayName") ??
+    getNestedString(team, "shortDisplayName") ??
+    getNestedString(team, "name") ??
+    getNestedString(team, "location")
+  );
+}
+
+function getEspnStandingStat(standing: Record<string, unknown>, statName: string) {
+  const records = Array.isArray(standing.records) ? standing.records : [];
+  const record = records.map(getObject).find(Boolean);
+  const stats = record && Array.isArray(record.stats) ? record.stats : [];
+
+  for (const rawStat of stats) {
+    const stat = getObject(rawStat);
+    if (!stat || getNestedString(stat, "name") !== statName) continue;
+
+    return toNullableNumber(stat.value);
+  }
+
+  return null;
+}
+
+async function fetchEspnStandingTeamName(teamRef: string, cache: Map<string, string>) {
+  const cachedName = cache.get(teamRef);
+  if (cachedName) return cachedName;
+
+  const teamPayload = await fetchEspnJson(teamRef);
+  const teamName = getEspnTeamName(teamPayload);
+  if (!teamName) {
+    throw new Error(`ESPN standings содержит команду без названия: ${teamRef}.`);
+  }
+
+  const knownTeamName = toKnownTeamName(teamName);
+  cache.set(teamRef, knownTeamName);
+
+  return knownTeamName;
+}
+
+async function fetchEspnStandings() {
+  const groupsCollection = await fetchEspnJson(ESPN_GROUPS_URL);
+  const groupRefs = getEspnCollectionRefs(groupsCollection);
+  const groupPayloads = await Promise.all(groupRefs.map(fetchEspnJson));
+  const standingsPayloads = await Promise.all(
+    groupPayloads.map(async (group, index) => {
+      const groupLetter = getEspnGroupLetter(group, index);
+      const standingsCollectionRef = getEspnRefUrl(group.standings);
+
+      if (!standingsCollectionRef) {
+        throw new Error(`ESPN не вернул standings для группы ${groupLetter}.`);
+      }
+
+      const standingsCollection = await fetchEspnJson(standingsCollectionRef);
+      const standingsRefs = getEspnCollectionRefs(standingsCollection);
+      const standingsRef = standingsRefs[0] ?? `${standingsCollectionRef.replace(/\?.*$/, "")}/0?lang=en&region=us`;
+      const standingsPayload = await fetchEspnJson(standingsRef);
+
+      return {
+        group: groupLetter,
+        standings: Array.isArray(standingsPayload.standings) ? standingsPayload.standings : [],
+      };
+    }),
+  );
+  const teamRefs = new Set<string>();
+
+  for (const payload of standingsPayloads) {
+    for (const rawStanding of payload.standings) {
+      const standing = getObject(rawStanding);
+      const teamRef = standing ? getEspnRefUrl(standing.team) : null;
+      if (teamRef) teamRefs.add(teamRef);
+    }
+  }
+
+  const teamNameByRef = new Map<string, string>();
+  await Promise.all([...teamRefs].map((teamRef) => fetchEspnStandingTeamName(teamRef, teamNameByRef)));
+
+  const updates: EspnStandingUpdate[] = [];
+
+  for (const payload of standingsPayloads) {
+    for (const rawStanding of payload.standings) {
+      const standing = getObject(rawStanding);
+      if (!standing) continue;
+
+      const teamRef = getEspnRefUrl(standing.team);
+      const teamName = teamRef ? teamNameByRef.get(teamRef) : null;
+      if (!teamName) continue;
+
+      const note = getNestedObject(standing, "note");
+      const noteDescription = getNestedString(note, "description");
+      const rank = getEspnStandingStat(standing, "rank") ?? toNullableNumber(note?.rank);
+      const advancedValue = getEspnStandingStat(standing, "advanced") ?? 0;
+
+      updates.push({
+        group: payload.group,
+        teamName,
+        rank,
+        gamesPlayed: getEspnStandingStat(standing, "gamesPlayed"),
+        advanced: advancedValue >= 1,
+        eliminated: /eliminated/i.test(noteDescription ?? ""),
+        note: noteDescription,
+      });
+    }
+  }
+
+  return updates;
 }
 
 function normalizeApiFootballFixture(rawFixture: unknown): ApiFootballFixtureUpdate | null {
@@ -989,6 +1163,146 @@ export const adminSetMatchTeams = mutation({
   },
 });
 
+function getRoundOf32KnownSlotName(group: string, rank: number | null) {
+  if (rank === 1) return `Победитель группы ${group}`;
+  if (rank === 2) return `2-е место группы ${group}`;
+
+  return null;
+}
+
+export const applyEspnStandings = internalMutation({
+  args: {
+    standings: v.array(espnStandingUpdateValidator),
+  },
+  handler: async (ctx, args) => {
+    const teams = await ctx.db.query("teams").collect();
+    const matches = await ctx.db.query("matches").collect();
+    const teamByComparableName = new Map(
+      teams.map((team) => [normalizeComparableName(team.name), team]),
+    );
+    const standingsByGroup = new Map<string, EspnStandingUpdate[]>();
+    const now = Date.now();
+    let matched = 0;
+    let updatedTeams = 0;
+    let qualified = 0;
+    let eliminated = 0;
+    let updatedSlots = 0;
+    const unmatched: Array<{ group: string; teamName: string; rank: number | null; note: string | null }> = [];
+
+    for (const standing of args.standings) {
+      const group = standing.group.toLocaleUpperCase("en-US");
+      const groupStandings = standingsByGroup.get(group) ?? [];
+      groupStandings.push(standing);
+      standingsByGroup.set(group, groupStandings);
+    }
+
+    for (const [group, groupStandings] of standingsByGroup) {
+      const groupComplete =
+        groupStandings.length >= 4 &&
+        groupStandings.every((standing) => (standing.gamesPlayed ?? 0) >= 3);
+
+      for (const standing of groupStandings) {
+        const teamName = toKnownTeamName(standing.teamName);
+        const team = teamByComparableName.get(normalizeComparableName(teamName));
+
+        if (!team) {
+          unmatched.push({
+            group,
+            teamName,
+            rank: standing.rank,
+            note: standing.note,
+          });
+          continue;
+        }
+
+        matched += 1;
+
+        const rank = standing.rank === null ? null : Math.trunc(standing.rank);
+        const isStableTopTwo = groupComplete && (rank === 1 || rank === 2);
+        const isKnownQualified = isStableTopTwo || standing.advanced;
+        const isKnownEliminated = standing.eliminated || (groupComplete && rank !== null && rank >= 4);
+        const teamPatch: Partial<Doc<"teams">> = {};
+
+        if (isKnownQualified) {
+          const nextStage = getHigherTeamStage((team.stageReached ?? "group") as TeamStage, "round_of_32");
+          if ((team.stageReached ?? "group") !== nextStage) teamPatch.stageReached = nextStage;
+          if ((team.isEliminated ?? false) !== false) teamPatch.isEliminated = false;
+          qualified += 1;
+        } else if (isKnownEliminated) {
+          if ((team.isEliminated ?? false) !== true) teamPatch.isEliminated = true;
+          eliminated += 1;
+        }
+
+        if (Object.keys(teamPatch).length > 0) {
+          await ctx.db.patch(team._id, {
+            ...teamPatch,
+            updatedAt: now,
+          });
+          Object.assign(team, teamPatch);
+          updatedTeams += 1;
+        }
+
+        if (!isStableTopTwo) continue;
+
+        const slotName = getRoundOf32KnownSlotName(group, rank);
+        if (!slotName) continue;
+
+        const match = matches.find(
+          (item) =>
+            item.stage === "round_of_32" &&
+            (item.homeSlotName === slotName || item.awaySlotName === slotName),
+        );
+        if (!match) continue;
+
+        const patch: Partial<Doc<"matches">> = {};
+
+        if (match.homeSlotName === slotName && match.homeTeamId !== team._id) {
+          patch.homeTeamId = team._id;
+          patch.homeTeamName = team.name;
+        }
+
+        if (match.awaySlotName === slotName && match.awayTeamId !== team._id) {
+          patch.awayTeamId = team._id;
+          patch.awayTeamName = team.name;
+        }
+
+        if (Object.keys(patch).length === 0) continue;
+
+        const nextHomeTeamId = patch.homeTeamId ?? match.homeTeamId;
+        const nextAwayTeamId = patch.awayTeamId ?? match.awayTeamId;
+        if (
+          match.winnerTeamId &&
+          match.winnerTeamId !== nextHomeTeamId &&
+          match.winnerTeamId !== nextAwayTeamId
+        ) {
+          patch.winnerTeamId = undefined;
+        }
+
+        await ctx.db.patch(match._id, {
+          ...patch,
+          updatedAt: now,
+        });
+        Object.assign(match, patch);
+        updatedSlots += 1;
+      }
+    }
+
+    const progressResult = await syncTeamProgressFromMatches(ctx);
+
+    return {
+      received: args.standings.length,
+      matched,
+      updated: updatedTeams + updatedSlots,
+      updatedTeams,
+      updatedSlots,
+      qualified,
+      eliminated,
+      progressUpdatedTeams: progressResult.updatedTeams,
+      unmatched: unmatched.slice(0, 12),
+    };
+  },
+});
+
 function findMatchForApiFixture(matches: Doc<"matches">[], fixture: ApiFootballFixtureUpdate) {
   const matchByFixtureId = matches.find((match) => match.apiFootballFixtureId === fixture.fixtureId);
   if (matchByFixtureId) return { match: matchByFixtureId, isReversed: false };
@@ -1193,22 +1507,24 @@ async function syncTeamProgressFromMatches(ctx: MutationCtx) {
   };
 
   const roundOf32Matches = matches.filter((match) => match.stage === "round_of_32");
+  const roundOf32TeamIds = new Set<Id<"teams">>();
+
+  for (const match of roundOf32Matches) {
+    if (match.homeTeamId) roundOf32TeamIds.add(match.homeTeamId);
+    if (match.awayTeamId) roundOf32TeamIds.add(match.awayTeamId);
+  }
+
+  for (const teamId of roundOf32TeamIds) {
+    markTeam(teamId, "round_of_32", false);
+  }
+
   const roundOf32Ready =
     roundOf32Matches.length === 16 &&
     roundOf32Matches.every((match) => match.homeTeamId && match.awayTeamId);
 
   if (roundOf32Ready) {
-    const roundOf32TeamIds = new Set<Id<"teams">>();
-
-    for (const match of roundOf32Matches) {
-      if (match.homeTeamId) roundOf32TeamIds.add(match.homeTeamId);
-      if (match.awayTeamId) roundOf32TeamIds.add(match.awayTeamId);
-    }
-
     for (const team of teams) {
-      if (roundOf32TeamIds.has(team._id)) {
-        markTeam(team._id, "round_of_32", false);
-      } else {
+      if (!roundOf32TeamIds.has(team._id)) {
         markTeam(team._id, "group", true);
       }
     }
@@ -1579,6 +1895,19 @@ async function syncFromEspnHandler(
     const applyResult: Record<string, unknown> = await ctx.runMutation(internal.matches.applyEspnFixtures, {
       fixtures,
     });
+    let standingsResult: Record<string, unknown> | null = null;
+
+    try {
+      const standings = await fetchEspnStandings();
+      standingsResult = await ctx.runMutation(internal.matches.applyEspnStandings, {
+        standings,
+      }) as Record<string, unknown>;
+    } catch (standingsError) {
+      standingsResult = {
+        ok: false,
+        error: getSyncErrorMessage(standingsError, "ESPN standings"),
+      };
+    }
 
     const result = {
       ok: true,
@@ -1587,6 +1916,7 @@ async function syncFromEspnHandler(
       fetched: rawEvents.length,
       normalized: fixtures.length,
       knockoutSeed: seedResult,
+      standings: standingsResult,
       ...applyResult,
     };
 
