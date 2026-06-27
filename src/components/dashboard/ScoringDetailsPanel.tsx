@@ -93,7 +93,7 @@ export function ScoringDetailsPanel({
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.pointsDetailsText}>Пока без очков</Text>
+                    <Text style={styles.pointsDetailsText}>Без очков</Text>
                   )}
                 </View>
                 <View style={styles.pointsDetailsTotalBox}>
