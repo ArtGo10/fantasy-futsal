@@ -1,6 +1,6 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 
 import { api } from "../../../convex/_generated/api";
 import { TENNIS_POTS } from "../../constants";
@@ -8,6 +8,7 @@ import { useDrawUnlockTicker } from "../../hooks/useDrawUnlockTicker";
 import { styles } from "../../styles";
 import type {
   TennisAssignmentView,
+  TennisCompetitorView,
   TennisDashboardTab,
   TennisMatchView,
   TennisOverviewView,
@@ -81,8 +82,12 @@ type BracketRound = {
 };
 type BracketPlayerInfo = {
   competitorId: string | null;
+  country: string | null;
+  flagUrl: string | null;
   name: string;
 };
+
+const NEUTRAL_FLAG_COUNTRIES = new Set(["belarus", "russia", "russian federation"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -137,6 +142,26 @@ function getMatchWinnerName(match: TennisMatchView) {
   return null;
 }
 
+function shouldUseNeutralFlag(country: string | null | undefined) {
+  return country ? NEUTRAL_FLAG_COUNTRIES.has(country.trim().toLowerCase()) : false;
+}
+
+function TennisFlag({
+  country,
+  flagUrl,
+}: {
+  country: string | null | undefined;
+  flagUrl: string | null | undefined;
+}) {
+  if (shouldUseNeutralFlag(country)) {
+    return <View style={styles.tennisNeutralFlagIcon} />;
+  }
+
+  if (!flagUrl) return null;
+
+  return <Image source={{ uri: flagUrl }} style={styles.tennisFlagIcon} resizeMode="cover" />;
+}
+
 function getBracketTopOffset(roundIndex: number) {
   return roundIndex === 0 ? 0 : (2 ** roundIndex - 1) * (BRACKET_ROW_STEP / 2);
 }
@@ -175,23 +200,26 @@ function buildBracketRounds(matches: TennisMatchView[]) {
 
 function getBracketPlayerName({
   bracketMatch,
-  competitorNameById,
+  competitorById,
   side,
   roundsByOrder,
 }: {
   bracketMatch: BracketMatch;
-  competitorNameById: Map<string, string>;
+  competitorById: Map<string, TennisCompetitorView>;
   side: 0 | 1;
   roundsByOrder: Map<number, BracketMatch[]>;
 }): BracketPlayerInfo {
   const match = bracketMatch.match;
   const playerName = side === 0 ? match.player1Name : match.player2Name;
   const competitorId = side === 0 ? match.player1CompetitorId : match.player2CompetitorId;
-  const displayName = competitorId ? competitorNameById.get(competitorId) ?? playerName : playerName;
+  const competitor = competitorId ? competitorById.get(competitorId) : null;
+  const displayName = competitor?.name ?? playerName;
 
   if (isKnownPlayerName(displayName)) {
     return {
       competitorId,
+      country: competitor?.country ?? null,
+      flagUrl: competitor?.flagUrl ?? null,
       name: getPlayerSurname(displayName),
     };
   }
@@ -199,8 +227,9 @@ function getBracketPlayerName({
   const previousRound = roundsByOrder.get(match.roundOrder - 1);
   const sourceMatch = previousRound?.find((candidate) => candidate.position === bracketMatch.position * 2 + side);
   const winnerCompetitorId = sourceMatch?.match.winnerCompetitorId ?? null;
+  const winnerCompetitor = winnerCompetitorId ? competitorById.get(winnerCompetitorId) : null;
   const winnerName = winnerCompetitorId && sourceMatch
-    ? competitorNameById.get(winnerCompetitorId) ?? getMatchWinnerName(sourceMatch.match)
+    ? winnerCompetitor?.name ?? getMatchWinnerName(sourceMatch.match)
     : sourceMatch
       ? getMatchWinnerName(sourceMatch.match)
       : null;
@@ -208,12 +237,16 @@ function getBracketPlayerName({
   if (winnerName && isKnownPlayerName(winnerName)) {
     return {
       competitorId: winnerCompetitorId,
+      country: winnerCompetitor?.country ?? null,
+      flagUrl: winnerCompetitor?.flagUrl ?? null,
       name: getPlayerSurname(winnerName),
     };
   }
 
   return {
     competitorId: null,
+    country: null,
+    flagUrl: null,
     name: "",
   };
 }
@@ -227,16 +260,21 @@ function getBracketPlayerLabel(player: BracketPlayerInfo, ownerByCompetitorId: M
 }
 
 function TennisBracketPlayer({
+  country,
+  flagUrl,
   name,
   isWinner,
   isPending,
 }: {
+  country: string | null;
+  flagUrl: string | null;
   name: string;
   isWinner: boolean;
   isPending: boolean;
 }) {
   return (
     <View style={styles.bracketPlayerRow}>
+      <TennisFlag country={country} flagUrl={flagUrl} />
       <Text
         style={[
           styles.bracketPlayerName,
@@ -253,20 +291,20 @@ function TennisBracketPlayer({
 
 function TennisBracketMatchCard({
   bracketMatch,
-  competitorNameById,
+  competitorById,
   isFinalRound,
   ownerByCompetitorId,
   roundsByOrder,
 }: {
   bracketMatch: BracketMatch;
-  competitorNameById: Map<string, string>;
+  competitorById: Map<string, TennisCompetitorView>;
   isFinalRound: boolean;
   ownerByCompetitorId: Map<string, string>;
   roundsByOrder: Map<number, BracketMatch[]>;
 }) {
   const match = bracketMatch.match;
-  const player1 = getBracketPlayerName({ bracketMatch, competitorNameById, side: 0, roundsByOrder });
-  const player2 = getBracketPlayerName({ bracketMatch, competitorNameById, side: 1, roundsByOrder });
+  const player1 = getBracketPlayerName({ bracketMatch, competitorById, side: 0, roundsByOrder });
+  const player2 = getBracketPlayerName({ bracketMatch, competitorById, side: 1, roundsByOrder });
   const player1IsWinner = Boolean(match.winnerCompetitorId && match.player1CompetitorId === match.winnerCompetitorId);
   const player2IsWinner = Boolean(match.winnerCompetitorId && match.player2CompetitorId === match.winnerCompetitorId);
 
@@ -274,11 +312,15 @@ function TennisBracketMatchCard({
     <View style={styles.bracketMatchWrap}>
       <View style={[styles.bracketMatchCard, match.status === "live" ? styles.bracketMatchCardLive : null]}>
         <TennisBracketPlayer
+          country={player1.country}
+          flagUrl={player1.flagUrl}
           name={getBracketPlayerLabel(player1, ownerByCompetitorId)}
           isWinner={player1IsWinner}
           isPending={!player1.name}
         />
         <TennisBracketPlayer
+          country={player2.country}
+          flagUrl={player2.flagUrl}
           name={getBracketPlayerLabel(player2, ownerByCompetitorId)}
           isWinner={player2IsWinner}
           isPending={!player2.name}
@@ -304,8 +346,8 @@ function TennisBracket({
     () => new Map(rounds.map((round) => [round.order, round.matches])),
     [rounds],
   );
-  const competitorNameById = useMemo(
-    () => new Map(competitors.map((competitor) => [competitor.id, competitor.name])),
+  const competitorById = useMemo(
+    () => new Map(competitors.map((competitor) => [competitor.id, competitor])),
     [competitors],
   );
   const ownerByCompetitorId = useMemo(() => {
@@ -346,7 +388,7 @@ function TennisBracket({
                 <TennisBracketMatchCard
                   key={bracketMatch.match.id}
                   bracketMatch={bracketMatch}
-                  competitorNameById={competitorNameById}
+                  competitorById={competitorById}
                   isFinalRound={roundIndex === rounds.length - 1}
                   ownerByCompetitorId={ownerByCompetitorId}
                   roundsByOrder={roundsByOrder}
@@ -387,9 +429,12 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
             {assignment ? (
               <View style={[styles.assignmentCellContent, styles.tennisAssignmentCellContent]}>
                 <View style={styles.assignmentInfo}>
-                  <Text style={styles.assignmentText} numberOfLines={2}>
-                    {getPlayerSurnameWithInitial(assignment.competitorName)}
-                  </Text>
+                  <View style={styles.tennisNameWithFlag}>
+                    <TennisFlag country={assignment.competitorCountry} flagUrl={assignment.competitorFlagUrl} />
+                    <Text style={styles.assignmentText} numberOfLines={2}>
+                      {getPlayerSurnameWithInitial(assignment.competitorName)}
+                    </Text>
+                  </View>
                   <Text style={styles.pointsDetailsText}>{STAGE_LABELS[assignment.stageReached]}</Text>
                   <Text style={styles.assignmentPoints}>{assignment.points}</Text>
                 </View>
@@ -514,15 +559,18 @@ function TennisDrawPanel({
                       competitor.assignedTo ? styles.teamRowAssigned : null,
                     ]}
                   >
-                    <Text
-                      style={[
-                        competitor.assignedTo ? styles.teamNameAssigned : styles.teamName,
-                        competitor.isEliminated ? styles.teamNameEliminated : styles.teamNameActive,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {getPlayerSurnameWithInitial(competitor.name)}
-                    </Text>
+                    <View style={styles.tennisNameWithFlag}>
+                      <TennisFlag country={competitor.country} flagUrl={competitor.flagUrl} />
+                      <Text
+                        style={[
+                          competitor.assignedTo ? styles.teamNameAssigned : styles.teamName,
+                          competitor.isEliminated ? styles.teamNameEliminated : styles.teamNameActive,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {getPlayerSurnameWithInitial(competitor.name)}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </View>

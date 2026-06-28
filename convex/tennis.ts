@@ -65,6 +65,8 @@ type TennisAssignmentView = {
   pot: TennisPot;
   competitorId: Id<"tennisCompetitors">;
   competitorName: string;
+  competitorCountry: string | null;
+  competitorFlagUrl: string | null;
   stageReached: TennisStage;
   points: number;
   isEliminated: boolean;
@@ -577,6 +579,8 @@ function toTennisAssignmentView(
     pot,
     competitorId: competitor._id,
     competitorName: competitor.nameRu ?? competitor.name,
+    competitorCountry: competitor.country ?? null,
+    competitorFlagUrl: competitor.flagUrl ?? null,
     stageReached: competitor.stageReached,
     points: getTennisStagePoints(competitor.stageReached),
     isEliminated: competitor.isEliminated,
@@ -648,6 +652,7 @@ async function getTennisParticipantData(
           name: competitor.nameRu ?? competitor.name,
           originalName: competitor.name,
           country: competitor.country ?? null,
+          flagUrl: competitor.flagUrl ?? null,
           seed: competitor.seed ?? null,
           ranking: competitor.ranking ?? null,
           rankingPoints: competitor.rankingPoints ?? null,
@@ -1076,6 +1081,7 @@ export const getOverview = query({
           name: competitor.nameRu ?? competitor.name,
           originalName: competitor.name,
           country: competitor.country ?? null,
+          flagUrl: competitor.flagUrl ?? null,
           seed: competitor.seed ?? null,
           ranking: competitor.ranking ?? null,
           rankingPoints: competitor.rankingPoints ?? null,

@@ -168,6 +168,7 @@ export type TennisCompetitorView = {
   name: string;
   originalName: string;
   country: string | null;
+  flagUrl: string | null;
   seed: number | null;
   ranking: number | null;
   rankingPoints: number | null;
@@ -183,6 +184,8 @@ export type TennisAssignmentView = {
   pot: TennisPot;
   competitorId: string;
   competitorName: string;
+  competitorCountry: string | null;
+  competitorFlagUrl: string | null;
   stageReached: TennisStage;
   points: number;
   isEliminated: boolean;
