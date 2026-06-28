@@ -719,39 +719,12 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
     return <LoadingBlock text="Готовим Wimbledon..." />;
   }
 
-  const readyPotCount = overview.competitorsByPot.filter((pot) => pot.total >= 16).length;
   const assignedCompetitorCount = overview.competitorsByPot.reduce((total, pot) => total + pot.assigned, 0);
   const totalPotCompetitorCount = overview.competitorsByPot.reduce((total, pot) => total + pot.total, 0);
+  const drawIsComplete = totalPotCompetitorCount > 0 && assignedCompetitorCount >= totalPotCompetitorCount;
 
   return (
     <>
-      <View style={styles.panel}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>{overview.tournament.title}</Text>
-          <Text style={styles.adminBadge}>{overview.tournament.tour.toUpperCase()}</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.label}>Участники</Text>
-            <Text style={styles.metric}>{overview.participantCount}/{overview.maxParticipants}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.label}>Теннисисты</Text>
-            <Text style={styles.metric}>{overview.stats.competitors}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.label}>Корзины</Text>
-            <Text style={styles.metric}>{readyPotCount}/{TENNIS_POTS.length}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.label}>Выдано</Text>
-            <Text style={styles.metric}>{assignedCompetitorCount}/{totalPotCompetitorCount}</Text>
-          </View>
-        </View>
-
-      </View>
-
       <TabBar activeTab={activeTennisTab} tabs={tennisTabs} onChange={setActiveTennisTab} />
 
       {activeTennisTab === "admin" && canAdminSync ? (
@@ -824,7 +797,7 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
             </View>
           ) : null}
 
-          {overview.seeded ? (
+          {overview.seeded && !drawIsComplete ? (
             <TennisDrawPanel
               currentAssignments={currentAssignments}
               drawCountdownText={drawCountdownText}
@@ -836,11 +809,11 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
               pots={overview.competitorsByPot}
               ready={overview.competitorsReady}
             />
-          ) : (
+          ) : !overview.seeded ? (
             <View style={styles.panel}>
               <Text style={styles.mutedText}>Список теннисистов ещё не загружен.</Text>
             </View>
-          )}
+          ) : null}
         </>
       ) : null}
 

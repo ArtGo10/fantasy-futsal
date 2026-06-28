@@ -549,15 +549,61 @@ function getPotByRankingIndex(index: number): TennisPot {
 }
 
 async function rebuildTournamentPots(ctx: MutationCtx, tournamentId: Id<"tennisTournaments">) {
-  const competitors = await ctx.db
-    .query("tennisCompetitors")
-    .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
-    .collect();
+  const [competitors, assignments] = await Promise.all([
+    ctx.db
+      .query("tennisCompetitors")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
+      .collect(),
+    ctx.db
+      .query("tennisAssignments")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournamentId))
+      .collect(),
+  ]);
+  const competitorById = new Map(competitors.map((competitor) => [competitor._id, competitor]));
+  const assignedPotByCompetitorId = new Map<Id<"tennisCompetitors">, TennisPot>();
+
+  for (const assignment of assignments) {
+    const competitor = competitorById.get(assignment.competitorId);
+    const pot = assignment.pot ?? competitor?.pot;
+
+    if (pot) {
+      assignedPotByCompetitorId.set(assignment.competitorId, pot);
+    }
+  }
+
   const sortedCompetitors = [...competitors].sort(compareCompetitorsByRanking);
+  const potByCompetitorId = new Map<Id<"tennisCompetitors">, TennisPot>();
+  const potCounts = new Map<TennisPot, number>(TENNIS_POTS.map((pot) => [pot, 0]));
   let updatedPots = 0;
 
+  for (const competitor of sortedCompetitors) {
+    const assignedPot = assignedPotByCompetitorId.get(competitor._id);
+
+    if (!assignedPot) continue;
+
+    potByCompetitorId.set(competitor._id, assignedPot);
+    potCounts.set(assignedPot, (potCounts.get(assignedPot) ?? 0) + 1);
+  }
+
+  let nextPotIndex = 0;
+
+  for (const competitor of sortedCompetitors) {
+    if (potByCompetitorId.has(competitor._id)) continue;
+
+    while (
+      nextPotIndex < TENNIS_POTS.length - 1 &&
+      (potCounts.get(TENNIS_POTS[nextPotIndex]) ?? 0) >= TENNIS_COMPETITORS_PER_POT
+    ) {
+      nextPotIndex += 1;
+    }
+
+    const pot = TENNIS_POTS[nextPotIndex];
+    potByCompetitorId.set(competitor._id, pot);
+    potCounts.set(pot, (potCounts.get(pot) ?? 0) + 1);
+  }
+
   for (const [index, competitor] of sortedCompetitors.entries()) {
-    const pot = getPotByRankingIndex(index);
+    const pot = potByCompetitorId.get(competitor._id) ?? getPotByRankingIndex(index);
 
     if (competitor.pot === pot) continue;
 
