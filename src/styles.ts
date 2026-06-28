@@ -350,12 +350,15 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+    minWidth: 0,
+    flexShrink: 1,
   },
   tennisNameWithFlag: {
     maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    minWidth: 0,
   },
   tennisFlagIcon: {
     width: 18,
@@ -560,6 +563,8 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
+    minWidth: 0,
+    flexShrink: 1,
   },
   teamNameActive: {
     color: "#17683a",

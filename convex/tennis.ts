@@ -1208,6 +1208,54 @@ export const backfillRussianNames = mutation({
   },
 });
 
+export const updateRussianNames = mutation({
+  args: {
+    slug: tournamentSlugValidator,
+    updates: v.array(v.object({
+      competitorId: v.id("tennisCompetitors"),
+      nameRu: v.string(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const { identity, user } = await getCurrentUser(ctx);
+    if (!isAdminUser(identity, user)) {
+      throw new Error("Это действие доступно только администратору.");
+    }
+
+    const tournament = await getTournamentBySlug(ctx, args.slug);
+    if (!tournament) {
+      throw new Error("Сначала загрузите турнир из ESPN.");
+    }
+
+    const now = Date.now();
+    let updated = 0;
+    let skipped = 0;
+
+    for (const item of args.updates) {
+      const nameRu = item.nameRu.trim();
+      const competitor = await ctx.db.get(item.competitorId);
+
+      if (!nameRu || !competitor || competitor.tournamentId !== tournament._id || competitor.nameRu === nameRu) {
+        skipped += 1;
+        continue;
+      }
+
+      await ctx.db.patch(competitor._id, {
+        nameRu,
+        updatedAt: now,
+      });
+      updated += 1;
+    }
+
+    return {
+      slug: args.slug,
+      total: args.updates.length,
+      updated,
+      skipped,
+    };
+  },
+});
+
 export const setDrawLock = mutation({
   args: {
     slug: tournamentSlugValidator,

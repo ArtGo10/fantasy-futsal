@@ -431,7 +431,7 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
                 <View style={styles.assignmentInfo}>
                   <View style={styles.tennisNameWithFlag}>
                     <TennisFlag country={assignment.competitorCountry} flagUrl={assignment.competitorFlagUrl} />
-                    <Text style={styles.assignmentText} numberOfLines={2}>
+                    <Text style={styles.assignmentText} numberOfLines={1} ellipsizeMode="tail">
                       {getPlayerSurnameWithInitial(assignment.competitorName)}
                     </Text>
                   </View>
@@ -566,7 +566,8 @@ function TennisDrawPanel({
                           competitor.assignedTo ? styles.teamNameAssigned : styles.teamName,
                           competitor.isEliminated ? styles.teamNameEliminated : styles.teamNameActive,
                         ]}
-                        numberOfLines={2}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
                         {getPlayerSurnameWithInitial(competitor.name)}
                       </Text>
