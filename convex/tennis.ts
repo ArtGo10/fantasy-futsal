@@ -22,6 +22,7 @@ type TournamentConfig = {
   tour: TennisTour;
   providerEventId: string;
   groupingSlug: "mens-singles" | "womens-singles";
+  wikipediaTitle: string;
   year: number;
 };
 type NormalizedCompetitor = {
@@ -82,6 +83,7 @@ const TENNIS_TOURNAMENTS: Record<TournamentSlug, TournamentConfig> = {
     tour: "atp",
     providerEventId: "188-2026",
     groupingSlug: "mens-singles",
+    wikipediaTitle: "2026 Wimbledon Championships – Men's singles",
     year: 2026,
   },
   wimbledon_wta_2026: {
@@ -90,6 +92,7 @@ const TENNIS_TOURNAMENTS: Record<TournamentSlug, TournamentConfig> = {
     tour: "wta",
     providerEventId: "188-2026",
     groupingSlug: "womens-singles",
+    wikipediaTitle: "2026 Wimbledon Championships – Women's singles",
     year: 2026,
   },
 };
@@ -712,6 +715,144 @@ async function fetchEspnJson(url: string) {
   return await response.json() as Record<string, unknown>;
 }
 
+async function fetchWikipediaWikitext(title: string) {
+  const url = new URL("https://en.wikipedia.org/w/api.php");
+  url.searchParams.set("action", "query");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("prop", "revisions");
+  url.searchParams.set("rvprop", "content");
+  url.searchParams.set("rvslots", "main");
+  url.searchParams.set("titles", title);
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "user-agent": "wc2026-tennis-bracket-sync/1.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Wikipedia вернула HTTP ${response.status} для ${title}.`);
+  }
+
+  const payload = await response.json() as Record<string, unknown>;
+  const query = getObject(payload.query);
+  const pages = getObject(query?.pages);
+  const page = Object.values(pages ?? {}).map(getObject).find(Boolean);
+  const revision = getObject((Array.isArray(page?.revisions) ? page.revisions : [])[0]);
+  const slots = getObject(revision?.slots);
+  const mainSlot = getObject(slots?.main);
+  const content = getString(mainSlot?.["*"]);
+
+  if (!content) {
+    throw new Error(`Не удалось прочитать сетку Wikipedia: ${title}.`);
+  }
+
+  return content;
+}
+
+function getCompetitionIdNumber(competition: Record<string, unknown>) {
+  const id = getString(competition.id);
+  if (!id) return Number.MAX_SAFE_INTEGER;
+
+  const numberId = Number(id);
+  return Number.isFinite(numberId) ? numberId : Number.MAX_SAFE_INTEGER;
+}
+
+function getCompetitionScheduledAt(competition: Record<string, unknown>) {
+  const scheduledAt = Date.parse(getString(competition.date) ?? getString(competition.startDate) ?? "");
+
+  return Number.isFinite(scheduledAt) ? scheduledAt : Number.MAX_SAFE_INTEGER;
+}
+
+function normalizeBracketNameWords(name: string) {
+  return name
+    .replace(/\s*\([^)]*\)\s*/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/aleksandr/g, "alexander")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function getBracketNameVariants(name: string) {
+  const words = normalizeBracketNameWords(name);
+  const variants = new Set<string>();
+
+  if (words.length === 0) return [];
+
+  variants.add(words.join(""));
+  variants.add([...words].sort().join(""));
+
+  if (words.length > 1) {
+    variants.add([...words].reverse().join(""));
+  }
+
+  if (words.length > 2) {
+    variants.add(words.slice(1).join(""));
+    variants.add(words.slice(-2).join(""));
+    variants.add([...words.slice(-2)].sort().join(""));
+  }
+
+  return [...variants];
+}
+
+function getBracketPairKeys(firstName: string, secondName: string) {
+  const firstVariants = getBracketNameVariants(firstName);
+  const secondVariants = getBracketNameVariants(secondName);
+  const keys = new Set<string>();
+
+  for (const first of firstVariants) {
+    for (const second of secondVariants) {
+      keys.add([first, second].sort().join("|"));
+    }
+  }
+
+  return [...keys];
+}
+
+function extractWikipediaPlayerName(teamValue: string) {
+  const linkMatch = teamValue.match(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/);
+
+  return linkMatch?.[1]?.trim() ?? "";
+}
+
+function parseWikipediaRoundOneBracketOrder(wikitext: string) {
+  const orderByPairKey = new Map<string, number>();
+  const sectionMatches = wikitext.match(/==== Section \d+ ====[\s\S]*?(?=\n==== Section \d+ ====|\n=== Bottom half ===|\n==\s*Seeded players\s*==|$)/g) ?? [];
+  let bracketOrder = 0;
+
+  for (const section of sectionMatches) {
+    const teams = [...section.matchAll(/^\|\s*RD1-team(\d{2})\s*=\s*(.*)$/gm)]
+      .sort((first, second) => Number(first[1]) - Number(second[1]))
+      .map((match) => extractWikipediaPlayerName(match[2] ?? ""));
+
+    for (let index = 0; index < teams.length; index += 2) {
+      const firstName = teams[index];
+      const secondName = teams[index + 1];
+
+      if (firstName && secondName) {
+        for (const key of getBracketPairKeys(firstName, secondName)) {
+          if (!orderByPairKey.has(key)) {
+            orderByPairKey.set(key, bracketOrder);
+          }
+        }
+      }
+
+      bracketOrder += 1;
+    }
+  }
+
+  return orderByPairKey;
+}
+
+async function fetchWikipediaRoundOneBracketOrder(title: string) {
+  return parseWikipediaRoundOneBracketOrder(await fetchWikipediaWikitext(title));
+}
+
 function getCompetitionStatus(competition: Record<string, unknown>) {
   const status = getObject(competition.status);
   const statusType = getObject(status?.type);
@@ -753,6 +894,39 @@ function getLineScores(competitor: Record<string, unknown>) {
   return linescores.map((lineScore) => getNumber(getObject(lineScore)?.value)).filter((value): value is number => value !== undefined);
 }
 
+function getCompetitionPlayers(competition: Record<string, unknown>) {
+  return getObjectArray(competition.competitors).sort(
+    (first, second) => (getNumber(first.order) ?? 99) - (getNumber(second.order) ?? 99),
+  );
+}
+
+function getCompetitionPlayerName(competitor: Record<string, unknown> | undefined) {
+  const athlete = getObject(competitor?.athlete);
+
+  return getString(athlete?.displayName) ?? getString(competitor?.name) ?? "TBD";
+}
+
+function getWikipediaBracketOrderForCompetition(
+  roundOneOrderByPairKey: Map<string, number>,
+  competition: Record<string, unknown>,
+) {
+  const competitors = getCompetitionPlayers(competition);
+  const firstName = getCompetitionPlayerName(competitors[0]);
+  const secondName = getCompetitionPlayerName(competitors[1]);
+
+  if (!firstName || !secondName || firstName === "TBD" || secondName === "TBD") {
+    return undefined;
+  }
+
+  for (const key of getBracketPairKeys(firstName, secondName)) {
+    const order = roundOneOrderByPairKey.get(key);
+
+    if (order !== undefined) return order;
+  }
+
+  return undefined;
+}
+
 function toOptionalStringField(key: string, value: string | undefined) {
   return value === undefined ? {} : { [key]: value };
 }
@@ -788,9 +962,10 @@ async function fetchRankingsByAthleteId(tour: TennisTour) {
 }
 
 async function fetchTournamentFromEspn(config: TournamentConfig) {
-  const [scoreboard, rankingsByAthleteId] = await Promise.all([
+  const [scoreboard, rankingsByAthleteId, roundOneOrderByPairKey] = await Promise.all([
     fetchEspnJson(`${ESPN_SITE_BASE_URL}/${config.tour}/scoreboard?dates=20260629`),
     fetchRankingsByAthleteId(config.tour),
+    fetchWikipediaRoundOneBracketOrder(config.wikipediaTitle),
   ]);
   const events = getObjectArray(scoreboard.events);
   const event = events.find((item) => getString(item?.id) === config.providerEventId || getString(item?.name) === "Wimbledon");
@@ -835,12 +1010,46 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     }
   }
 
-  const roundPositions = new Map<string, number>();
+  const bracketOrderByCompetitionId = new Map<string, number>();
+  const competitionsByRoundName = new Map<string, Record<string, unknown>[]>();
+
+  for (const competition of competitions) {
+    const roundName = getString(getObject(competition.round)?.displayName) ?? "Round 1";
+    const roundCompetitions = competitionsByRoundName.get(roundName) ?? [];
+
+    roundCompetitions.push(competition);
+    competitionsByRoundName.set(roundName, roundCompetitions);
+  }
+
+  for (const [roundName, roundCompetitions] of competitionsByRoundName) {
+    const sortedCompetitions = [...roundCompetitions].sort((first, second) => {
+      if (roundName === "Round 1") {
+        const firstWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderByPairKey, first);
+        const secondWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderByPairKey, second);
+
+        if (firstWikipediaOrder !== undefined && secondWikipediaOrder !== undefined) {
+          return firstWikipediaOrder - secondWikipediaOrder;
+        }
+        if (firstWikipediaOrder !== undefined) return -1;
+        if (secondWikipediaOrder !== undefined) return 1;
+      }
+
+      return (
+        getCompetitionIdNumber(first) - getCompetitionIdNumber(second) ||
+        getCompetitionScheduledAt(first) - getCompetitionScheduledAt(second)
+      );
+    });
+
+    sortedCompetitions.forEach((competition, index) => {
+      const competitionId = getString(competition.id);
+      if (competitionId) {
+        bracketOrderByCompetitionId.set(competitionId, index);
+      }
+    });
+  }
+
   const normalizedMatches: NormalizedMatch[] = competitions.map((competition) => {
-    const rawCompetitors = getObjectArray(competition.competitors);
-    const competitors = [...rawCompetitors].sort(
-      (first, second) => (getNumber(first.order) ?? 99) - (getNumber(second.order) ?? 99),
-    );
+    const competitors = getCompetitionPlayers(competition);
     const first = competitors[0];
     const second = competitors[1];
     const firstAthlete = getObject(first?.athlete);
@@ -848,23 +1057,23 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     const firstAthleteId = getString(first?.id);
     const secondAthleteId = getString(second?.id);
     const winner = competitors.find((competitor) => competitor.winner === true);
-    const scheduledAt = Date.parse(getString(competition.date) ?? getString(competition.startDate) ?? "");
+    const scheduledAt = getCompetitionScheduledAt(competition);
     const roundName = getString(getObject(competition.round)?.displayName) ?? "Round 1";
     const round = ROUND_TO_STAGE[roundName] ?? ROUND_TO_STAGE["Round 1"];
-    const bracketOrder = roundPositions.get(roundName) ?? 0;
-    roundPositions.set(roundName, bracketOrder + 1);
+    const espnCompetitionId = String(getString(competition.id) ?? "");
+    const bracketOrder = bracketOrderByCompetitionId.get(espnCompetitionId) ?? 0;
 
     return {
-      espnCompetitionId: String(getString(competition.id) ?? ""),
+      espnCompetitionId,
       roundName,
       roundOrder: round.order,
       bracketOrder,
-      scheduledAt: Number.isFinite(scheduledAt) ? scheduledAt : Date.now(),
+      scheduledAt: scheduledAt === Number.MAX_SAFE_INTEGER ? Date.now() : scheduledAt,
       ...toOptionalStringField("court", getString(getObject(competition.venue)?.court)),
       ...toOptionalStringField("player1EspnAthleteId", firstAthleteId),
       ...toOptionalStringField("player2EspnAthleteId", secondAthleteId),
-      player1Name: getString(firstAthlete?.displayName) ?? getString(first?.name) ?? "TBD",
-      player2Name: getString(secondAthlete?.displayName) ?? getString(second?.name) ?? "TBD",
+      player1Name: getCompetitionPlayerName(first),
+      player2Name: getCompetitionPlayerName(second),
       player1SetScores: first ? getLineScores(first) : [],
       player2SetScores: second ? getLineScores(second) : [],
       ...toOptionalStringField("winnerEspnAthleteId", getString(winner?.id)),
@@ -876,7 +1085,12 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
 
   return {
     competitors: [...competitorsByAthleteId.values()].sort((first, second) => first.sortOrder - second.sortOrder),
-    matches: normalizedMatches.sort((first, second) => first.scheduledAt - second.scheduledAt || first.roundOrder - second.roundOrder),
+    matches: normalizedMatches.sort(
+      (first, second) =>
+        first.roundOrder - second.roundOrder ||
+        first.bracketOrder - second.bracketOrder ||
+        first.scheduledAt - second.scheduledAt,
+    ),
   };
 }
 

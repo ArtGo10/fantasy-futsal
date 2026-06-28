@@ -418,6 +418,7 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
             style={[
               styles.playerTableCell,
               styles.playerTableTeamCell,
+              styles.tennisPlayerTableTeamCell,
               assignment
                 ? assignment.isEliminated
                   ? styles.playerTableTeamCellEliminated
@@ -469,7 +470,7 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
             <Text style={styles.playerTableHeaderText}>Игрок</Text>
           </View>
           {TENNIS_POTS.map((pot) => (
-            <View key={pot} style={[styles.playerTableCell, styles.playerTableTeamCell]}>
+            <View key={pot} style={[styles.playerTableCell, styles.playerTableTeamCell, styles.tennisPlayerTableTeamCell]}>
               <Text style={styles.playerTableHeaderText}>Корзина {pot}</Text>
             </View>
           ))}
