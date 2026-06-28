@@ -56,7 +56,7 @@ export function AuthScreen() {
     await attempt.prepareSecondFactor({ strategy: "email_code" });
     setAwaitingSignInVerification(true);
     setCode("");
-    setInfoText("Мы отправили код подтверждения на почту. Введите его ниже.");
+    setInfoText("Мы отправили код подтверждения на почту. Введите код подтверждения.");
   };
 
   const handleSignIn = async () => {
@@ -134,7 +134,7 @@ export function AuthScreen() {
       });
       setAwaitingVerification(true);
       setCode("");
-      setInfoText("Мы отправили код подтверждения на почту. Введите его ниже.");
+      setInfoText("Мы отправили код подтверждения на почту. Введите код подтверждения.");
     } catch (error) {
       setErrorText(getErrorMessage(error));
     } finally {

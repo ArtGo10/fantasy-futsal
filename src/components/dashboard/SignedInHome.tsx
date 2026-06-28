@@ -9,13 +9,23 @@ import { useCurrentUserBootstrap } from "../../hooks/useCurrentUserBootstrap";
 import { useDrawUnlockTicker } from "../../hooks/useDrawUnlockTicker";
 import { useMatchLiveStatusSync } from "../../hooks/useMatchLiveStatusSync";
 import { styles } from "../../styles";
-import type { DashboardTab, DashboardView, MatchView, Pot, SyncStatusView, TeamStatusView } from "../../types";
+import type {
+  DashboardTab,
+  DashboardView,
+  MatchView,
+  Pot,
+  ProductTournamentTab,
+  SyncStatusView,
+  TeamStatusView,
+  TennisTournamentSlug,
+} from "../../types";
 import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
 import { formatDrawCountdown, formatDrawUnlockTime, getLocalDayStart, isSameLocalDay } from "../../utils/dates";
-import { formatPersonName } from "../../utils/names";
+import { formatParticipantName, formatPersonName } from "../../utils/names";
 import { getParticipantTotalPoints, getTeamPointDetailsById, getTeamPointsById } from "../../utils/scoring";
 import { AdminPanel } from "../admin/AdminPanel";
 import { LoadingBlock } from "../common/LoadingBlock";
+import { TennisTournamentHome } from "../tennis/TennisTournamentHome";
 import { DrawSetupPanel } from "./DrawSetupPanel";
 import { PlayersTable } from "./PlayersTable";
 import { PointsPanel } from "./PointsPanel";
@@ -37,6 +47,7 @@ export function SignedInHome() {
   const [isBusy, setIsBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [activeTournamentTab, setActiveTournamentTab] = useState<ProductTournamentTab>("world_cup_2026");
   const [activeDashboardTab, setActiveDashboardTab] = useState<DashboardTab>("table");
   const [selectedScheduleDay, setSelectedScheduleDay] = useState(() => getLocalDayStart(Date.now()));
 
@@ -57,6 +68,14 @@ export function SignedInHome() {
 
   const currentAssignments = dashboard?.currentUser?.assignments ?? [];
   const currentUserIsAdmin = Boolean(dashboard?.currentUser?.isAdmin);
+  const tournamentTabs = useMemo<Array<{ id: ProductTournamentTab; label: string }>>(
+    () => [
+      { id: "world_cup_2026", label: "World Cup 2026" },
+      { id: "wimbledon_atp_2026", label: "Wimbledon ATP" },
+      { id: "wimbledon_wta_2026", label: "Wimbledon WTA" },
+    ],
+    [],
+  );
   const dashboardTabs = useMemo<Array<{ id: DashboardTab; label: string }>>(
     () => [
       ...(currentUserIsAdmin ? [{ id: "admin" as const, label: "Админ" }] : []),
@@ -78,6 +97,12 @@ export function SignedInHome() {
   const drawLockText = drawUnlockAt
     ? `Жеребьёвка откроется ${formatDrawUnlockTime(drawUnlockAt)}. Ждём регистрацию новых игроков.`
     : "Выбор команд временно закрыт. Ждём регистрацию новых игроков.";
+  const activeTournamentTitle =
+    activeTournamentTab === "world_cup_2026"
+      ? "Чемпионат мира 2026"
+      : activeTournamentTab === "wimbledon_atp_2026"
+        ? "Wimbledon ATP"
+        : "Wimbledon WTA";
   const showDrawSetupPanel = dashboard ? !dashboard.teamsReady || hasRemainingTeams : false;
   const firstScheduleDay = useMemo(() => {
     if (!matches?.length) return null;
@@ -104,7 +129,7 @@ export function SignedInHome() {
 
     for (const participant of dashboard?.participants ?? []) {
       for (const assignment of participant.assignments) {
-        owners.set(assignment.teamId, formatPersonName(participant.name));
+        owners.set(assignment.teamId, formatParticipantName(participant.name));
       }
     }
 
@@ -210,7 +235,7 @@ export function SignedInHome() {
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Чемпионат мира 2026</Text>
+          <Text style={styles.title}>{activeTournamentTitle}</Text>
           <Text style={styles.mutedText}>{profileEmail ?? "Вы вошли"}</Text>
         </View>
         <Pressable style={styles.secondaryButton} onPress={() => void signOut()}>
@@ -218,63 +243,75 @@ export function SignedInHome() {
         </Pressable>
       </View>
 
-      {!profileReady || dashboard === undefined ? (
+      {!profileReady ? (
         <LoadingBlock text="Готовим данные..." />
       ) : (
         <>
-          <TabBar activeTab={activeDashboardTab} tabs={dashboardTabs} onChange={setActiveDashboardTab} />
+          <TabBar activeTab={activeTournamentTab} tabs={tournamentTabs} onChange={setActiveTournamentTab} />
 
-          {activeDashboardTab === "admin" && currentUserIsAdmin ? <AdminPanel syncStatus={syncStatus} /> : null}
+          {activeTournamentTab === "world_cup_2026" ? (
+            dashboard === undefined ? (
+              <LoadingBlock text="Готовим данные..." />
+            ) : (
+              <>
+                <TabBar activeTab={activeDashboardTab} tabs={dashboardTabs} onChange={setActiveDashboardTab} />
 
-          {activeDashboardTab === "table" && showDrawSetupPanel ? (
-            <DrawSetupPanel
-              currentAssignments={currentAssignments}
-              dashboard={dashboard}
-              drawIsLocked={drawIsLocked}
-              drawLockText={drawLockText}
-              errorText={errorText}
-              isBusy={isBusy}
-              isViewer={isViewer}
-              maxUserAssignments={maxUserAssignments}
-              onSeedTeams={() => void handleSeedTeams()}
-              remainingTeamCount={remainingTeamCount}
-              statusText={statusText}
-            />
-          ) : null}
+                {activeDashboardTab === "admin" && currentUserIsAdmin ? <AdminPanel syncStatus={syncStatus} /> : null}
 
-          {activeDashboardTab === "table" ? (
-            <PlayersTable participants={sortedParticipants} pointsByTeamId={pointsByTeamId} />
-          ) : null}
+                {activeDashboardTab === "table" && showDrawSetupPanel ? (
+                  <DrawSetupPanel
+                    currentAssignments={currentAssignments}
+                    dashboard={dashboard}
+                    drawIsLocked={drawIsLocked}
+                    drawLockText={drawLockText}
+                    errorText={errorText}
+                    isBusy={isBusy}
+                    isViewer={isViewer}
+                    maxUserAssignments={maxUserAssignments}
+                    onSeedTeams={() => void handleSeedTeams()}
+                    remainingTeamCount={remainingTeamCount}
+                    statusText={statusText}
+                  />
+                ) : null}
 
-          {activeDashboardTab === "points" ? (
-            <PointsPanel participants={sortedParticipants} detailsByTeamId={detailsByTeamId} />
-          ) : null}
+                {activeDashboardTab === "table" ? (
+                  <PlayersTable participants={sortedParticipants} pointsByTeamId={pointsByTeamId} />
+                ) : null}
 
-          {activeDashboardTab === "table" && dashboard.totalTeams > 0 && hasRemainingTeams ? (
-            <TeamsDrawPanel
-              currentAssignments={currentAssignments}
-              dashboard={dashboard}
-              drawCountdownText={drawCountdownText}
-              drawIsLocked={drawIsLocked}
-              isBusy={isBusy}
-              onDraw={(pot) => void handleDraw(pot)}
-            />
-          ) : null}
+                {activeDashboardTab === "points" ? (
+                  <PointsPanel participants={sortedParticipants} detailsByTeamId={detailsByTeamId} />
+                ) : null}
 
-          {activeDashboardTab === "schedule" ? (
-            <SchedulePanel
-              canGoToNextScheduleDay={canGoToNextScheduleDay}
-              canGoToPreviousScheduleDay={canGoToPreviousScheduleDay}
-              firstScheduleDay={firstScheduleDay}
-              matches={matches}
-              onSelectedDayChange={(updater) => setSelectedScheduleDay(updater)}
-              selectedScheduleDay={selectedScheduleDay}
-              selectedScheduleIsToday={selectedScheduleIsToday}
-              selectedScheduleMatches={selectedScheduleMatches}
-              teamOwnersById={teamOwnersById}
-              teamStatusById={teamStatusById}
-            />
-          ) : null}
+                {activeDashboardTab === "table" && dashboard.totalTeams > 0 && hasRemainingTeams ? (
+                  <TeamsDrawPanel
+                    currentAssignments={currentAssignments}
+                    dashboard={dashboard}
+                    drawCountdownText={drawCountdownText}
+                    drawIsLocked={drawIsLocked}
+                    isBusy={isBusy}
+                    onDraw={(pot) => void handleDraw(pot)}
+                  />
+                ) : null}
+
+                {activeDashboardTab === "schedule" ? (
+                  <SchedulePanel
+                    canGoToNextScheduleDay={canGoToNextScheduleDay}
+                    canGoToPreviousScheduleDay={canGoToPreviousScheduleDay}
+                    firstScheduleDay={firstScheduleDay}
+                    matches={matches}
+                    onSelectedDayChange={(updater) => setSelectedScheduleDay(updater)}
+                    selectedScheduleDay={selectedScheduleDay}
+                    selectedScheduleIsToday={selectedScheduleIsToday}
+                    selectedScheduleMatches={selectedScheduleMatches}
+                    teamOwnersById={teamOwnersById}
+                    teamStatusById={teamStatusById}
+                  />
+                ) : null}
+              </>
+            )
+          ) : (
+            <TennisTournamentHome slug={activeTournamentTab as TennisTournamentSlug} />
+          )}
         </>
       )}
     </ScrollView>

@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 import { POTS } from "../../constants";
 import { styles } from "../../styles";
 import type { ParticipantView } from "../../types";
-import { formatPersonName } from "../../utils/names";
+import { formatParticipantName } from "../../utils/names";
 import { getParticipantTotalPoints } from "../../utils/scoring";
 import { AssignmentCells } from "./AssignmentCells";
 
@@ -50,7 +50,7 @@ export function PlayersTable({
               <View key={participant.id} style={styles.playerTableRow}>
                 <View style={[styles.playerTableCell, styles.playerTableNameCell, playerStatusCellStyle]}>
                   <Text style={styles.playerName} numberOfLines={2}>
-                    {formatPersonName(participant.name)}
+                    {formatParticipantName(participant.name)}
                   </Text>
                 </View>
                 <AssignmentCells assignments={participant.assignments} pointsByTeamId={pointsByTeamId} />

@@ -247,7 +247,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   potCell: {
-    minWidth: 120,
+    minWidth: 80,
     flex: 1,
     borderWidth: 1,
     borderColor: "#d8dee9",
@@ -334,6 +334,12 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
+  tennisAssignmentCellContent: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 3,
+  },
   assignmentInfo: {
     flex: 1,
     minWidth: 0,
@@ -358,7 +364,6 @@ export const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 18,
     minWidth: 16,
-    textAlign: "right",
   },
   emptyCellText: {
     color: "#9ca3af",
@@ -652,6 +657,100 @@ export const styles = StyleSheet.create({
     color: "#6b7280",
     fontSize: 13,
     fontWeight: "800",
+  },
+  bracketScrollContent: {
+    paddingVertical: 4,
+    paddingRight: 10,
+  },
+  bracketBoard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  bracketRoundColumn: {
+    width: 222,
+    flexShrink: 0,
+  },
+  bracketRoundTitle: {
+    height: 24,
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 18,
+    textTransform: "uppercase",
+  },
+  bracketRoundMatches: {
+    alignItems: "stretch",
+  },
+  bracketMatchWrap: {
+    height: 72,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bracketMatchCard: {
+    width: 184,
+    height: 72,
+    borderWidth: 1,
+    borderColor: "#dbe5f3",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    gap: 3,
+    overflow: "hidden",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  bracketMatchCardLive: {
+    borderColor: "#fecaca",
+    backgroundColor: "#fff7f7",
+  },
+  bracketConnectorLine: {
+    width: 26,
+    height: 1,
+    backgroundColor: "#cbd5e1",
+  },
+  bracketMatchMeta: {
+    color: "#6b7280",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 13,
+    textTransform: "uppercase",
+  },
+  bracketPlayerRow: {
+    height: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  bracketPlayerName: {
+    flex: 1,
+    minWidth: 0,
+    color: "#111827",
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 16,
+  },
+  bracketPlayerWinner: {
+    color: "#17683a",
+  },
+  bracketPlayerPending: {
+    color: "#6b7280",
+  },
+  bracketScoreCells: {
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: 2,
+  },
+  bracketScoreCell: {
+    minWidth: 14,
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 15,
+    textAlign: "center",
+  },
+  bracketScoreWinner: {
+    color: "#17683a",
   },
   matchScoreLive: {
     color: "#dc2626",

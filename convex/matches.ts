@@ -997,18 +997,27 @@ export const setResult = mutation({
       throw new Error(`Матч ${args.externalId} не найден.`);
     }
 
-    const winnerTeamId =
-      args.homeScore > args.awayScore && match.homeTeamId
-        ? match.homeTeamId
-        : args.awayScore > args.homeScore && match.awayTeamId
-          ? match.awayTeamId
-          : undefined;
+    const homePenaltyScore = args.homePenaltyScore ?? null;
+    const awayPenaltyScore = args.awayPenaltyScore ?? null;
+    const winnerTeamId = getWinnerTeamIdFromScores(
+      match,
+      args.homeScore,
+      args.awayScore,
+      homePenaltyScore,
+      awayPenaltyScore,
+    );
 
     await ctx.db.patch(match._id, {
       homeScore: args.homeScore,
       awayScore: args.awayScore,
       winnerTeamId,
-      decidedBy: args.decidedBy ?? "regular",
+      decidedBy: getDecisionByScores(
+        args.decidedBy,
+        args.homeScore,
+        args.awayScore,
+        homePenaltyScore,
+        awayPenaltyScore,
+      ),
       homePenaltyScore: args.homePenaltyScore,
       awayPenaltyScore: args.awayPenaltyScore,
       status: "completed",
@@ -1056,6 +1065,8 @@ export const adminSetMatchState = mutation({
 
     const homeScore = args.homeScore === undefined ? match.homeScore ?? null : args.homeScore;
     const awayScore = args.awayScore === undefined ? match.awayScore ?? null : args.awayScore;
+    const homePenaltyScore = args.homePenaltyScore === undefined ? match.homePenaltyScore ?? null : args.homePenaltyScore;
+    const awayPenaltyScore = args.awayPenaltyScore === undefined ? match.awayPenaltyScore ?? null : args.awayPenaltyScore;
     const patch: Partial<Doc<"matches">> = {
       updatedAt: Date.now(),
     };
@@ -1064,7 +1075,30 @@ export const adminSetMatchState = mutation({
     if (args.status !== undefined) patch.status = args.status;
     if (args.homeScore !== undefined) patch.homeScore = args.homeScore ?? undefined;
     if (args.awayScore !== undefined) patch.awayScore = args.awayScore ?? undefined;
-    if (args.decidedBy !== undefined) patch.decidedBy = args.decidedBy;
+    const scoresChanged =
+      args.homeScore !== undefined ||
+      args.awayScore !== undefined ||
+      args.homePenaltyScore !== undefined ||
+      args.awayPenaltyScore !== undefined;
+
+    if (args.decidedBy !== undefined) {
+      patch.decidedBy = args.decidedBy;
+    } else if (
+      scoresChanged &&
+      homeScore !== null &&
+      awayScore !== null &&
+      homeScore === awayScore &&
+      homePenaltyScore !== null &&
+      awayPenaltyScore !== null
+    ) {
+      patch.decidedBy = getDecisionByScores(
+        undefined,
+        homeScore,
+        awayScore,
+        homePenaltyScore,
+        awayPenaltyScore,
+      );
+    }
     if (args.homePenaltyScore !== undefined) patch.homePenaltyScore = args.homePenaltyScore ?? undefined;
     if (args.awayPenaltyScore !== undefined) patch.awayPenaltyScore = args.awayPenaltyScore ?? undefined;
 
@@ -1075,12 +1109,13 @@ export const adminSetMatchState = mutation({
     } else if (args.winnerSide === "none") {
       patch.winnerTeamId = undefined;
     } else if (homeScore !== null && awayScore !== null) {
-      patch.winnerTeamId =
-        homeScore > awayScore && match.homeTeamId
-          ? match.homeTeamId
-          : awayScore > homeScore && match.awayTeamId
-            ? match.awayTeamId
-            : undefined;
+      patch.winnerTeamId = getWinnerTeamIdFromScores(
+        match,
+        homeScore,
+        awayScore,
+        homePenaltyScore,
+        awayPenaltyScore,
+      );
     }
 
     await ctx.db.patch(match._id, patch);
@@ -1103,6 +1138,8 @@ export const adminSetMatchTeams = mutation({
     externalId: v.string(),
     homeTeamName: v.optional(v.string()),
     awayTeamName: v.optional(v.string()),
+    homeSlotName: v.optional(v.string()),
+    awaySlotName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -1133,11 +1170,19 @@ export const adminSetMatchTeams = mutation({
       patch.homeTeamName = homeTeam.name;
     }
 
+    if (args.homeSlotName !== undefined) {
+      patch.homeSlotName = normalizeName(args.homeSlotName);
+    }
+
     if (args.awayTeamName !== undefined) {
       const awayTeam = findTeamByName(args.awayTeamName);
       if (!awayTeam) throw new Error(`Команда ${args.awayTeamName} не найдена.`);
       patch.awayTeamId = awayTeam._id;
       patch.awayTeamName = awayTeam.name;
+    }
+
+    if (args.awaySlotName !== undefined) {
+      patch.awaySlotName = normalizeName(args.awaySlotName);
     }
 
     const nextHomeTeamId = patch.homeTeamId ?? match.homeTeamId;
@@ -1359,9 +1404,17 @@ function getLocalWinnerTeamId(
   isReversed: boolean,
   homeScore: number,
   awayScore: number,
+  homePenaltyScore: number | null,
+  awayPenaltyScore: number | null,
 ): Id<"teams"> | undefined {
-  if (homeScore > awayScore) return match.homeTeamId;
-  if (awayScore > homeScore) return match.awayTeamId;
+  const scoreWinnerTeamId = getWinnerTeamIdFromScores(
+    match,
+    homeScore,
+    awayScore,
+    homePenaltyScore,
+    awayPenaltyScore,
+  );
+  if (scoreWinnerTeamId) return scoreWinnerTeamId;
 
   const apiWinnerSide = fixture.homeWinner ? "home" : fixture.awayWinner ? "away" : null;
   if (!apiWinnerSide) return undefined;
@@ -1370,6 +1423,35 @@ function getLocalWinnerTeamId(
     !isReversed ? apiWinnerSide : apiWinnerSide === "home" ? "away" : "home";
 
   return localWinnerSide === "home" ? match.homeTeamId : match.awayTeamId;
+}
+
+function getWinnerTeamIdFromScores(
+  match: Doc<"matches">,
+  homeScore: number,
+  awayScore: number,
+  homePenaltyScore: number | null,
+  awayPenaltyScore: number | null,
+): Id<"teams"> | undefined {
+  if (homeScore > awayScore) return match.homeTeamId;
+  if (awayScore > homeScore) return match.awayTeamId;
+  if (homePenaltyScore === null || awayPenaltyScore === null) return undefined;
+  if (homePenaltyScore > awayPenaltyScore) return match.homeTeamId;
+  if (awayPenaltyScore > homePenaltyScore) return match.awayTeamId;
+
+  return undefined;
+}
+
+function getDecisionByScores(
+  decidedBy: "regular" | "extra_time" | "penalties" | undefined,
+  homeScore: number,
+  awayScore: number,
+  homePenaltyScore: number | null,
+  awayPenaltyScore: number | null,
+) {
+  if (decidedBy) return decidedBy;
+  if (homeScore === awayScore && homePenaltyScore !== null && awayPenaltyScore !== null) return "penalties";
+
+  return "regular";
 }
 
 const TEAM_STAGE_ORDER: TeamStage[] = [
@@ -1633,8 +1715,22 @@ export const applyApiFootballFixtures = internalMutation({
         patch.awayScore = awayScore;
         patch.homePenaltyScore = homePenaltyScore ?? undefined;
         patch.awayPenaltyScore = awayPenaltyScore ?? undefined;
-        patch.decidedBy = fixture.decidedBy ?? "regular";
-        patch.winnerTeamId = getLocalWinnerTeamId(match, fixture, isReversed, homeScore, awayScore);
+        patch.decidedBy = getDecisionByScores(
+          fixture.decidedBy,
+          homeScore,
+          awayScore,
+          homePenaltyScore,
+          awayPenaltyScore,
+        );
+        patch.winnerTeamId = getLocalWinnerTeamId(
+          match,
+          fixture,
+          isReversed,
+          homeScore,
+          awayScore,
+          homePenaltyScore,
+          awayPenaltyScore,
+        );
         completed += 1;
       } else if (fixture.status === "live" && match.status !== "completed") {
         patch.status = "live";
@@ -1717,8 +1813,22 @@ export const applyEspnFixtures = internalMutation({
         patch.awayScore = awayScore;
         patch.homePenaltyScore = homePenaltyScore ?? undefined;
         patch.awayPenaltyScore = awayPenaltyScore ?? undefined;
-        patch.decidedBy = fixture.decidedBy ?? "regular";
-        patch.winnerTeamId = getLocalWinnerTeamId(match, fixture, isReversed, homeScore, awayScore);
+        patch.decidedBy = getDecisionByScores(
+          fixture.decidedBy,
+          homeScore,
+          awayScore,
+          homePenaltyScore,
+          awayPenaltyScore,
+        );
+        patch.winnerTeamId = getLocalWinnerTeamId(
+          match,
+          fixture,
+          isReversed,
+          homeScore,
+          awayScore,
+          homePenaltyScore,
+          awayPenaltyScore,
+        );
         completed += 1;
       } else if (fixture.status === "live" && match.status !== "completed") {
         patch.status = "live";

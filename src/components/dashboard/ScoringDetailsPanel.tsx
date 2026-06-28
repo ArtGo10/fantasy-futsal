@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { styles } from "../../styles";
 import type { ParticipantView, TeamPointDetails } from "../../types";
-import { formatPersonName } from "../../utils/names";
+import { formatParticipantName } from "../../utils/names";
 import { getTeamStageBonus } from "../../utils/scoring";
 
 export function ScoringDetailsPanel({
@@ -56,7 +56,7 @@ export function ScoringDetailsPanel({
 
         <View style={styles.pointsSliderPlayerInfo}>
           <Text style={styles.pointsDetailsPlayerName}>
-            {formatPersonName(activeParticipant.name)} - {activeParticipantTotal}
+            {formatParticipantName(activeParticipant.name)} - {activeParticipantTotal}
           </Text>
         </View>
 

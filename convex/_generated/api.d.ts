@@ -14,6 +14,7 @@ import type * as draw from "../draw.js";
 import type * as health from "../health.js";
 import type * as matches from "../matches.js";
 import type * as teams from "../teams.js";
+import type * as tennis from "../tennis.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   health: typeof health;
   matches: typeof matches;
   teams: typeof teams;
+  tennis: typeof tennis;
   users: typeof users;
   validators: typeof validators;
 }>;

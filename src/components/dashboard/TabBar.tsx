@@ -1,16 +1,15 @@
 import { Pressable, Text, View } from "react-native";
 
 import { styles } from "../../styles";
-import type { DashboardTab } from "../../types";
 
-export function TabBar({
+export function TabBar<TabId extends string>({
   activeTab,
   tabs,
   onChange,
 }: {
-  activeTab: DashboardTab;
-  tabs: Array<{ id: DashboardTab; label: string }>;
-  onChange: (tab: DashboardTab) => void;
+  activeTab: TabId;
+  tabs: Array<{ id: TabId; label: string }>;
+  onChange: (tab: TabId) => void;
 }) {
   return (
     <View style={styles.tabBar}>
