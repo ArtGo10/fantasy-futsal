@@ -91,14 +91,6 @@ type BracketPlayerInfo = {
 
 const NEUTRAL_FLAG_COUNTRIES = new Set(["belarus", "russia", "russian federation"]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function getNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
 function isKnownPlayerName(name: string) {
   const normalized = name.trim().toLowerCase();
 
@@ -873,6 +865,8 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
   const [isBusy, setIsBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [adminStatusText, setAdminStatusText] = useState<string | null>(null);
+  const [adminErrorText, setAdminErrorText] = useState<string | null>(null);
   const [activeTennisTab, setActiveTennisTab] = useState<TennisDashboardTab>("table");
 
   const currentAssignments = overview?.currentUser?.assignments ?? [];
@@ -905,15 +899,11 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
   const handleEspnSync = async (mode: "seed" | "sync") => {
     try {
       setIsBusy(true);
-      setStatusText(null);
-      setErrorText(null);
-      const result = await (mode === "seed" ? seedFromEspn : syncFromEspn)({ slug });
-      const fetchedCompetitors = isRecord(result) ? getNumber(result.fetchedCompetitors) : 0;
-      const fetchedMatches = isRecord(result) ? getNumber(result.fetchedMatches) : 0;
-      const updatedPots = isRecord(result) ? getNumber(result.updatedPots) : 0;
-      setStatusText(`ESPN: игроков ${fetchedCompetitors}, матчей ${fetchedMatches}, корзин обновлено ${updatedPots}.`);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
+      await (mode === "seed" ? seedFromEspn : syncFromEspn)({ slug });
     } catch (error) {
-      setErrorText(getErrorMessage(error));
+      setAdminErrorText(getErrorMessage(error));
     } finally {
       setIsBusy(false);
     }
@@ -922,12 +912,12 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
   const handleRebuildPots = async () => {
     try {
       setIsBusy(true);
-      setStatusText(null);
-      setErrorText(null);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
       const result = await rebuildPots({ slug });
-      setStatusText(`Корзины пересчитаны по рейтингу. Обновлено: ${result.updatedPots}.`);
+      setAdminStatusText(`Корзины пересчитаны по рейтингу. Обновлено: ${result.updatedPots}.`);
     } catch (error) {
-      setErrorText(getErrorMessage(error));
+      setAdminErrorText(getErrorMessage(error));
     } finally {
       setIsBusy(false);
     }
@@ -936,12 +926,12 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
   const handleDrawLock = async (locked: boolean) => {
     try {
       setIsBusy(true);
-      setStatusText(null);
-      setErrorText(null);
+      setAdminStatusText(null);
+      setAdminErrorText(null);
       await setDrawLock({ slug, locked });
-      setStatusText(locked ? "Жеребьёвка закрыта." : "Жеребьёвка открыта.");
+      setAdminStatusText(locked ? "Жеребьёвка закрыта." : "Жеребьёвка открыта.");
     } catch (error) {
-      setErrorText(getErrorMessage(error));
+      setAdminErrorText(getErrorMessage(error));
     } finally {
       setIsBusy(false);
     }
@@ -1034,8 +1024,8 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
             </Pressable>
           </View>
 
-          {statusText ? <Text style={styles.successText}>{statusText}</Text> : null}
-          {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+          {adminStatusText ? <Text style={styles.successText}>{adminStatusText}</Text> : null}
+          {adminErrorText ? <Text style={styles.errorText}>{adminErrorText}</Text> : null}
         </View>
       ) : null}
 
