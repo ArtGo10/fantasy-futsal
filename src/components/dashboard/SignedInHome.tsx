@@ -21,7 +21,7 @@ import type {
 } from "../../types";
 import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
 import { formatDrawCountdown, formatDrawUnlockTime, getLocalDayStart, isSameLocalDay } from "../../utils/dates";
-import { formatParticipantName, formatPersonName } from "../../utils/names";
+import { formatParticipantName, formatPersonName, formatTeamName } from "../../utils/names";
 import { getParticipantTotalPoints, getTeamPointDetailsById, getTeamPointsById } from "../../utils/scoring";
 import { AdminPanel } from "../admin/AdminPanel";
 import { LoadingBlock } from "../common/LoadingBlock";
@@ -206,7 +206,7 @@ export function SignedInHome() {
       const result = await drawTeam({ pot });
 
       if (result.team) {
-        setStatusText(`Выпала команда: ${result.team.name}`);
+        setStatusText(`Выпала команда: ${formatTeamName(result.team.name)}`);
       } else if (result.complete) {
         setStatusText("Все команды уже разобраны.");
       }

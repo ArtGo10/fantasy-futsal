@@ -1,5 +1,6 @@
 import { formatMatchScore } from "./matches";
 import { TEAM_STAGE_LABELS } from "./labels";
+import { formatTeamName } from "./names";
 import type { AssignmentView, MatchView, ParticipantView, TeamPointDetails, TeamStage } from "../types";
 
 export const TEAM_STAGE_BONUSES: Record<TeamStage, number> = {
@@ -122,14 +123,14 @@ export function getTeamPointDetailsById(matches: MatchView[], participants: Part
       const details = ensureDetails(match.homeTeam.id);
       details.matchPoints += homePoints;
       details.total += homePoints;
-      details.lines.push(`${match.homeTeam.name} - ${match.awayTeam.name} ${scoreText}: +${homePoints}`);
+      details.lines.push(`${formatTeamName(match.homeTeam.name)} - ${formatTeamName(match.awayTeam.name)} ${scoreText}: +${homePoints}`);
     }
 
     if (awayPoints > 0 && match.awayTeam.id) {
       const details = ensureDetails(match.awayTeam.id);
       details.matchPoints += awayPoints;
       details.total += awayPoints;
-      details.lines.push(`${match.homeTeam.name} - ${match.awayTeam.name} ${scoreText}: +${awayPoints}`);
+      details.lines.push(`${formatTeamName(match.homeTeam.name)} - ${formatTeamName(match.awayTeam.name)} ${scoreText}: +${awayPoints}`);
     }
 
     if (homeThirdPlaceBonus > 0 && match.homeTeam.id) {

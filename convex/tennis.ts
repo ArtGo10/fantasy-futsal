@@ -41,7 +41,7 @@ type NormalizedMatch = {
   espnCompetitionId: string;
   roundName: string;
   roundOrder: number;
-  bracketOrder: number;
+  bracketOrder?: number;
   scheduledAt: number;
   court?: string;
   player1EspnAthleteId?: string;
@@ -148,7 +148,7 @@ const normalizedMatchValidator = v.object({
   espnCompetitionId: v.string(),
   roundName: v.string(),
   roundOrder: v.number(),
-  bracketOrder: v.number(),
+  bracketOrder: v.optional(v.number()),
   scheduledAt: v.number(),
   court: v.optional(v.string()),
   player1EspnAthleteId: v.optional(v.string()),
@@ -846,6 +846,52 @@ function getBracketNameVariants(name: string) {
   return [...variants];
 }
 
+function competitorMatchesName(competitor: Doc<"tennisCompetitors">, searchName: string) {
+  const searchVariants = new Set(getBracketNameVariants(searchName));
+  if (searchVariants.size === 0) return false;
+
+  for (const name of [competitor.name, competitor.nameRu, competitor.shortName]) {
+    if (!name) continue;
+
+    for (const variant of getBracketNameVariants(name)) {
+      if (searchVariants.has(variant)) return true;
+
+      for (const searchVariant of searchVariants) {
+        if (variant.includes(searchVariant) || searchVariant.includes(variant)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+function findCompetitorByName(
+  competitors: Array<Doc<"tennisCompetitors">>,
+  searchName: string,
+  role: string,
+) {
+  const matches = competitors.filter((competitor) => competitorMatchesName(competitor, searchName));
+
+  if (matches.length === 0) {
+    throw new Error(`Не нашёл теннисиста для ${role}: ${searchName}.`);
+  }
+
+  const exactMatches = matches.filter((competitor) =>
+    [competitor.name, competitor.nameRu, competitor.shortName].some(
+      (name) => name?.trim().toLowerCase() === searchName.trim().toLowerCase(),
+    ),
+  );
+  const candidates = exactMatches.length > 0 ? exactMatches : matches;
+
+  if (candidates.length > 1) {
+    throw new Error(`Нашёл несколько вариантов для ${role}: ${candidates.map((competitor) => competitor.name).join(", ")}.`);
+  }
+
+  return candidates[0];
+}
+
 function getBracketPairKeys(firstName: string, secondName: string) {
   const firstVariants = getBracketNameVariants(firstName);
   const secondVariants = getBracketNameVariants(secondName);
@@ -868,6 +914,7 @@ function extractWikipediaPlayerName(teamValue: string) {
 
 function parseWikipediaRoundOneBracketOrder(wikitext: string) {
   const orderByPairKey = new Map<string, number>();
+  const orderByPlayerKey = new Map<string, number>();
   const sectionMatches = wikitext.match(/==== Section \d+ ====[\s\S]*?(?=\n==== Section \d+ ====|\n=== Bottom half ===|\n==\s*Seeded players\s*==|$)/g) ?? [];
   let bracketOrder = 0;
 
@@ -888,11 +935,21 @@ function parseWikipediaRoundOneBracketOrder(wikitext: string) {
         }
       }
 
+      for (const playerName of [firstName, secondName]) {
+        if (!playerName) continue;
+
+        for (const key of getBracketNameVariants(playerName)) {
+          if (!orderByPlayerKey.has(key)) {
+            orderByPlayerKey.set(key, bracketOrder);
+          }
+        }
+      }
+
       bracketOrder += 1;
     }
   }
 
-  return orderByPairKey;
+  return { orderByPairKey, orderByPlayerKey };
 }
 
 async function fetchWikipediaRoundOneBracketOrder(title: string) {
@@ -953,21 +1010,37 @@ function getCompetitionPlayerName(competitor: Record<string, unknown> | undefine
 }
 
 function getWikipediaBracketOrderForCompetition(
-  roundOneOrderByPairKey: Map<string, number>,
+  roundOneOrderMaps: {
+    orderByPairKey: Map<string, number>;
+    orderByPlayerKey: Map<string, number>;
+  },
   competition: Record<string, unknown>,
 ) {
   const competitors = getCompetitionPlayers(competition);
   const firstName = getCompetitionPlayerName(competitors[0]);
   const secondName = getCompetitionPlayerName(competitors[1]);
 
-  if (!firstName || !secondName || firstName === "TBD" || secondName === "TBD") {
-    return undefined;
-  }
-
   for (const key of getBracketPairKeys(firstName, secondName)) {
-    const order = roundOneOrderByPairKey.get(key);
+    const order = roundOneOrderMaps.orderByPairKey.get(key);
 
     if (order !== undefined) return order;
+  }
+
+  const playerOrders = new Set<number>();
+
+  for (const playerName of [firstName, secondName]) {
+    if (!playerName || playerName === "TBD") continue;
+
+    for (const key of getBracketNameVariants(playerName)) {
+      const order = roundOneOrderMaps.orderByPlayerKey.get(key);
+      if (order !== undefined) {
+        playerOrders.add(order);
+      }
+    }
+  }
+
+  if (playerOrders.size === 1) {
+    return [...playerOrders][0];
   }
 
   return undefined;
@@ -1008,7 +1081,7 @@ async function fetchRankingsByAthleteId(tour: TennisTour) {
 }
 
 async function fetchTournamentFromEspn(config: TournamentConfig) {
-  const [scoreboard, rankingsByAthleteId, roundOneOrderByPairKey] = await Promise.all([
+  const [scoreboard, rankingsByAthleteId, roundOneOrderMaps] = await Promise.all([
     fetchEspnJson(`${ESPN_SITE_BASE_URL}/${config.tour}/scoreboard?dates=20260629`),
     fetchRankingsByAthleteId(config.tour),
     fetchWikipediaRoundOneBracketOrder(config.wikipediaTitle),
@@ -1056,7 +1129,7 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     }
   }
 
-  const bracketOrderByCompetitionId = new Map<string, number>();
+  const bracketOrderByCompetitionId = new Map<string, number | undefined>();
   const competitionsByRoundName = new Map<string, Record<string, unknown>[]>();
 
   for (const competition of competitions) {
@@ -1070,8 +1143,8 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
   for (const [roundName, roundCompetitions] of competitionsByRoundName) {
     const sortedCompetitions = [...roundCompetitions].sort((first, second) => {
       if (roundName === "Round 1") {
-        const firstWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderByPairKey, first);
-        const secondWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderByPairKey, second);
+        const firstWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderMaps, first);
+        const secondWikipediaOrder = getWikipediaBracketOrderForCompetition(roundOneOrderMaps, second);
 
         if (firstWikipediaOrder !== undefined && secondWikipediaOrder !== undefined) {
           return firstWikipediaOrder - secondWikipediaOrder;
@@ -1089,7 +1162,9 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     sortedCompetitions.forEach((competition, index) => {
       const competitionId = getString(competition.id);
       if (competitionId) {
-        bracketOrderByCompetitionId.set(competitionId, index);
+        const wikipediaOrder =
+          roundName === "Round 1" ? getWikipediaBracketOrderForCompetition(roundOneOrderMaps, competition) : undefined;
+        bracketOrderByCompetitionId.set(competitionId, wikipediaOrder ?? (roundName === "Round 1" ? undefined : index));
       }
     });
   }
@@ -1107,13 +1182,13 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     const roundName = getString(getObject(competition.round)?.displayName) ?? "Round 1";
     const round = ROUND_TO_STAGE[roundName] ?? ROUND_TO_STAGE["Round 1"];
     const espnCompetitionId = String(getString(competition.id) ?? "");
-    const bracketOrder = bracketOrderByCompetitionId.get(espnCompetitionId) ?? 0;
+    const bracketOrder = bracketOrderByCompetitionId.get(espnCompetitionId);
 
     return {
       espnCompetitionId,
       roundName,
       roundOrder: round.order,
-      bracketOrder,
+      ...toOptionalNumberField("bracketOrder", bracketOrder),
       scheduledAt: scheduledAt === Number.MAX_SAFE_INTEGER ? Date.now() : scheduledAt,
       ...toOptionalStringField("court", getString(getObject(competition.venue)?.court)),
       ...toOptionalStringField("player1EspnAthleteId", firstAthleteId),
@@ -1134,7 +1209,7 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     matches: normalizedMatches.sort(
       (first, second) =>
         first.roundOrder - second.roundOrder ||
-        first.bracketOrder - second.bracketOrder ||
+        (first.bracketOrder ?? 9999) - (second.bracketOrder ?? 9999) ||
         first.scheduledAt - second.scheduledAt,
     ),
   };
@@ -1157,7 +1232,7 @@ async function syncCompetitorProgress(ctx: MutationCtx, tournamentId: Id<"tennis
   for (const competitor of competitors) {
     updates.set(competitor._id, {
       stageReached: "round_of_128",
-      isEliminated: false,
+      isEliminated: competitor.isEliminated,
     });
   }
 
@@ -1167,8 +1242,18 @@ async function syncCompetitorProgress(ctx: MutationCtx, tournamentId: Id<"tennis
     const update = updates.get(competitorId);
     if (!update) return;
 
-    update.stageReached = getHigherStage(update.stageReached, stageReached);
-    update.isEliminated = isEliminated;
+    const currentStageIndex = TENNIS_STAGE_ORDER.indexOf(update.stageReached);
+    const nextStageIndex = TENNIS_STAGE_ORDER.indexOf(stageReached);
+
+    if (nextStageIndex > currentStageIndex) {
+      update.stageReached = stageReached;
+      update.isEliminated = isEliminated;
+      return;
+    }
+
+    if (nextStageIndex === currentStageIndex) {
+      update.isEliminated = update.isEliminated || isEliminated;
+    }
   };
 
   for (const match of matches) {
@@ -1210,6 +1295,74 @@ async function syncCompetitorProgress(ctx: MutationCtx, tournamentId: Id<"tennis
   }
 
   return { updatedCompetitors };
+}
+
+async function transferReplacementAssignment(
+  ctx: MutationCtx,
+  tournamentId: Id<"tennisTournaments">,
+  withdrawnCompetitorId: Id<"tennisCompetitors">,
+  replacementCompetitorId: Id<"tennisCompetitors">,
+  now: number,
+) {
+  if (withdrawnCompetitorId === replacementCompetitorId) return false;
+
+  const [withdrawnAssignments, replacementAssignments] = await Promise.all([
+    ctx.db
+      .query("tennisAssignments")
+      .withIndex("by_competitor", (q) => q.eq("competitorId", withdrawnCompetitorId))
+      .collect(),
+    ctx.db
+      .query("tennisAssignments")
+      .withIndex("by_competitor", (q) => q.eq("competitorId", replacementCompetitorId))
+      .collect(),
+  ]);
+  const withdrawnAssignment = withdrawnAssignments.find((assignment) => assignment.tournamentId === tournamentId);
+  const replacementAlreadyAssigned = replacementAssignments.some((assignment) => assignment.tournamentId === tournamentId);
+
+  if (!withdrawnAssignment || replacementAlreadyAssigned) return false;
+
+  await ctx.db.patch(withdrawnAssignment._id, {
+    competitorId: replacementCompetitorId,
+  });
+  await ctx.db.patch(withdrawnCompetitorId, {
+    isEliminated: true,
+    updatedAt: now,
+  });
+
+  return true;
+}
+
+async function transferRoundOneReplacementAssignment(
+  ctx: MutationCtx,
+  tournamentId: Id<"tennisTournaments">,
+  existingMatch: Doc<"tennisMatches"> | null,
+  incomingCompetitorIds: Array<Id<"tennisCompetitors"> | undefined>,
+  now: number,
+) {
+  if (!existingMatch || existingMatch.roundOrder !== 1 || existingMatch.status === "completed") return false;
+
+  const existingCompetitorIds = [existingMatch.player1CompetitorId, existingMatch.player2CompetitorId].filter(
+    (competitorId): competitorId is Id<"tennisCompetitors"> => Boolean(competitorId),
+  );
+  const nextCompetitorIds = incomingCompetitorIds.filter(
+    (competitorId): competitorId is Id<"tennisCompetitors"> => Boolean(competitorId),
+  );
+  const withdrawnCompetitorIds = existingCompetitorIds.filter(
+    (competitorId) => !nextCompetitorIds.includes(competitorId),
+  );
+  const replacementCompetitorIds = nextCompetitorIds.filter(
+    (competitorId) => !existingCompetitorIds.includes(competitorId),
+  );
+
+  if (withdrawnCompetitorIds.length !== 1 || replacementCompetitorIds.length !== 1) return false;
+
+  return await transferReplacementAssignment(
+    ctx,
+    tournamentId,
+    withdrawnCompetitorIds[0],
+    replacementCompetitorIds[0],
+    now,
+  );
 }
 
 export const assertAdmin = internalQuery({
@@ -1516,6 +1669,168 @@ export const updateRussianNames = mutation({
   },
 });
 
+export const replaceAssignedCompetitor = mutation({
+  args: {
+    slug: tournamentSlugValidator,
+    withdrawnName: v.string(),
+    replacementName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { identity, user } = await getCurrentUser(ctx);
+    if (!isAdminUser(identity, user)) {
+      throw new Error("Это действие доступно только администратору.");
+    }
+
+    const tournament = await getTournamentBySlug(ctx, args.slug);
+    if (!tournament) {
+      throw new Error("Сначала загрузите турнир из ESPN.");
+    }
+
+    const competitors = await ctx.db
+      .query("tennisCompetitors")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    const withdrawnCompetitor = findCompetitorByName(competitors, args.withdrawnName, "снявшийся участник");
+    const replacementCompetitor = findCompetitorByName(competitors, args.replacementName, "замена");
+
+    if (withdrawnCompetitor._id === replacementCompetitor._id) {
+      throw new Error("Снявшийся участник и замена совпадают.");
+    }
+
+    const [withdrawnAssignments, replacementAssignments] = await Promise.all([
+      ctx.db
+        .query("tennisAssignments")
+        .withIndex("by_competitor", (q) => q.eq("competitorId", withdrawnCompetitor._id))
+        .collect(),
+      ctx.db
+        .query("tennisAssignments")
+        .withIndex("by_competitor", (q) => q.eq("competitorId", replacementCompetitor._id))
+        .collect(),
+    ]);
+    const tournamentWithdrawnAssignments = withdrawnAssignments.filter((assignment) => assignment.tournamentId === tournament._id);
+    const replacementAlreadyAssigned = replacementAssignments.some((assignment) => assignment.tournamentId === tournament._id);
+
+    if (replacementAlreadyAssigned) {
+      throw new Error(`${replacementCompetitor.name} уже назначен игроку.`);
+    }
+
+    if (tournamentWithdrawnAssignments.length === 0) {
+      await ctx.db.patch(withdrawnCompetitor._id, {
+        isEliminated: true,
+        updatedAt: Date.now(),
+      });
+
+      return {
+        transferred: false,
+        reason: "У снявшегося участника не было assignment.",
+        withdrawnCompetitor: {
+          id: withdrawnCompetitor._id,
+          name: withdrawnCompetitor.name,
+          nameRu: withdrawnCompetitor.nameRu ?? null,
+        },
+        replacementCompetitor: {
+          id: replacementCompetitor._id,
+          name: replacementCompetitor.name,
+          nameRu: replacementCompetitor.nameRu ?? null,
+        },
+      };
+    }
+
+    if (tournamentWithdrawnAssignments.length > 1) {
+      throw new Error(`${withdrawnCompetitor.name} назначен нескольким игрокам, нужен ручной разбор.`);
+    }
+
+    const assignment = tournamentWithdrawnAssignments[0];
+    const assignedUser = await ctx.db.get(assignment.userId);
+    const now = Date.now();
+
+    await ctx.db.patch(assignment._id, {
+      competitorId: replacementCompetitor._id,
+    });
+    await ctx.db.patch(withdrawnCompetitor._id, {
+      isEliminated: true,
+      updatedAt: now,
+    });
+    await ctx.db.patch(replacementCompetitor._id, {
+      isEliminated: false,
+      updatedAt: now,
+    });
+
+    return {
+      transferred: true,
+      assignmentId: assignment._id,
+      pot: assignment.pot ?? null,
+      assignedTo: assignedUser
+        ? {
+            id: assignedUser._id,
+            name: assignedUser.name,
+            participantNumber: assignedUser.participantNumber ?? null,
+          }
+        : null,
+      withdrawnCompetitor: {
+        id: withdrawnCompetitor._id,
+        name: withdrawnCompetitor.name,
+        nameRu: withdrawnCompetitor.nameRu ?? null,
+      },
+      replacementCompetitor: {
+        id: replacementCompetitor._id,
+        name: replacementCompetitor.name,
+        nameRu: replacementCompetitor.nameRu ?? null,
+      },
+    };
+  },
+});
+
+export const markCompetitorWithdrawn = mutation({
+  args: {
+    slug: tournamentSlugValidator,
+    competitorName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { identity, user } = await getCurrentUser(ctx);
+    if (!isAdminUser(identity, user)) {
+      throw new Error("Это действие доступно только администратору.");
+    }
+
+    const tournament = await getTournamentBySlug(ctx, args.slug);
+    if (!tournament) {
+      throw new Error("Сначала загрузите турнир из ESPN.");
+    }
+
+    const competitors = await ctx.db
+      .query("tennisCompetitors")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    const competitor = findCompetitorByName(competitors, args.competitorName, "снявшийся участник");
+    const assignments = await ctx.db
+      .query("tennisAssignments")
+      .withIndex("by_competitor", (q) => q.eq("competitorId", competitor._id))
+      .collect();
+    const assignment = assignments.find((item) => item.tournamentId === tournament._id);
+    const assignedUser = assignment ? await ctx.db.get(assignment.userId) : null;
+
+    await ctx.db.patch(competitor._id, {
+      isEliminated: true,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      competitor: {
+        id: competitor._id,
+        name: competitor.name,
+        nameRu: competitor.nameRu ?? null,
+      },
+      assignedTo: assignedUser
+        ? {
+            id: assignedUser._id,
+            name: assignedUser.name,
+            participantNumber: assignedUser.participantNumber ?? null,
+          }
+        : null,
+    };
+  },
+});
+
 export const setDrawLock = mutation({
   args: {
     slug: tournamentSlugValidator,
@@ -1733,22 +2048,63 @@ export const applyEspnSeed = internalMutation({
 
     const potRebuild = await rebuildTournamentPots(ctx, tournament._id);
 
+    const existingMatches = await ctx.db
+      .query("tennisMatches")
+      .withIndex("by_tournament", (q) => q.eq("tournamentId", tournament._id))
+      .collect();
+    const existingMatchByCompetitionId = new Map(
+      existingMatches.map((match) => [match.espnCompetitionId, match]),
+    );
+    const existingMatchByBracketSlot = new Map<string, Doc<"tennisMatches">>();
+
+    for (const existingMatch of existingMatches) {
+      if (existingMatch.bracketOrder === undefined) continue;
+
+      existingMatchByBracketSlot.set(`${existingMatch.roundOrder}:${existingMatch.bracketOrder}`, existingMatch);
+    }
+
     let updatedMatches = 0;
+    let transferredReplacementAssignments = 0;
     for (const match of args.matches) {
-      const existingMatch = await ctx.db
-        .query("tennisMatches")
-        .withIndex("by_tournament_competition", (q) =>
-          q.eq("tournamentId", tournament._id).eq("espnCompetitionId", match.espnCompetitionId),
+      const existingMatchBySlot =
+        match.bracketOrder !== undefined
+          ? existingMatchByBracketSlot.get(`${match.roundOrder}:${match.bracketOrder}`)
+          : undefined;
+      const existingMatch =
+        existingMatchByCompetitionId.get(match.espnCompetitionId) ??
+        (match.roundOrder === 1 ? existingMatchBySlot : undefined) ??
+        null;
+      const incomingPlayer1CompetitorId = match.player1EspnAthleteId
+        ? competitorIdByEspnAthleteId.get(match.player1EspnAthleteId)
+        : undefined;
+      const incomingPlayer2CompetitorId = match.player2EspnAthleteId
+        ? competitorIdByEspnAthleteId.get(match.player2EspnAthleteId)
+        : undefined;
+      const player1CompetitorId =
+        incomingPlayer1CompetitorId ?? (match.roundOrder === 1 ? existingMatch?.player1CompetitorId : undefined);
+      const player2CompetitorId =
+        incomingPlayer2CompetitorId ?? (match.roundOrder === 1 ? existingMatch?.player2CompetitorId : undefined);
+
+      if (
+        await transferRoundOneReplacementAssignment(
+          ctx,
+          tournament._id,
+          existingMatch,
+          [incomingPlayer1CompetitorId, incomingPlayer2CompetitorId],
+          now,
         )
-        .first();
+      ) {
+        transferredReplacementAssignments += 1;
+      }
+
       const matchPatch = {
         roundName: match.roundName,
         roundOrder: match.roundOrder,
-        bracketOrder: match.bracketOrder,
+        bracketOrder: match.bracketOrder ?? existingMatch?.bracketOrder,
         scheduledAt: match.scheduledAt,
         ...toOptionalStringField("court", match.court),
-        player1CompetitorId: match.player1EspnAthleteId ? competitorIdByEspnAthleteId.get(match.player1EspnAthleteId) : undefined,
-        player2CompetitorId: match.player2EspnAthleteId ? competitorIdByEspnAthleteId.get(match.player2EspnAthleteId) : undefined,
+        player1CompetitorId,
+        player2CompetitorId,
         player1Name: match.player1Name,
         player2Name: match.player2Name,
         player1SetScores: match.player1SetScores,
@@ -1762,7 +2118,10 @@ export const applyEspnSeed = internalMutation({
       };
 
       if (existingMatch) {
-        await ctx.db.patch(existingMatch._id, matchPatch);
+        await ctx.db.patch(existingMatch._id, {
+          ...matchPatch,
+          espnCompetitionId: match.espnCompetitionId,
+        });
       } else {
         await ctx.db.insert("tennisMatches", {
           tournamentId: tournament._id,
@@ -1794,6 +2153,7 @@ export const applyEspnSeed = internalMutation({
       updatedPots: potRebuild.updatedPots,
       updatedMatches,
       progressUpdatedCompetitors: progress.updatedCompetitors,
+      transferredReplacementAssignments,
     };
   },
 });

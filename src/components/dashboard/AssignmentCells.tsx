@@ -1,15 +1,18 @@
-import { Text, View } from "react-native";
+import { Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { POTS } from "../../constants";
 import { styles } from "../../styles";
 import type { AssignmentView } from "../../types";
+import { formatTeamName } from "../../utils/names";
 import { getAssignmentPoints } from "../../utils/scoring";
 
 export function AssignmentCells({
   assignments,
+  cellStyle,
   pointsByTeamId,
 }: {
   assignments: AssignmentView[];
+  cellStyle?: StyleProp<ViewStyle>;
   pointsByTeamId: Map<string, number>;
 }) {
   return (
@@ -30,13 +33,14 @@ export function AssignmentCells({
                   : styles.playerTableTeamCellActive
                 : null,
               !assignment ? styles.playerTableCellEmpty : null,
+              cellStyle,
             ]}
           >
             {assignment ? (
               <View style={styles.assignmentCellContent}>
                 <View style={styles.assignmentInfo}>
                   <Text style={styles.assignmentText} numberOfLines={2}>
-                    {assignment.teamName}
+                    {formatTeamName(assignment.teamName)}
                   </Text>
                 </View>
                 <View style={styles.assignmentPointsBox}>

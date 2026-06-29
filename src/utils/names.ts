@@ -20,3 +20,13 @@ export function formatParticipantName(name: string | null | undefined) {
 
   return firstName && lastInitial ? `${firstName} ${lastInitial}.` : firstName ?? "";
 }
+
+export function formatTeamName(name: string | null | undefined) {
+  const normalized = (name ?? "").trim().replace(/\s+/g, " ");
+
+  if (normalized === "Босния и Герцеговина") {
+    return "Босния";
+  }
+
+  return normalized;
+}

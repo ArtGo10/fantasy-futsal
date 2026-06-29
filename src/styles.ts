@@ -266,12 +266,37 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  playerTableScrollContent: {
+  playerTableFrozenLayout: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  playerTablePinnedColumn: {
+    flexShrink: 0,
+    backgroundColor: "#ffffff",
+  },
+  playerTableScrollableColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  playerTableScrollableContent: {
+    minWidth: "100%",
+  },
+  playerTableScrollableRows: {
     minWidth: "100%",
   },
   playerTableRow: {
     flexDirection: "row",
     backgroundColor: "#ffffff",
+  },
+  playerTableHeaderFixedRow: {
+    height: 58,
+  },
+  playerTableDataRow: {
+    height: 78,
+  },
+  tennisPlayerTableDataRow: {
+    height: 104,
   },
   playerTableHeaderRow: {
     backgroundColor: "#f9fafb",
@@ -285,6 +310,12 @@ export const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 10,
   },
+  playerTableHeaderCell: {
+    alignSelf: "stretch",
+  },
+  playerTableDataCell: {
+    alignSelf: "stretch",
+  },
   playerTableCellEmpty: {
     backgroundColor: "#ffffff",
   },
@@ -297,6 +328,11 @@ export const styles = StyleSheet.create({
   playerTableNameCell: {
     minWidth: 150,
     flex: 1.15,
+  },
+  playerTablePinnedNameCell: {
+    width: 150,
+    minWidth: 150,
+    flex: 0,
   },
   playerTableTeamCell: {
     minWidth: 120,
@@ -317,6 +353,11 @@ export const styles = StyleSheet.create({
     minWidth: 64,
     flex: 0.45,
     alignItems: "center",
+  },
+  playerTablePinnedTotalCell: {
+    width: 64,
+    minWidth: 64,
+    flex: 0,
   },
   playerTableHeaderText: {
     color: "#6b7280",
@@ -363,6 +404,9 @@ export const styles = StyleSheet.create({
     flexBasis: 0,
     minWidth: 0,
     overflow: "hidden",
+  },
+  assignmentTextEliminated: {
+    color: "#a52a2a",
   },
   tennisNameWithFlag: {
     flex: 1,
@@ -786,6 +830,9 @@ export const styles = StyleSheet.create({
   },
   bracketPlayerWinner: {
     color: "#17683a",
+  },
+  bracketPlayerEliminated: {
+    color: "#a52a2a",
   },
   bracketPlayerPending: {
     color: "#6b7280",

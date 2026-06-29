@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { styles } from "../../styles";
 import type { AssignmentView, DashboardView, Pot } from "../../types";
-import { formatParticipantName } from "../../utils/names";
+import { formatParticipantName, formatTeamName } from "../../utils/names";
 
 export function TeamsDrawPanel({
   currentAssignments,
@@ -59,7 +59,7 @@ export function TeamsDrawPanel({
                         team.isEliminated ? styles.teamNameEliminated : styles.teamNameActive,
                       ]}
                     >
-                      {team.name}
+                      {formatTeamName(team.name)}
                     </Text>
                     {team.assignedTo ? (
                       <Text style={styles.teamOwner}>

@@ -5,6 +5,7 @@ import { styles } from "../../styles";
 import type { MatchView, TeamStatusView } from "../../types";
 import { addLocalDays, formatMatchDate, formatMatchTime } from "../../utils/dates";
 import { formatMatchScore, getMatchMeta } from "../../utils/matches";
+import { formatTeamName } from "../../utils/names";
 import { LoadingBlock } from "../common/LoadingBlock";
 
 function MatchRow({
@@ -42,10 +43,10 @@ function MatchRow({
 
       <View style={styles.matchTeamsColumn}>
         <Text style={styles.matchTeams}>
-          <Text style={homeTeamStyle}>{match.homeTeam.name}</Text>
+          <Text style={homeTeamStyle}>{formatTeamName(match.homeTeam.name)}</Text>
           {homeOwnerName ? <Text style={styles.matchTeamOwner}> ({homeOwnerName})</Text> : null}
           {" - "}
-          <Text style={awayTeamStyle}>{match.awayTeam.name}</Text>
+          <Text style={awayTeamStyle}>{formatTeamName(match.awayTeam.name)}</Text>
           {awayOwnerName ? <Text style={styles.matchTeamOwner}> ({awayOwnerName})</Text> : null}
         </Text>
       </View>
