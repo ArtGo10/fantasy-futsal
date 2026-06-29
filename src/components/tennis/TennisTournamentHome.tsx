@@ -1,6 +1,6 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { api } from "../../../convex/_generated/api";
 import { TENNIS_POTS } from "../../constants";
@@ -45,6 +45,8 @@ const BRACKET_ROUNDS = [
 ] as const;
 const BRACKET_CARD_HEIGHT = 72;
 const BRACKET_ROW_STEP = 82;
+const BRACKET_FIRST_ROUND_MATCHES = 64;
+const BRACKET_MATCHES_HEIGHT = (BRACKET_FIRST_ROUND_MATCHES - 1) * BRACKET_ROW_STEP + BRACKET_CARD_HEIGHT;
 const SURNAME_PARTICLES = new Set([
   "da",
   "de",
@@ -166,12 +168,139 @@ function getBracketTopOffset(roundIndex: number) {
   return roundIndex === 0 ? 0 : (2 ** roundIndex - 1) * (BRACKET_ROW_STEP / 2);
 }
 
-function getBracketGap(roundIndex: number) {
-  return roundIndex === 0 ? BRACKET_ROW_STEP - BRACKET_CARD_HEIGHT : (2 ** roundIndex) * BRACKET_ROW_STEP - BRACKET_CARD_HEIGHT;
+function getBracketMatchTop(roundIndex: number, position: number) {
+  return getBracketTopOffset(roundIndex) + position * (2 ** roundIndex) * BRACKET_ROW_STEP;
+}
+
+function getBracketMatchMarginTop(roundIndex: number, matches: BracketMatch[], matchIndex: number) {
+  const matchTop = getBracketMatchTop(roundIndex, matches[matchIndex].position);
+
+  if (matchIndex === 0) return matchTop;
+
+  const previousMatchTop = getBracketMatchTop(roundIndex, matches[matchIndex - 1].position);
+
+  return Math.max(0, matchTop - previousMatchTop - BRACKET_CARD_HEIGHT);
+}
+
+function getBracketRoundMatchCount(roundIndex: number) {
+  return Math.max(1, BRACKET_FIRST_ROUND_MATCHES / 2 ** roundIndex);
+}
+
+function compareTennisMatches(first: TennisMatchView, second: TennisMatchView) {
+  return (
+    (first.bracketOrder ?? 9999) - (second.bracketOrder ?? 9999) ||
+    first.scheduledAt - second.scheduledAt ||
+    first.espnCompetitionId.localeCompare(second.espnCompetitionId)
+  );
+}
+
+function inferBracketPosition(match: TennisMatchView, previousRoundMatches: BracketMatch[] | undefined) {
+  if (!previousRoundMatches) return null;
+
+  const inferredPositions = new Set<number>();
+
+  for (const competitorId of [match.player1CompetitorId, match.player2CompetitorId]) {
+    if (!competitorId) continue;
+
+    const sourceMatch = previousRoundMatches.find(
+      (candidate) => candidate.match.winnerCompetitorId === competitorId,
+    );
+
+    if (sourceMatch) {
+      inferredPositions.add(Math.floor(sourceMatch.position / 2));
+    }
+  }
+
+  return inferredPositions.size === 1 ? [...inferredPositions][0] : null;
+}
+
+function getTennisMatchKnownPlayerCount(match: TennisMatchView) {
+  return Number(Boolean(match.player1CompetitorId)) + Number(Boolean(match.player2CompetitorId));
+}
+
+function getBracketMatchPriority(bracketMatch: BracketMatch) {
+  const match = bracketMatch.match;
+
+  return (
+    getTennisMatchKnownPlayerCount(match) * 10 +
+    Number(Boolean(match.winnerCompetitorId)) * 5 +
+    Number(match.status === "live") * 3 +
+    Number(match.status === "completed") * 4
+  );
+}
+
+function shouldPreferBracketMatch(candidate: BracketMatch, current: BracketMatch) {
+  const priorityDelta = getBracketMatchPriority(candidate) - getBracketMatchPriority(current);
+
+  if (priorityDelta !== 0) return priorityDelta > 0;
+
+  return compareTennisMatches(candidate.match, current.match) < 0;
+}
+
+function dedupeBracketMatchesByPosition(matches: BracketMatch[]) {
+  const matchByPosition = new Map<number, BracketMatch>();
+
+  for (const match of matches) {
+    const currentMatch = matchByPosition.get(match.position);
+
+    if (!currentMatch || shouldPreferBracketMatch(match, currentMatch)) {
+      matchByPosition.set(match.position, match);
+    }
+  }
+
+  return [...matchByPosition.values()];
+}
+
+function createPlaceholderBracketMatch(roundOrder: number, title: string, position: number): BracketMatch {
+  return {
+    position,
+    match: {
+      id: `placeholder-${roundOrder}-${position}`,
+      espnCompetitionId: `placeholder-${roundOrder}-${position}`,
+      roundName: title,
+      roundOrder,
+      bracketOrder: position,
+      scheduledAt: 0,
+      court: null,
+      player1CompetitorId: null,
+      player2CompetitorId: null,
+      player1Name: "TBD",
+      player2Name: "TBD",
+      player1SetScores: [],
+      player2SetScores: [],
+      winnerCompetitorId: null,
+      status: "scheduled",
+      note: null,
+    },
+  };
+}
+
+function fillBracketRoundSlots(
+  matches: BracketMatch[],
+  round: (typeof BRACKET_ROUNDS)[number],
+  roundIndex: number,
+) {
+  const matchCount = getBracketRoundMatchCount(roundIndex);
+  const matchByPosition = new Map(matches.map((match) => [match.position, match]));
+  const filledMatches: BracketMatch[] = [];
+
+  for (let position = 0; position < matchCount; position += 1) {
+    filledMatches.push(matchByPosition.get(position) ?? createPlaceholderBracketMatch(round.order, round.title, position));
+  }
+
+  const extraMatches = matches.filter((match) => match.position < 0 || match.position >= matchCount);
+
+  return [...filledMatches, ...extraMatches].sort(
+    (first, second) => first.position - second.position || compareTennisMatches(first.match, second.match),
+  );
 }
 
 function buildBracketRounds(matches: TennisMatchView[]) {
+  if (matches.length === 0) return [];
+
   const grouped = new Map<number, TennisMatchView[]>();
+  const roundsByOrder = new Map<number, BracketMatch[]>();
+  const rounds: BracketRound[] = [];
 
   for (const match of matches) {
     const roundMatches = grouped.get(match.roundOrder) ?? [];
@@ -179,23 +308,27 @@ function buildBracketRounds(matches: TennisMatchView[]) {
     grouped.set(match.roundOrder, roundMatches);
   }
 
-  return BRACKET_ROUNDS.map((round): BracketRound => {
-    const roundMatches = [...(grouped.get(round.order) ?? [])].sort(
-      (first, second) =>
-        (first.bracketOrder ?? 9999) - (second.bracketOrder ?? 9999) ||
-        first.scheduledAt - second.scheduledAt ||
-        first.espnCompetitionId.localeCompare(second.espnCompetitionId),
-    );
+  for (const [roundIndex, round] of BRACKET_ROUNDS.entries()) {
+    const previousRoundMatches = roundsByOrder.get(round.order - 1);
+    const roundMatches = [...(grouped.get(round.order) ?? [])].sort(compareTennisMatches);
+    const bracketMatches = roundMatches
+      .map((match, index) => ({
+        match,
+        position: inferBracketPosition(match, previousRoundMatches) ?? match.bracketOrder ?? index,
+      }));
+    const visibleBracketMatches = dedupeBracketMatchesByPosition(bracketMatches)
+      .sort((first, second) => first.position - second.position || compareTennisMatches(first.match, second.match));
+    const completeBracketMatches = fillBracketRoundSlots(visibleBracketMatches, round, roundIndex);
 
-    return {
+    roundsByOrder.set(round.order, completeBracketMatches);
+    rounds.push({
       order: round.order,
       title: round.title,
-      matches: roundMatches.map((match, index) => ({
-        match,
-        position: match.bracketOrder ?? index,
-      })),
-    };
-  }).filter((round) => round.matches.length > 0);
+      matches: completeBracketMatches,
+    });
+  }
+
+  return rounds;
 }
 
 function getBracketPlayerName({
@@ -298,12 +431,14 @@ function TennisBracketMatchCard({
   isFinalRound,
   ownerByCompetitorId,
   roundsByOrder,
+  style,
 }: {
   bracketMatch: BracketMatch;
   competitorById: Map<string, TennisCompetitorView>;
   isFinalRound: boolean;
   ownerByCompetitorId: Map<string, string>;
   roundsByOrder: Map<number, BracketMatch[]>;
+  style?: StyleProp<ViewStyle>;
 }) {
   const match = bracketMatch.match;
   const player1 = getBracketPlayerName({ bracketMatch, competitorById, side: 0, roundsByOrder });
@@ -324,7 +459,7 @@ function TennisBracketMatchCard({
   );
 
   return (
-    <View style={styles.bracketMatchWrap}>
+    <View style={[styles.bracketMatchWrap, style]}>
       <View style={[styles.bracketMatchCard, match.status === "live" ? styles.bracketMatchCardLive : null]}>
         <TennisBracketPlayer
           country={player1.country}
@@ -396,12 +531,11 @@ function TennisBracket({
               style={[
                 styles.bracketRoundMatches,
                 {
-                  paddingTop: getBracketTopOffset(roundIndex),
-                  gap: getBracketGap(roundIndex),
+                  minHeight: BRACKET_MATCHES_HEIGHT,
                 },
               ]}
             >
-              {round.matches.map((bracketMatch) => (
+              {round.matches.map((bracketMatch, matchIndex) => (
                 <TennisBracketMatchCard
                   key={bracketMatch.match.id}
                   bracketMatch={bracketMatch}
@@ -409,6 +543,9 @@ function TennisBracket({
                   isFinalRound={roundIndex === rounds.length - 1}
                   ownerByCompetitorId={ownerByCompetitorId}
                   roundsByOrder={roundsByOrder}
+                  style={{
+                    marginTop: getBracketMatchMarginTop(roundIndex, round.matches, matchIndex),
+                  }}
                 />
               ))}
             </View>

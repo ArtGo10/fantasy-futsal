@@ -1046,6 +1046,100 @@ function getWikipediaBracketOrderForCompetition(
   return undefined;
 }
 
+function inferBracketOrderFromPreviousRound(
+  match: NormalizedMatch,
+  previousRoundMatches: NormalizedMatch[],
+) {
+  const inferredOrders = new Set<number>();
+
+  for (const athleteId of [match.player1EspnAthleteId, match.player2EspnAthleteId]) {
+    if (!athleteId) continue;
+
+    const sourceMatch = previousRoundMatches.find(
+      (previousMatch) => previousMatch.winnerEspnAthleteId === athleteId && previousMatch.bracketOrder !== undefined,
+    );
+
+    if (sourceMatch?.bracketOrder !== undefined) {
+      inferredOrders.add(Math.floor(sourceMatch.bracketOrder / 2));
+    }
+  }
+
+  return inferredOrders.size === 1 ? [...inferredOrders][0] : undefined;
+}
+
+function applyInferredBracketOrders(matches: NormalizedMatch[]) {
+  const matchesByRoundOrder = new Map<number, NormalizedMatch[]>();
+
+  for (const match of matches) {
+    const roundMatches = matchesByRoundOrder.get(match.roundOrder) ?? [];
+
+    roundMatches.push(match);
+    matchesByRoundOrder.set(match.roundOrder, roundMatches);
+  }
+
+  const roundOrders = [...matchesByRoundOrder.keys()].sort((first, second) => first - second);
+
+  for (const roundOrder of roundOrders) {
+    if (roundOrder === 1) continue;
+
+    const previousRoundMatches = matchesByRoundOrder.get(roundOrder - 1) ?? [];
+    const roundMatches = matchesByRoundOrder.get(roundOrder) ?? [];
+
+    for (const match of roundMatches) {
+      const inferredBracketOrder = inferBracketOrderFromPreviousRound(match, previousRoundMatches);
+
+      if (inferredBracketOrder !== undefined) {
+        match.bracketOrder = inferredBracketOrder;
+      }
+    }
+  }
+}
+
+function getNormalizedMatchKnownPlayerCount(match: NormalizedMatch) {
+  return Number(Boolean(match.player1EspnAthleteId)) + Number(Boolean(match.player2EspnAthleteId));
+}
+
+function getNormalizedMatchPriority(match: NormalizedMatch) {
+  return (
+    getNormalizedMatchKnownPlayerCount(match) * 10 +
+    Number(Boolean(match.winnerEspnAthleteId)) * 5 +
+    Number(match.status === "live") * 3 +
+    Number(match.status === "completed") * 4
+  );
+}
+
+function shouldPreferNormalizedMatch(candidate: NormalizedMatch, current: NormalizedMatch) {
+  const priorityDelta = getNormalizedMatchPriority(candidate) - getNormalizedMatchPriority(current);
+
+  if (priorityDelta !== 0) return priorityDelta > 0;
+
+  return (
+    candidate.scheduledAt - current.scheduledAt ||
+    candidate.espnCompetitionId.localeCompare(current.espnCompetitionId)
+  ) < 0;
+}
+
+function dedupeNormalizedMatchesByBracketSlot(matches: NormalizedMatch[]) {
+  const matchesWithoutSlot: NormalizedMatch[] = [];
+  const matchBySlot = new Map<string, NormalizedMatch>();
+
+  for (const match of matches) {
+    if (match.bracketOrder === undefined) {
+      matchesWithoutSlot.push(match);
+      continue;
+    }
+
+    const slotKey = `${match.roundOrder}:${match.bracketOrder}`;
+    const currentMatch = matchBySlot.get(slotKey);
+
+    if (!currentMatch || shouldPreferNormalizedMatch(match, currentMatch)) {
+      matchBySlot.set(slotKey, match);
+    }
+  }
+
+  return [...matchesWithoutSlot, ...matchBySlot.values()];
+}
+
 function toOptionalStringField(key: string, value: string | undefined) {
   return value === undefined ? {} : { [key]: value };
 }
@@ -1204,9 +1298,12 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
     };
   });
 
+  applyInferredBracketOrders(normalizedMatches);
+  const dedupedMatches = dedupeNormalizedMatchesByBracketSlot(normalizedMatches);
+
   return {
     competitors: [...competitorsByAthleteId.values()].sort((first, second) => first.sortOrder - second.sortOrder),
-    matches: normalizedMatches.sort(
+    matches: dedupedMatches.sort(
       (first, second) =>
         first.roundOrder - second.roundOrder ||
         (first.bracketOrder ?? 9999) - (second.bracketOrder ?? 9999) ||
@@ -1215,7 +1312,7 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
   };
 }
 
-async function getTournamentBySlug(ctx: MutationCtx, slug: TournamentSlug) {
+async function getTournamentBySlug(ctx: MutationCtx | QueryCtx, slug: TournamentSlug) {
   return await ctx.db
     .query("tennisTournaments")
     .withIndex("by_slug", (q) => q.eq("slug", slug))
@@ -1362,6 +1459,17 @@ async function transferRoundOneReplacementAssignment(
     withdrawnCompetitorIds[0],
     replacementCompetitorIds[0],
     now,
+  );
+}
+
+function isPlaceholderTennisMatch(match: Doc<"tennisMatches">) {
+  return (
+    match.status === "scheduled" &&
+    !match.player1CompetitorId &&
+    !match.player2CompetitorId &&
+    !match.winnerCompetitorId &&
+    match.player1Name.trim().toLowerCase() === "tbd" &&
+    match.player2Name.trim().toLowerCase() === "tbd"
   );
 }
 
@@ -2064,16 +2172,30 @@ export const applyEspnSeed = internalMutation({
     }
 
     let updatedMatches = 0;
+    const duplicatePlaceholderMatchIds = new Set<Id<"tennisMatches">>();
     let transferredReplacementAssignments = 0;
     for (const match of args.matches) {
+      const existingMatchByCompetition = existingMatchByCompetitionId.get(match.espnCompetitionId);
       const existingMatchBySlot =
         match.bracketOrder !== undefined
           ? existingMatchByBracketSlot.get(`${match.roundOrder}:${match.bracketOrder}`)
           : undefined;
       const existingMatch =
-        existingMatchByCompetitionId.get(match.espnCompetitionId) ??
-        (match.roundOrder === 1 ? existingMatchBySlot : undefined) ??
+        existingMatchByCompetition ??
+        (
+          existingMatchBySlot &&
+          (match.roundOrder === 1 || (isPlaceholderTennisMatch(existingMatchBySlot) && getNormalizedMatchKnownPlayerCount(match) > 0))
+            ? existingMatchBySlot
+            : undefined
+        ) ??
         null;
+      const duplicatePlaceholderMatch =
+        existingMatchByCompetition &&
+        existingMatchBySlot &&
+        existingMatchByCompetition._id !== existingMatchBySlot._id &&
+        isPlaceholderTennisMatch(existingMatchBySlot)
+          ? existingMatchBySlot
+          : null;
       const incomingPlayer1CompetitorId = match.player1EspnAthleteId
         ? competitorIdByEspnAthleteId.get(match.player1EspnAthleteId)
         : undefined;
@@ -2130,7 +2252,14 @@ export const applyEspnSeed = internalMutation({
           createdAt: now,
         });
       }
+      if (duplicatePlaceholderMatch) {
+        duplicatePlaceholderMatchIds.add(duplicatePlaceholderMatch._id);
+      }
       updatedMatches += 1;
+    }
+
+    for (const matchId of duplicatePlaceholderMatchIds) {
+      await ctx.db.delete(matchId);
     }
 
     const progress = await syncCompetitorProgress(ctx, tournament._id);
@@ -2152,6 +2281,7 @@ export const applyEspnSeed = internalMutation({
       updatedCompetitors,
       updatedPots: potRebuild.updatedPots,
       updatedMatches,
+      deletedDuplicateMatches: duplicatePlaceholderMatchIds.size,
       progressUpdatedCompetitors: progress.updatedCompetitors,
       transferredReplacementAssignments,
     };

@@ -778,6 +778,7 @@ export const styles = StyleSheet.create({
   },
   bracketRoundMatches: {
     alignItems: "stretch",
+    position: "relative",
   },
   bracketMatchWrap: {
     height: 72,
