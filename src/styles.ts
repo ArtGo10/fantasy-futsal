@@ -405,6 +405,15 @@ export const styles = StyleSheet.create({
     minWidth: 0,
     overflow: "hidden",
   },
+  footballAssignmentText: {
+    width: "100%",
+    color: "#1f2937",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   assignmentTextEliminated: {
     color: "#a52a2a",
   },

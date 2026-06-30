@@ -39,9 +39,7 @@ export function AssignmentCells({
             {assignment ? (
               <View style={styles.assignmentCellContent}>
                 <View style={styles.assignmentInfo}>
-                  <Text style={styles.assignmentText} numberOfLines={2}>
-                    {formatTeamName(assignment.teamName)}
-                  </Text>
+                  <Text style={styles.footballAssignmentText}>{formatTeamName(assignment.teamName)}</Text>
                 </View>
                 <View style={styles.assignmentPointsBox}>
                   <Text style={styles.assignmentPoints}>{points}</Text>

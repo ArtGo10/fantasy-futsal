@@ -22,11 +22,5 @@ export function formatParticipantName(name: string | null | undefined) {
 }
 
 export function formatTeamName(name: string | null | undefined) {
-  const normalized = (name ?? "").trim().replace(/\s+/g, " ");
-
-  if (normalized === "Босния и Герцеговина") {
-    return "Босния";
-  }
-
-  return normalized;
+  return (name ?? "").trim().replace(/\s+/g, " ");
 }
