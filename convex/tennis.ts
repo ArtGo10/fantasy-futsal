@@ -76,6 +76,8 @@ type TennisAssignmentView = {
 
 const ESPN_SITE_BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/tennis";
 const ESPN_CORE_BASE_URL = "https://sports.core.api.espn.com/v2/sports/tennis";
+const TENNIS_TOURNAMENT_START_AT = Date.UTC(2026, 5, 29);
+const TENNIS_TOURNAMENT_END_AT = Date.UTC(2026, 6, 12);
 const TENNIS_TOURNAMENTS: Record<TournamentSlug, TournamentConfig> = {
   wimbledon_atp_2026: {
     slug: "wimbledon_atp_2026",
@@ -1119,25 +1121,62 @@ function shouldPreferNormalizedMatch(candidate: NormalizedMatch, current: Normal
   ) < 0;
 }
 
-function dedupeNormalizedMatchesByBracketSlot(matches: NormalizedMatch[]) {
-  const matchesWithoutSlot: NormalizedMatch[] = [];
-  const matchBySlot = new Map<string, NormalizedMatch>();
+function dedupeNormalizedMatches(matches: NormalizedMatch[]) {
+  const matchByCompetitionId = new Map<string, NormalizedMatch>();
 
   for (const match of matches) {
-    if (match.bracketOrder === undefined) {
-      matchesWithoutSlot.push(match);
-      continue;
-    }
+    const competitionId = match.espnCompetitionId.trim();
+    if (!competitionId) continue;
 
-    const slotKey = `${match.roundOrder}:${match.bracketOrder}`;
-    const currentMatch = matchBySlot.get(slotKey);
+    const currentMatch = matchByCompetitionId.get(competitionId);
 
     if (!currentMatch || shouldPreferNormalizedMatch(match, currentMatch)) {
-      matchBySlot.set(slotKey, match);
+      matchByCompetitionId.set(competitionId, match);
     }
   }
 
-  return [...matchesWithoutSlot, ...matchBySlot.values()];
+  return [...matchByCompetitionId.values()];
+}
+
+function formatEspnScoreboardDateParam(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${year}${month}${day}`;
+}
+
+function getEspnScoreboardDateParam() {
+  const clampedTimestamp = Math.min(Math.max(Date.now(), TENNIS_TOURNAMENT_START_AT), TENNIS_TOURNAMENT_END_AT);
+
+  return formatEspnScoreboardDateParam(clampedTimestamp);
+}
+
+function getTournamentGrouping(scoreboard: Record<string, unknown>, config: TournamentConfig) {
+  const events = getObjectArray(scoreboard.events);
+  const event = events.find((item) => getString(item?.id) === config.providerEventId || getString(item?.name) === "Wimbledon");
+  const groupings = getObjectArray(event?.groupings);
+
+  return groupings.find((item) => getString(getObject(item?.grouping)?.slug) === config.groupingSlug) ?? null;
+}
+
+async function fetchTournamentScoreboard(config: TournamentConfig) {
+  const dateParams = [...new Set([getEspnScoreboardDateParam(), formatEspnScoreboardDateParam(TENNIS_TOURNAMENT_START_AT)])];
+  let fallbackScoreboard: Record<string, unknown> | null = null;
+
+  for (const dateParam of dateParams) {
+    const scoreboard = await fetchEspnJson(`${ESPN_SITE_BASE_URL}/${config.tour}/scoreboard?dates=${dateParam}`);
+    fallbackScoreboard = scoreboard;
+
+    if (getTournamentGrouping(scoreboard, config)) {
+      return scoreboard;
+    }
+  }
+
+  if (fallbackScoreboard) return fallbackScoreboard;
+
+  throw new Error("ESPN не вернул данные Wimbledon.");
 }
 
 function toOptionalStringField(key: string, value: string | undefined) {
@@ -1176,14 +1215,11 @@ async function fetchRankingsByAthleteId(tour: TennisTour) {
 
 async function fetchTournamentFromEspn(config: TournamentConfig) {
   const [scoreboard, rankingsByAthleteId, roundOneOrderMaps] = await Promise.all([
-    fetchEspnJson(`${ESPN_SITE_BASE_URL}/${config.tour}/scoreboard?dates=20260629`),
+    fetchTournamentScoreboard(config),
     fetchRankingsByAthleteId(config.tour),
     fetchWikipediaRoundOneBracketOrder(config.wikipediaTitle),
   ]);
-  const events = getObjectArray(scoreboard.events);
-  const event = events.find((item) => getString(item?.id) === config.providerEventId || getString(item?.name) === "Wimbledon");
-  const groupings = getObjectArray(event?.groupings);
-  const grouping = groupings.find((item) => getString(getObject(item?.grouping)?.slug) === config.groupingSlug);
+  const grouping = getTournamentGrouping(scoreboard, config);
   const allCompetitions = getObjectArray(grouping?.competitions);
   const competitions = allCompetitions.filter((competition) => {
     const roundName = getString(getObject(competition?.round)?.displayName);
@@ -1299,7 +1335,7 @@ async function fetchTournamentFromEspn(config: TournamentConfig) {
   });
 
   applyInferredBracketOrders(normalizedMatches);
-  const dedupedMatches = dedupeNormalizedMatchesByBracketSlot(normalizedMatches);
+  const dedupedMatches = dedupeNormalizedMatches(normalizedMatches);
 
   return {
     competitors: [...competitorsByAthleteId.values()].sort((first, second) => first.sortOrder - second.sortOrder),

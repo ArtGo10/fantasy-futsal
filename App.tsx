@@ -2,7 +2,6 @@ import "react-native-url-polyfill/auto";
 
 import { ClerkLoaded, ClerkLoading, ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
-import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { ConvexReactClient } from "convex/react";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AuthScreen } from "./src/components/auth/AuthScreen";
 import { ConvexAuthProblem } from "./src/components/auth/ConvexAuthProblem";
 import { MissingEnv } from "./src/components/auth/MissingEnv";
+import { OAuthRedirectCallback } from "./src/components/auth/OAuthRedirectCallback";
 import { LoadingBlock } from "./src/components/common/LoadingBlock";
 import { SignedInHome } from "./src/components/dashboard/SignedInHome";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
@@ -41,11 +41,7 @@ export default function App() {
             <ClerkLoaded>
               {isCompletingOAuthRedirect ? (
                 <>
-                  <AuthenticateWithRedirectCallback
-                    signInForceRedirectUrl={redirectUrlComplete}
-                    signUpForceRedirectUrl={redirectUrlComplete}
-                    transferable
-                  />
+                  <OAuthRedirectCallback redirectUrlComplete={redirectUrlComplete} />
                   <LoadingBlock text="Завершаем вход через Google..." />
                 </>
               ) : (
