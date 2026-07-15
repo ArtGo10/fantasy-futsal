@@ -5,14 +5,25 @@ import { styles } from "../../styles";
 import type { ParticipantView } from "../../types";
 import { formatParticipantName } from "../../utils/names";
 import { getParticipantTotalPoints } from "../../utils/scoring";
+import { getPrizePlaceByIndex, type PrizePlace } from "../../utils/standings";
 import { AssignmentCells } from "./AssignmentCells";
+
+function getPrizeCellStyle(prizePlace: PrizePlace | null) {
+  if (prizePlace === "gold") return styles.playerTablePrizeGoldCell;
+  if (prizePlace === "silver") return styles.playerTablePrizeSilverCell;
+  if (prizePlace === "bronze") return styles.playerTablePrizeBronzeCell;
+
+  return null;
+}
 
 export function PlayersTable({
   participants,
   pointsByTeamId,
+  tournamentIsComplete,
 }: {
   participants: ParticipantView[];
   pointsByTeamId: Map<string, number>;
+  tournamentIsComplete: boolean;
 }) {
   return (
     <View style={styles.panel}>
@@ -38,14 +49,17 @@ export function PlayersTable({
               </View>
             </View>
 
-            {participants.map((participant) => {
+            {participants.map((participant, participantIndex) => {
+              const prizePlace = tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null;
               const hasAssignments = participant.assignments.length > 0;
               const hasActiveTeam = participant.assignments.some((assignment) => !assignment.isEliminated);
-              const playerStatusCellStyle = hasAssignments
-                ? hasActiveTeam
-                  ? styles.playerTableStatusCellActive
-                  : styles.playerTableStatusCellEliminated
-                : null;
+              const playerStatusCellStyle = tournamentIsComplete
+                ? getPrizeCellStyle(prizePlace)
+                : hasAssignments
+                  ? hasActiveTeam
+                    ? styles.playerTableStatusCellActive
+                    : styles.playerTableStatusCellEliminated
+                  : null;
 
               return (
                 <View
@@ -92,12 +106,14 @@ export function PlayersTable({
                 ))}
               </View>
 
-              {participants.map((participant) => (
+              {participants.map((participant, participantIndex) => (
                 <View key={participant.id} style={[styles.playerTableRow, styles.playerTableDataRow]}>
                   <AssignmentCells
                     assignments={participant.assignments}
                     cellStyle={styles.playerTableDataCell}
                     pointsByTeamId={pointsByTeamId}
+                    prizePlace={tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null}
+                    tournamentIsComplete={tournamentIsComplete}
                   />
                 </View>
               ))}
@@ -124,15 +140,18 @@ export function PlayersTable({
               </View>
             </View>
 
-            {participants.map((participant) => {
+            {participants.map((participant, participantIndex) => {
               const totalPoints = getParticipantTotalPoints(participant, pointsByTeamId);
+              const prizePlace = tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null;
               const hasAssignments = participant.assignments.length > 0;
               const hasActiveTeam = participant.assignments.some((assignment) => !assignment.isEliminated);
-              const playerStatusCellStyle = hasAssignments
-                ? hasActiveTeam
-                  ? styles.playerTableStatusCellActive
-                  : styles.playerTableStatusCellEliminated
-                : null;
+              const playerStatusCellStyle = tournamentIsComplete
+                ? getPrizeCellStyle(prizePlace)
+                : hasAssignments
+                  ? hasActiveTeam
+                    ? styles.playerTableStatusCellActive
+                    : styles.playerTableStatusCellEliminated
+                  : null;
 
               return (
                 <View

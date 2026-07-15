@@ -21,6 +21,7 @@ import type {
 import { getErrorMessage } from "../../utils/auth";
 import { formatDrawCountdown, formatDrawUnlockTime } from "../../utils/dates";
 import { formatParticipantName } from "../../utils/names";
+import { areAllScheduledMatchesCompleted, getPrizePlaceByIndex, type PrizePlace } from "../../utils/standings";
 import { LoadingBlock } from "../common/LoadingBlock";
 import { TabBar } from "../dashboard/TabBar";
 
@@ -552,11 +553,28 @@ function getTennisParticipantTotalPoints(participant: TennisParticipantView) {
   return participant.assignments.reduce((total, assignment) => total + assignment.points, 0);
 }
 
-function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentView[] }) {
+function getPrizeCellStyle(prizePlace: PrizePlace | null) {
+  if (prizePlace === "gold") return styles.playerTablePrizeGoldCell;
+  if (prizePlace === "silver") return styles.playerTablePrizeSilverCell;
+  if (prizePlace === "bronze") return styles.playerTablePrizeBronzeCell;
+
+  return null;
+}
+
+function TennisAssignmentCells({
+  assignments,
+  prizePlace,
+  tournamentIsComplete,
+}: {
+  assignments: TennisAssignmentView[];
+  prizePlace: PrizePlace | null;
+  tournamentIsComplete: boolean;
+}) {
   return (
     <>
       {TENNIS_POTS.map((pot) => {
         const assignment = assignments.find((item) => item.pot === pot);
+        const prizeCellStyle = getPrizeCellStyle(prizePlace);
 
         return (
           <View
@@ -566,12 +584,14 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
               styles.playerTableTeamCell,
               styles.tennisPlayerTableTeamCell,
               styles.playerTableDataCell,
-              assignment
-                ? assignment.isEliminated
-                  ? styles.playerTableTeamCellEliminated
-                  : styles.playerTableTeamCellActive
-                : null,
               !assignment ? styles.playerTableCellEmpty : null,
+              tournamentIsComplete
+                ? prizeCellStyle
+                : assignment
+                  ? assignment.isEliminated
+                    ? styles.playerTableTeamCellEliminated
+                    : styles.playerTableTeamCellActive
+                  : null,
             ]}
           >
             {assignment ? (
@@ -582,7 +602,7 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
                     <Text
                       style={[
                         styles.assignmentText,
-                        assignment.isEliminated ? styles.assignmentTextEliminated : null,
+                        !tournamentIsComplete && assignment.isEliminated ? styles.assignmentTextEliminated : null,
                       ]}
                       numberOfLines={1}
                       ellipsizeMode="tail"
@@ -604,7 +624,13 @@ function TennisAssignmentCells({ assignments }: { assignments: TennisAssignmentV
   );
 }
 
-function TennisParticipantsTable({ participants }: { participants: TennisParticipantView[] }) {
+function TennisParticipantsTable({
+  participants,
+  tournamentIsComplete,
+}: {
+  participants: TennisParticipantView[];
+  tournamentIsComplete: boolean;
+}) {
   if (participants.length === 0) {
     return <Text style={styles.mutedText}>Пока никто не вошёл в этот Wimbledon-турнир.</Text>;
   }
@@ -615,7 +641,9 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
 
     return first.participantNumber - second.participantNumber;
   });
-  const getParticipantStatusCellStyle = (participant: TennisParticipantView) => {
+  const getParticipantStatusCellStyle = (participant: TennisParticipantView, prizePlace: PrizePlace | null) => {
+    if (tournamentIsComplete) return getPrizeCellStyle(prizePlace);
+
     const hasAssignments = participant.assignments.length > 0;
     if (!hasAssignments) return null;
 
@@ -647,7 +675,10 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
               </View>
           </View>
 
-          {sortedParticipants.map((participant) => (
+          {sortedParticipants.map((participant, participantIndex) => {
+            const prizePlace = tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null;
+
+            return (
             <View
               key={participant.id}
               style={[styles.playerTableRow, styles.playerTableDataRow, styles.tennisPlayerTableDataRow]}
@@ -658,7 +689,7 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
                   styles.playerTableNameCell,
                   styles.playerTablePinnedNameCell,
                   styles.playerTableDataCell,
-                  getParticipantStatusCellStyle(participant),
+                  getParticipantStatusCellStyle(participant, prizePlace),
                 ]}
               >
                 <Text style={styles.playerName} numberOfLines={2}>
@@ -667,7 +698,8 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
                 <Text style={styles.pointsDetailsText}>#{participant.participantNumber}</Text>
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
 
         <ScrollView
@@ -693,12 +725,16 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
               ))}
             </View>
 
-            {sortedParticipants.map((participant) => (
+            {sortedParticipants.map((participant, participantIndex) => (
               <View
                 key={participant.id}
                 style={[styles.playerTableRow, styles.playerTableDataRow, styles.tennisPlayerTableDataRow]}
               >
-                <TennisAssignmentCells assignments={participant.assignments} />
+                <TennisAssignmentCells
+                  assignments={participant.assignments}
+                  prizePlace={tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null}
+                  tournamentIsComplete={tournamentIsComplete}
+                />
               </View>
             ))}
           </View>
@@ -724,7 +760,10 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
             </View>
           </View>
 
-          {sortedParticipants.map((participant) => (
+          {sortedParticipants.map((participant, participantIndex) => {
+            const prizePlace = tournamentIsComplete ? getPrizePlaceByIndex(participantIndex) : null;
+
+            return (
             <View
               key={participant.id}
               style={[styles.playerTableRow, styles.playerTableDataRow, styles.tennisPlayerTableDataRow]}
@@ -735,13 +774,14 @@ function TennisParticipantsTable({ participants }: { participants: TennisPartici
                   styles.playerTableTotalCell,
                   styles.playerTablePinnedTotalCell,
                   styles.playerTableDataCell,
-                  getParticipantStatusCellStyle(participant),
+                  getParticipantStatusCellStyle(participant, prizePlace),
                 ]}
               >
                 <Text style={styles.playerTotalPoints}>{getTennisParticipantTotalPoints(participant)}</Text>
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
       </View>
     </View>
@@ -970,6 +1010,7 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
   const assignedCompetitorCount = overview.competitorsByPot.reduce((total, pot) => total + pot.assigned, 0);
   const expectedAssignmentCount = overview.maxParticipants * TENNIS_POTS.length;
   const drawIsComplete = expectedAssignmentCount > 0 && assignedCompetitorCount >= expectedAssignmentCount;
+  const tournamentIsComplete = areAllScheduledMatchesCompleted(overview.matches);
 
   return (
     <>
@@ -1041,7 +1082,10 @@ export function TennisTournamentHome({ slug }: { slug: TennisTournamentSlug }) {
               {statusText ? <Text style={styles.successText}>{statusText}</Text> : null}
               {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
 
-              <TennisParticipantsTable participants={overview.participants} />
+              <TennisParticipantsTable
+                participants={overview.participants}
+                tournamentIsComplete={tournamentIsComplete}
+              />
             </View>
           ) : null}
 

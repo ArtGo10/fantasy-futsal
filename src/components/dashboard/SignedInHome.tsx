@@ -23,6 +23,7 @@ import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
 import { formatDrawCountdown, formatDrawUnlockTime, getLocalDayStart, isSameLocalDay } from "../../utils/dates";
 import { formatParticipantName, formatPersonName, formatTeamName } from "../../utils/names";
 import { getParticipantTotalPoints, getTeamPointDetailsById, getTeamPointsById } from "../../utils/scoring";
+import { areAllScheduledMatchesCompleted } from "../../utils/standings";
 import { AdminPanel } from "../admin/AdminPanel";
 import { LoadingBlock } from "../common/LoadingBlock";
 import { TennisTournamentHome } from "../tennis/TennisTournamentHome";
@@ -120,6 +121,10 @@ export function SignedInHome() {
   const canGoToPreviousScheduleDay = firstScheduleDay === null || selectedScheduleDay > firstScheduleDay;
   const canGoToNextScheduleDay = selectedScheduleDay < TOURNAMENT_LAST_DAY;
   const pointsByTeamId = useMemo(() => getTeamPointsById(matches ?? []), [matches]);
+  const worldCupTournamentIsComplete = useMemo(
+    () => areAllScheduledMatchesCompleted(matches ?? []),
+    [matches],
+  );
   const detailsByTeamId = useMemo(
     () => getTeamPointDetailsById(matches ?? [], dashboard?.participants ?? []),
     [dashboard?.participants, matches],
@@ -275,7 +280,11 @@ export function SignedInHome() {
                 ) : null}
 
                 {activeDashboardTab === "table" ? (
-                  <PlayersTable participants={sortedParticipants} pointsByTeamId={pointsByTeamId} />
+                  <PlayersTable
+                    participants={sortedParticipants}
+                    pointsByTeamId={pointsByTeamId}
+                    tournamentIsComplete={worldCupTournamentIsComplete}
+                  />
                 ) : null}
 
                 {activeDashboardTab === "points" ? (

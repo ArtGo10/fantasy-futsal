@@ -325,6 +325,18 @@ export const styles = StyleSheet.create({
   playerTableStatusCellEliminated: {
     backgroundColor: "#fff1f1",
   },
+  playerTablePrizeGoldCell: {
+    backgroundColor: "#fff7d6",
+    borderColor: "#f2c94c",
+  },
+  playerTablePrizeSilverCell: {
+    backgroundColor: "#f3f6fa",
+    borderColor: "#cbd5e1",
+  },
+  playerTablePrizeBronzeCell: {
+    backgroundColor: "#f8eadf",
+    borderColor: "#d7a06a",
+  },
   playerTableNameCell: {
     minWidth: 150,
     flex: 1.15,
