@@ -174,7 +174,20 @@ export function PlayerDetailSheet({
   const hasPriceTrend = Math.abs(priceDelta) >= 0.1;
   const formattedPriceDelta = formatFantasyMoneyDelta(priceDelta);
   const cardCount = (player.yellowCards ?? 0) + (player.redCards ?? 0);
+  const statusLabel = t(STATUS_LABEL_KEYS[player.status]);
   const statusMessage = player.status !== "active" ? player.statusMessage : null;
+  const normalizedStatusLabel = statusLabel
+    .replace(/[\s.!?:;]+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+  const normalizedStatusMessage = (statusMessage ?? "")
+    .replace(/[\s.!?:;]+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+  const statusNoticeMessage =
+    statusMessage && normalizedStatusMessage !== normalizedStatusLabel
+      ? statusMessage
+      : null;
   const isDoubtful = player.status === "doubtful";
 
   return (
@@ -241,12 +254,12 @@ export function PlayerDetailSheet({
               {t("players.statusLabel")}
             </Text>
             <Text numberOfLines={1} style={styles.playerDetailQuickValueSmall}>
-              {t(STATUS_LABEL_KEYS[player.status])}
+              {statusLabel}
             </Text>
           </View>
         </View>
 
-        {statusMessage ? (
+        {statusNoticeMessage ? (
           <View
             style={[
               styles.playerDetailStatusNotice,
@@ -263,7 +276,7 @@ export function PlayerDetailSheet({
                   : styles.playerDetailStatusNoticeTextDanger,
               ]}
             >
-              {t(STATUS_LABEL_KEYS[player.status])}: {statusMessage}
+              {statusNoticeMessage}
             </Text>
           </View>
         ) : null}

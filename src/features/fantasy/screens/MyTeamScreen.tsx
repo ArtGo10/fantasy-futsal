@@ -368,7 +368,10 @@ type TeamCreateWelcomeProps = {
 };
 
 type TeamCreateSetupProps = {
+  canContinue: boolean;
   favoriteClub: FantasyClub | null;
+  onCancel: () => void;
+  onContinue: () => void;
   onOpenFavoriteClubPicker: () => void;
   onTeamNameChange: (value: string) => void;
   shouldHighlightTeamName: boolean;
@@ -751,7 +754,7 @@ function TeamCreateWelcome({ onPickTeam, onRules, t }: TeamCreateWelcomeProps) {
           >
             <Shirt color={colors.text.inverse} size={22} strokeWidth={2.4} />
             <Text style={styles.teamCreateWelcomePrimaryText}>
-              {t("team.dashboard.pickTeamButton")}
+              {t("team.create.button")}
             </Text>
           </Pressable>
           <Pressable
@@ -775,7 +778,10 @@ function TeamCreateWelcome({ onPickTeam, onRules, t }: TeamCreateWelcomeProps) {
 }
 
 function TeamCreateSetup({
+  canContinue,
   favoriteClub,
+  onCancel,
+  onContinue,
   onOpenFavoriteClubPicker,
   onTeamNameChange,
   shouldHighlightTeamName,
@@ -846,6 +852,36 @@ function TeamCreateSetup({
             />
           </Pressable>
         </View>
+      </View>
+
+      <View style={styles.teamBuilderFooterActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCancel}
+          style={styles.teamBuilderFooterSecondaryButton}
+        >
+          <Text style={styles.teamBuilderFooterSecondaryText}>
+            {t("team.cancelButton")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!canContinue}
+          onPress={onContinue}
+          style={[
+            styles.teamBuilderFooterPrimaryButton,
+            canContinue ? null : styles.teamBuilderFooterButtonDisabled,
+          ]}
+        >
+          <Text
+            style={[
+              styles.teamBuilderFooterPrimaryText,
+              canContinue ? null : styles.teamBuilderFooterTextDisabled,
+            ]}
+          >
+            {t("team.setup.continueButton")}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -4055,37 +4091,7 @@ export function MyTeamScreen({
 
   const setupCanContinue = Boolean(trimmedTeamName) && !teamNameTooLong;
   const teamWorkspaceFooter =
-    teamWorkspaceMode === "setup" ? (
-      <View style={styles.teamBuilderFooterActions}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleCancelTeamSetup}
-          style={styles.teamBuilderFooterSecondaryButton}
-        >
-          <Text style={styles.teamBuilderFooterSecondaryText}>
-            {t("team.cancelButton")}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!setupCanContinue}
-          onPress={handleSetupContinue}
-          style={[
-            styles.teamBuilderFooterPrimaryButton,
-            setupCanContinue ? null : styles.teamBuilderFooterButtonDisabled,
-          ]}
-        >
-          <Text
-            style={[
-              styles.teamBuilderFooterPrimaryText,
-              setupCanContinue ? null : styles.teamBuilderFooterTextDisabled,
-            ]}
-          >
-            {t("team.setup.continueButton")}
-          </Text>
-        </Pressable>
-      </View>
-    ) : teamWorkspaceMode === "transfers" && transferStep === "review" ? (
+    teamWorkspaceMode === "transfers" && transferStep === "review" ? (
       <View style={styles.teamBuilderFooterActions}>
         <Pressable
           accessibilityRole="button"
@@ -4531,11 +4537,7 @@ export function MyTeamScreen({
 
   return (
     <View style={styles.fantasyScreenFrameRoot}>
-      <FantasyScreenFrame
-        footer={teamWorkspaceFooter}
-        kicker={t("team.kicker")}
-        title={t("team.title")}
-      >
+      <FantasyScreenFrame kicker={t("team.kicker")} title={t("team.title")}>
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"
@@ -4611,7 +4613,10 @@ export function MyTeamScreen({
           />
         ) : teamWorkspaceMode === "setup" ? (
           <TeamCreateSetup
+            canContinue={setupCanContinue}
             favoriteClub={favoriteClub}
+            onCancel={handleCancelTeamSetup}
+            onContinue={handleSetupContinue}
             onOpenFavoriteClubPicker={() => setIsFavoriteClubPickerOpen(true)}
             onTeamNameChange={(value) => {
               setTeamName(value);
@@ -4865,6 +4870,8 @@ export function MyTeamScreen({
             )}
           </>
         )}
+
+        {teamWorkspaceFooter ? teamWorkspaceFooter : null}
 
         <PlayerDetailSheet
           canSetLeadership={Boolean(

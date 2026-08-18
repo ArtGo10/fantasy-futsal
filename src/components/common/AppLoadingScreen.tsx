@@ -20,10 +20,11 @@ export function AppLoadingScreen({
       style={[
         styles.appLoadingShell,
         {
-          marginTop: -insets.top,
-          marginRight: -insets.right,
-          marginBottom: -insets.bottom,
-          marginLeft: -insets.left,
+          position: "absolute",
+          top: -insets.top,
+          right: -insets.right,
+          bottom: -insets.bottom,
+          left: -insets.left,
         },
       ]}
     >
