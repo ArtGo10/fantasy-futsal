@@ -1762,26 +1762,38 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-  teamDashboardStatInteractive: {
-    borderRadius: radii.md,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  teamDashboardStatPressed: {
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
-  },
   teamDashboardStatValue: {
     color: colors.text.inverse,
     fontSize: 34,
     fontWeight: typography.weight.heavy,
     lineHeight: 38,
   },
+  teamDashboardStatLabelRow: {
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xxs,
+  },
   teamDashboardStatLabel: {
+    minWidth: 0,
     color: "#E9F3FF",
     fontSize: typography.size.sm,
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.sm,
     textAlign: "center",
+  },
+  teamDashboardStatDetailsButton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    flexShrink: 0,
+  },
+  teamDashboardStatDetailsButtonPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.28)",
   },
   teamDashboardActionRow: {
     flexDirection: "column",
@@ -1885,14 +1897,6 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  teamOverviewRowInteractive: {
-    borderRadius: radii.sm,
-    marginHorizontal: -spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  teamOverviewRowPressed: {
-    backgroundColor: colors.brand.blueSoft,
-  },
   teamOverviewRowLabel: {
     flex: 1,
     minWidth: 0,
@@ -1907,10 +1911,6 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.base,
     textAlign: "right",
-  },
-  teamOverviewRowValueInteractive: {
-    textDecorationLine: "underline",
-    textDecorationColor: colors.brand.blueDark,
   },
   teamOverviewRowValueSuccess: {
     color: colors.state.success,

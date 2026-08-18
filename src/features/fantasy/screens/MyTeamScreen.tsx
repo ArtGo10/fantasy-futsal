@@ -6,6 +6,7 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  ChevronRight,
   Repeat2,
   Shirt,
 } from "lucide-react-native";
@@ -377,7 +378,6 @@ type TeamOverviewPanelProps = {
   bankValue: string;
   freeTransfersValue: string;
   gameweekPointsValue: string;
-  onOpenPointsDetails: () => void;
   overallPointsValue: string;
   overallRankValue: string;
   squadValue: string;
@@ -682,34 +682,36 @@ function TeamDashboardStat({
   onPress?: () => void;
   value: string;
 }) {
-  const content = (
-    <>
+  return (
+    <View style={styles.teamDashboardStat}>
       <Text numberOfLines={1} style={styles.teamDashboardStatValue}>
         {value}
       </Text>
-      <Text numberOfLines={1} style={styles.teamDashboardStatLabel}>
-        {label}
-      </Text>
-    </>
+      <View style={styles.teamDashboardStatLabelRow}>
+        <Text numberOfLines={1} style={styles.teamDashboardStatLabel}>
+          {label}
+        </Text>
+        {onPress ? (
+          <Pressable
+            accessibilityLabel={label}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onPress}
+            style={({ pressed }) => [
+              styles.teamDashboardStatDetailsButton,
+              pressed ? styles.teamDashboardStatDetailsButtonPressed : null,
+            ]}
+          >
+            <ChevronRight
+              color={colors.text.inverse}
+              size={16}
+              strokeWidth={2.8}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
   );
-
-  if (onPress) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.teamDashboardStat,
-          styles.teamDashboardStatInteractive,
-          pressed ? styles.teamDashboardStatPressed : null,
-        ]}
-      >
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View style={styles.teamDashboardStat}>{content}</View>;
 }
 
 function TeamCreateWelcome({ onPickTeam, onRules, t }: TeamCreateWelcomeProps) {
@@ -930,17 +932,15 @@ function TeamDashboardCard({
 
 function TeamOverviewRow({
   label,
-  onPress,
   value,
   valueTone,
 }: {
   label: string;
-  onPress?: () => void;
   value: string;
   valueTone?: "danger" | "success";
 }) {
-  const content = (
-    <>
+  return (
+    <View style={styles.teamOverviewRow}>
       <Text numberOfLines={1} style={styles.teamOverviewRowLabel}>
         {label}
       </Text>
@@ -948,40 +948,20 @@ function TeamOverviewRow({
         numberOfLines={1}
         style={[
           styles.teamOverviewRowValue,
-          onPress ? styles.teamOverviewRowValueInteractive : null,
           valueTone === "success" ? styles.teamOverviewRowValueSuccess : null,
           valueTone === "danger" ? styles.teamOverviewRowValueDanger : null,
         ]}
       >
         {value}
       </Text>
-    </>
+    </View>
   );
-
-  if (onPress) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.teamOverviewRow,
-          styles.teamOverviewRowInteractive,
-          pressed ? styles.teamOverviewRowPressed : null,
-        ]}
-      >
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View style={styles.teamOverviewRow}>{content}</View>;
 }
 
 function TeamOverviewPanel({
   bankValue,
   freeTransfersValue,
   gameweekPointsValue,
-  onOpenPointsDetails,
   overallPointsValue,
   overallRankValue,
   squadValue,
@@ -996,7 +976,6 @@ function TeamOverviewPanel({
         />
         <TeamOverviewRow
           label={t("team.overview.overallPoints")}
-          onPress={onOpenPointsDetails}
           value={overallPointsValue}
         />
         <TeamOverviewRow
@@ -4600,9 +4579,6 @@ export function MyTeamScreen({
                 bankValue={budgetValue}
                 freeTransfersValue={freeTransfersText}
                 gameweekPointsValue={gameweekPointsText}
-                onOpenPointsDetails={() =>
-                  setTeamWorkspaceMode("pointsDetails")
-                }
                 overallPointsValue={totalPointsText}
                 overallRankValue={overallRankText}
                 squadValue={teamValueText}
