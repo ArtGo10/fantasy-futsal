@@ -948,6 +948,7 @@ function TeamOverviewRow({
         numberOfLines={1}
         style={[
           styles.teamOverviewRowValue,
+          onPress ? styles.teamOverviewRowValueInteractive : null,
           valueTone === "success" ? styles.teamOverviewRowValueSuccess : null,
           valueTone === "danger" ? styles.teamOverviewRowValueDanger : null,
         ]}
@@ -1618,7 +1619,7 @@ function IncomingTransferCard({
             </View>
             <View style={styles.squadListPriceCell}>
               <Text style={styles.incomingTransferMetricLabel}>
-                {t("team.list.price")}
+                {t("team.transfers.price")}
               </Text>
               <Text style={styles.squadListStatText}>
                 {formatFantasyMoney(player.price)}
@@ -2104,24 +2105,26 @@ function FutsalSquadSlotCircle({
         </Text>
       ) : null}
       {hasStatusWarning ? (
-        <>
+        <View style={styles.futsalSquadStatusBadge}>
           <View
             style={[
-              styles.futsalSquadStatusCorner,
-              isDoubtfulStatus ? styles.futsalSquadStatusCornerDoubtful : null,
+              styles.futsalSquadStatusTriangle,
+              isDoubtfulStatus
+                ? styles.futsalSquadStatusTriangleDoubtful
+                : null,
             ]}
           />
           <Text
             style={[
-              styles.futsalSquadStatusCornerText,
+              styles.futsalSquadStatusBadgeText,
               isDoubtfulStatus
-                ? styles.futsalSquadStatusCornerTextDoubtful
+                ? styles.futsalSquadStatusBadgeTextDoubtful
                 : null,
             ]}
           >
             {isDoubtfulStatus ? "?" : "!"}
           </Text>
-        </>
+        </View>
       ) : null}
       {player && showPlayerPrice ? (
         <Text numberOfLines={1} style={styles.futsalSquadSlotPrice}>
@@ -3340,10 +3343,15 @@ export function MyTeamScreen({
         )
       : null;
   const squadStatusWarningText = useMemo(() => {
-    const warningPlayers = Object.values(draftPicks).filter(
-      (player): player is FantasyPlayer =>
+    const warningSlots =
+      teamWorkspaceMode === "pick"
+        ? SQUAD_SLOT_DEFINITIONS.filter((slot) => slot.squadRole !== "reserve")
+        : SQUAD_SLOT_DEFINITIONS;
+    const warningPlayers = warningSlots
+      .map((slot) => draftPicks[slot.rosterSlot])
+      .filter((player): player is FantasyPlayer =>
         shouldShowPlayerStatusWarning(player),
-    );
+      );
     if (warningPlayers.length === 0) return null;
 
     const visiblePlayers = warningPlayers.slice(0, 3);
@@ -3361,7 +3369,7 @@ export function MyTeamScreen({
         : "");
 
     return t("team.squadStatusWarning").replace("{players}", playersText);
-  }, [draftPicks, t]);
+  }, [draftPicks, t, teamWorkspaceMode]);
   const shouldSurfaceSaveBlocker =
     teamWorkspaceMode === "pick" && hasUnsavedChanges && Boolean(saveBlocker);
   const feedbackBannerText =
@@ -3840,26 +3848,6 @@ export function MyTeamScreen({
     openPlayerPicker(slot);
   }
 
-  function handleClearActiveSlot() {
-    if (!activeSlot) return;
-
-    const removedPlayer = draftPicks[activeSlot.rosterSlot];
-    setDraftPicks((current) => ({
-      ...current,
-      [activeSlot.rosterSlot]: null,
-    }));
-    if (teamWorkspaceMode === "transfers" && removedPlayer) {
-      setRemovedTransferPlayers((current) => ({
-        ...current,
-        [activeSlot.rosterSlot]: removedPlayer,
-      }));
-    }
-    clearLeadershipForSlot(activeSlot.rosterSlot);
-    setFeedbackText(null);
-    setShowSaveHint(false);
-    closePlayerPicker();
-  }
-
   async function handleSaveTeam() {
     if (!canSave || !season) {
       setFeedbackText(null);
@@ -4132,7 +4120,7 @@ export function MyTeamScreen({
           </Text>
         </Pressable>
       </View>
-    ) : isInitialTeamCreation ? (
+    ) : isInitialTeamCreation && teamWorkspaceMode === "pick" ? (
       <View style={styles.teamBuilderFooterActions}>
         <Pressable
           accessibilityRole="button"
@@ -4499,46 +4487,6 @@ export function MyTeamScreen({
           </View>
         ) : null}
       </View>
-
-      {playerPickerPurpose === "slot" &&
-      teamWorkspaceMode !== "transfers" &&
-      activeSlotPlayer ? (
-        <View style={styles.playerPickerOutgoingCard}>
-          <Text style={styles.playerPickerOutgoingLabel}>
-            {t("team.outgoingPlayer")}
-          </Text>
-          <View style={styles.playerPickerOutgoingRow}>
-            <TeamKitAvatar
-              clubName={activeSlotPlayer.clubName}
-              displayName={activeSlotPlayer.displayName}
-              position={activeSlotPlayer.position}
-              size="md"
-            />
-            <View style={styles.playerCardMain}>
-              <Text numberOfLines={1} style={styles.playerCardName}>
-                {activeSlotPlayer.displayName}
-              </Text>
-              <Text numberOfLines={1} style={styles.playerCardMeta}>
-                {(activeSlotPlayer.clubName ?? t("players.noClub")) +
-                  " · " +
-                  formatFantasyMoney(activeSlotPlayer.price)}
-              </Text>
-              <Text numberOfLines={1} style={styles.playerCardStats}>
-                {formatPlayerCurrentSeasonPoints(activeSlotPlayer, t)}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleClearActiveSlot}
-              style={styles.clearSlotButtonCompact}
-            >
-              <Text style={styles.clearSlotButtonText}>
-                {t("team.clearSlot")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
 
       {fantasyPlayers === undefined ? (
         <View style={styles.playerPickerLoadingState}>

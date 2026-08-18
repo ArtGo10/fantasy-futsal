@@ -703,15 +703,15 @@ export const styles = StyleSheet.create({
   },
   teamMessageStrip: {
     width: "100%",
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginTop: 2,
+    marginBottom: 2,
   },
   teamMessageBanner: {
     width: "100%",
-    minHeight: 22,
+    minHeight: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 2,
+    paddingVertical: 1,
     paddingHorizontal: spacing.sm,
   },
   teamMessageBannerError: {
@@ -1907,6 +1907,10 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.base,
     textAlign: "right",
+  },
+  teamOverviewRowValueInteractive: {
+    textDecorationLine: "underline",
+    textDecorationColor: colors.brand.blueDark,
   },
   teamOverviewRowValueSuccess: {
     color: colors.state.success,
@@ -3120,32 +3124,41 @@ export const styles = StyleSheet.create({
   futsalSquadLeadershipBadgeVice: {
     backgroundColor: colors.brand.blueDark,
   },
-  futsalSquadStatusCorner: {
+  futsalSquadStatusBadge: {
     position: "absolute",
-    top: 0,
-    right: 0,
+    top: -5,
+    right: -5,
     zIndex: 3,
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  futsalSquadStatusTriangle: {
+    position: "absolute",
+    bottom: 1,
     width: 0,
     height: 0,
-    borderTopWidth: 22,
-    borderLeftWidth: 22,
-    borderTopColor: colors.state.danger,
+    borderLeftWidth: 9,
+    borderRightWidth: 9,
+    borderBottomWidth: 16,
     borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: colors.state.danger,
   },
-  futsalSquadStatusCornerDoubtful: {
-    borderTopColor: colors.brand.yellow,
+  futsalSquadStatusTriangleDoubtful: {
+    borderBottomColor: colors.brand.yellow,
   },
-  futsalSquadStatusCornerText: {
-    position: "absolute",
-    top: 1,
-    right: 3,
+  futsalSquadStatusBadgeText: {
     zIndex: 4,
     color: colors.text.inverse,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: typography.weight.black,
-    lineHeight: 12,
+    lineHeight: 10,
+    textAlign: "center",
+    transform: [{ translateY: 1 }],
   },
-  futsalSquadStatusCornerTextDoubtful: {
+  futsalSquadStatusBadgeTextDoubtful: {
     color: colors.text.primary,
   },
   compactSquadSection: {
@@ -3820,26 +3833,6 @@ export const styles = StyleSheet.create({
   playerPickerBankValueDanger: {
     color: colors.state.danger,
   },
-  playerPickerOutgoingCard: {
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceSubtle,
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  playerPickerOutgoingLabel: {
-    color: colors.text.muted,
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.xs,
-    textTransform: "uppercase",
-  },
-  playerPickerOutgoingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
   playerPickerTableRow: {
     width: "100%",
     height: 84,
@@ -3876,34 +3869,6 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.base,
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.base,
-  },
-  clearSlotButtonCompact: {
-    minHeight: 34,
-    borderWidth: 1,
-    borderColor: colors.state.dangerBorder,
-    borderRadius: radii.md,
-    backgroundColor: colors.state.dangerSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  clearSlotButton: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderColor: colors.state.dangerBorder,
-    borderRadius: radii.md,
-    backgroundColor: colors.state.dangerSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  clearSlotButtonText: {
-    color: colors.state.danger,
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.sm,
   },
   playerPickerListFrame: {
     flex: 1,
@@ -4324,24 +4289,20 @@ export const styles = StyleSheet.create({
   playerPickerStatsMetricWide: {
     width: 74,
   },
-  playerPickerStatsMetricHeader: {
-    width: 46,
-    borderLeftWidth: 1,
-    borderColor: colors.border.default,
+  playerPickerStatsMetricHeaderCell: {
+    backgroundColor: colors.surface,
+  },
+  playerPickerStatsMetricHeaderText: {
     color: colors.text.muted,
     fontSize: 10,
     fontWeight: typography.weight.heavy,
     lineHeight: 12,
-    paddingHorizontal: spacing.xs,
     textAlign: "center",
     textTransform: "uppercase",
   },
-  playerPickerStatsMetricHeaderFirst: {
-    borderLeftWidth: 0,
-  },
-  playerPickerStatsMetricHeaderPrice: {
-    color: colors.brand.yellow,
-    fontWeight: typography.weight.black,
+  playerPickerStatsMetricHeaderTextPrice: {
+    color: colors.text.muted,
+    fontWeight: typography.weight.heavy,
   },
   playerPickerStatsMetricValue: {
     color: colors.text.primary,
@@ -4398,9 +4359,6 @@ export const styles = StyleSheet.create({
   marketStatusIconActive: {
     backgroundColor: colors.state.success,
   },
-  marketStatusIconDoubtful: {
-    backgroundColor: colors.brand.yellow,
-  },
   marketStatusIconText: {
     color: colors.text.inverse,
     fontSize: typography.size.xs,
@@ -4410,9 +4368,6 @@ export const styles = StyleSheet.create({
   fantasyPlayerStatusTextCompact: {
     fontSize: 9,
     lineHeight: 11,
-  },
-  marketStatusIconTextDark: {
-    color: colors.text.primary,
   },
   fantasyPlayerStatusTriangleWrap: {
     width: 20,
@@ -4437,6 +4392,9 @@ export const styles = StyleSheet.create({
     borderRightColor: "transparent",
     borderBottomColor: colors.state.danger,
   },
+  fantasyPlayerStatusTriangleDoubtful: {
+    borderBottomColor: colors.brand.yellow,
+  },
   fantasyPlayerStatusTriangleCompact: {
     bottom: 0,
     borderLeftWidth: 8,
@@ -4451,6 +4409,9 @@ export const styles = StyleSheet.create({
     lineHeight: 12,
     textAlign: "center",
     transform: [{ translateY: 2 }],
+  },
+  fantasyPlayerStatusTriangleTextDoubtful: {
+    color: colors.text.primary,
   },
   fantasyPlayerStatusTriangleTextCompact: {
     fontSize: 8,

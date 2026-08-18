@@ -88,6 +88,15 @@
         "projectId": "7e226041-0b59-4e57-9222-fe117d544e1f"
       }
     },
-    "owner": "artgo10"
+    "owner": "artgo10",
+    "androidStatusBar": {
+      "backgroundColor": "#160932",
+      "barStyle": "light-content",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#160932",
+      "barStyle": "light-content"
+    }
   }
 }

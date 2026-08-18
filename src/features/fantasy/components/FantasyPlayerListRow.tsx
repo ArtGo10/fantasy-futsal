@@ -165,28 +165,7 @@ export function FantasyPlayerStatusBadge({
     );
   }
 
-  if (status === "doubtful") {
-    return (
-      <View
-        accessibilityLabel={t(STATUS_LABEL_KEYS[status])}
-        style={[
-          styles.marketStatusIcon,
-          isCompact ? styles.fantasyPlayerStatusBadgeCompact : null,
-          styles.marketStatusIconDoubtful,
-        ]}
-      >
-        <Text
-          style={[
-            styles.marketStatusIconText,
-            styles.marketStatusIconTextDark,
-            isCompact ? styles.fantasyPlayerStatusTextCompact : null,
-          ]}
-        >
-          ?
-        </Text>
-      </View>
-    );
-  }
+  const isDoubtful = status === "doubtful";
 
   return (
     <View
@@ -199,16 +178,18 @@ export function FantasyPlayerStatusBadge({
       <View
         style={[
           styles.fantasyPlayerStatusTriangle,
+          isDoubtful ? styles.fantasyPlayerStatusTriangleDoubtful : null,
           isCompact ? styles.fantasyPlayerStatusTriangleCompact : null,
         ]}
       />
       <Text
         style={[
           styles.fantasyPlayerStatusTriangleText,
+          isDoubtful ? styles.fantasyPlayerStatusTriangleTextDoubtful : null,
           isCompact ? styles.fantasyPlayerStatusTriangleTextCompact : null,
         ]}
       >
-        !
+        {isDoubtful ? "?" : "!"}
       </Text>
     </View>
   );
@@ -309,25 +290,31 @@ function FantasyPlayerPickerMetricHeader({
   wide?: boolean;
 }) {
   return (
-    <Text
-      numberOfLines={1}
+    <View
+      accessibilityLabel={label}
       style={[
-        styles.playerPickerStatsMetricHeader,
-        isFirst ? styles.playerPickerStatsMetricHeaderFirst : null,
+        styles.playerPickerStatsMetric,
+        styles.playerPickerStatsMetricHeaderCell,
+        isFirst ? styles.playerPickerStatsMetricFirst : null,
         wide ? styles.playerPickerStatsMetricWide : null,
-        tone === "price" ? styles.playerPickerStatsMetricHeaderPrice : null,
       ]}
     >
-      {label}
-    </Text>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.playerPickerStatsMetricHeaderText,
+          tone === "price"
+            ? styles.playerPickerStatsMetricHeaderTextPrice
+            : null,
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 
-export function FantasyPlayerPickerStatsHeader({
-  t,
-}: {
-  t: Translate;
-}) {
+export function FantasyPlayerPickerStatsHeader({ t }: { t: Translate }) {
   return (
     <View style={styles.playerPickerStatsHeaderRow}>
       <Text numberOfLines={1} style={styles.playerPickerStatsHeaderPlayer}>
@@ -343,10 +330,7 @@ export function FantasyPlayerPickerStatsHeader({
           label={t("season.stats.pointsShort")}
         />
         <FantasyPlayerPickerMetricHeader label={t("team.list.form")} />
-        <FantasyPlayerPickerMetricHeader
-          label={t("team.list.selected")}
-          wide
-        />
+        <FantasyPlayerPickerMetricHeader label={t("team.list.selected")} wide />
         <FantasyPlayerPickerMetricHeader label={t("season.stats.appsShort")} />
         <FantasyPlayerPickerMetricHeader label={t("season.stats.goalsShort")} />
         <FantasyPlayerPickerMetricHeader
@@ -469,46 +453,46 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
         </Pressable>
 
         <View style={styles.playerPickerStatsMetrics}>
-            <FantasyPlayerPickerMetric
-              isFirst
-              label={t("team.list.price")}
-              tone="price"
-              value={formatFantasyMoney(player.price)}
-              wide
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.pointsShort")}
-              value={formatListStat(player.seasonPoints)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("team.list.form")}
-              value={formatListStat(player.lastGameweekPoints)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("team.list.selected")}
-              value={formatListStat(player.selectedPercent) + "%"}
-              wide
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.appsShort")}
-              value={formatListStat(player.appearances)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.goalsShort")}
-              value={formatListStat(player.goals)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.assistsShort")}
-              value={formatListStat(player.assists)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.yellowCardsShort")}
-              value={formatListStat(player.yellowCards)}
-            />
-            <FantasyPlayerPickerMetric
-              label={t("season.stats.redCardsShort")}
-              value={formatListStat(player.redCards)}
-            />
+          <FantasyPlayerPickerMetric
+            isFirst
+            label={t("team.list.price")}
+            tone="price"
+            value={formatFantasyMoney(player.price)}
+            wide
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.pointsShort")}
+            value={formatListStat(player.seasonPoints)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("team.list.form")}
+            value={formatListStat(player.lastGameweekPoints)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("team.list.selected")}
+            value={formatListStat(player.selectedPercent) + "%"}
+            wide
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.appsShort")}
+            value={formatListStat(player.appearances)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.goalsShort")}
+            value={formatListStat(player.goals)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.assistsShort")}
+            value={formatListStat(player.assists)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.yellowCardsShort")}
+            value={formatListStat(player.yellowCards)}
+          />
+          <FantasyPlayerPickerMetric
+            label={t("season.stats.redCardsShort")}
+            value={formatListStat(player.redCards)}
+          />
         </View>
       </View>
     );
@@ -572,7 +556,9 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
             strokeWidth={2.4}
           />
           <View style={styles.marketPriceTrendGroup}>
-            <Text style={priceTextStyle}>{formatFantasyMoney(player.price)}</Text>
+            <Text style={priceTextStyle}>
+              {formatFantasyMoney(player.price)}
+            </Text>
             {hasPriceTrend ? (
               <PriceTrendIcon
                 color={priceTrendColor}
