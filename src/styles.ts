@@ -1531,7 +1531,6 @@ export const styles = StyleSheet.create({
   },
   teamCreateSetupHero: {
     width: "auto",
-    aspectRatio: 1.12,
     overflow: "hidden",
     borderRadius: 0,
     backgroundColor: colors.brand.blue,
@@ -1606,6 +1605,10 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.base,
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.base,
+  },
+  teamCreateSetupFooterSpacer: {
+    flexGrow: 1,
+    minHeight: 0,
   },
   teamDashboardCard: {
     width: "100%",
@@ -2830,9 +2833,9 @@ export const styles = StyleSheet.create({
   teamBuilderFooterPrimaryText: {
     width: "100%",
     color: colors.text.inverse,
-    fontSize: typography.size.sm,
+    fontSize: typography.size.base,
     fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.sm,
+    lineHeight: typography.lineHeight.base,
     textAlign: "center",
   },
   teamBuilderFooterTextDisabled: {
@@ -2883,7 +2886,7 @@ export const styles = StyleSheet.create({
   },
   futsalRosterFieldFrame: {
     width: "100%",
-    aspectRatio: 945 / 1301,
+    aspectRatio: 631 / 755,
     overflow: "hidden",
     position: "relative",
     borderWidth: 1,
@@ -2937,7 +2940,7 @@ export const styles = StyleSheet.create({
     borderTopLeftRadius: radii.lg,
     borderBottomLeftRadius: radii.lg,
     backgroundColor: colors.brand.blueSoft,
-    aspectRatio: 945 / 1301,
+    aspectRatio: 631 / 755,
     ...shadows.card,
   },
   futsalFieldImage: {
@@ -3056,7 +3059,7 @@ export const styles = StyleSheet.create({
   },
   futsalSquadSlotButtonIncoming: {
     borderWidth: 2,
-    borderColor: colors.brand.blue,
+    borderColor: colors.brand.yellow,
   },
   futsalSquadSlotPosition: {
     color: colors.brand.blueDark,
@@ -3123,8 +3126,8 @@ export const styles = StyleSheet.create({
   },
   futsalSquadStatusBadge: {
     position: "absolute",
-    top: 3,
-    right: 3,
+    top: 0,
+    right: 0,
     zIndex: 3,
     width: 14,
     height: 14,
@@ -3213,7 +3216,7 @@ export const styles = StyleSheet.create({
     borderColor: colors.brand.blue,
   },
   compactSquadCardIncoming: {
-    borderColor: colors.brand.blue,
+    borderColor: colors.brand.yellow,
   },
   compactSquadCardTopRow: {
     minHeight: 24,
@@ -3416,7 +3419,7 @@ export const styles = StyleSheet.create({
   },
   squadListRowIncoming: {
     borderWidth: 1,
-    borderColor: colors.brand.blue,
+    borderColor: colors.brand.yellow,
   },
   squadListPlayerCell: {
     flex: 1,
@@ -3920,7 +3923,7 @@ export const styles = StyleSheet.create({
   },
   playerPickerRowIncomingTransfer: {
     borderWidth: 1,
-    borderColor: colors.brand.blue,
+    borderColor: colors.brand.yellow,
   },
   playerPickerRowDisabled: {
     opacity: 0.42,

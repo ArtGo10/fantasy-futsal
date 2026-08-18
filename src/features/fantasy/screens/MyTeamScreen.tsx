@@ -25,6 +25,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -789,9 +790,12 @@ function TeamCreateSetup({
   teamName,
   teamNameErrorText,
 }: TeamCreateSetupProps) {
+  const { height: windowHeight } = useWindowDimensions();
+  const heroHeight = Math.min(Math.max(windowHeight * 0.5, 300), 460);
+
   return (
     <View style={styles.teamCreateSetupScreen}>
-      <View style={styles.teamCreateSetupHero}>
+      <View style={[styles.teamCreateSetupHero, { height: heroHeight }]}>
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"
@@ -853,6 +857,8 @@ function TeamCreateSetup({
           </Pressable>
         </View>
       </View>
+
+      <View style={styles.teamCreateSetupFooterSpacer} />
 
       <View style={styles.teamBuilderFooterActions}>
         <Pressable

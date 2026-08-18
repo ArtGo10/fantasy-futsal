@@ -68,6 +68,12 @@ const PRIVATE_LOADING_OVERLAY_TIMEOUT_MS = 15000;
 const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
+
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
 const wait = (delayMs: number) =>
   new Promise((resolve) => setTimeout(resolve, delayMs));
 
@@ -621,6 +627,12 @@ export function FantasyHome({
   }, [userIsSignedIn]);
 
   useEffect(() => {
+    if (authIsLoaded && isSigningOut && !userIsSignedIn) {
+      setIsSigningOut(false);
+    }
+  }, [authIsLoaded, isSigningOut, userIsSignedIn]);
+
+  useEffect(() => {
     if (
       !canUseNetworkedPrivateFeatures ||
       !profileReady ||
@@ -713,16 +725,19 @@ export function FantasyHome({
   }, [acceptCurrentUserTerms, hasAcceptedRequiredLegal, language, t]);
 
   const handleSignOut = useCallback(async () => {
+    if (isSigningOut) return;
+
     try {
       setErrorText(null);
       setIsSigningOut(true);
+      await waitForNextPaint();
       await clearStoredLegalAcceptance();
       await signOut();
     } catch (error) {
       setIsSigningOut(false);
       setAsyncError(getErrorMessage(error, language));
     }
-  }, [language, setAsyncError, signOut]);
+  }, [isSigningOut, language, setAsyncError, signOut]);
 
   const handleDeleteAccount = useCallback(async () => {
     const clerkUser = user as { delete?: () => Promise<unknown> } & typeof user;
@@ -922,6 +937,15 @@ export function FantasyHome({
     );
   }, [privateLoadingOverlayDebugKey]);
 
+  if (isSigningOut) {
+    return (
+      <AppLoadingScreen
+        title={t("loading.signingOut")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
   if (!authIsLoaded && !hasEnteredPrivateApp) {
     if (isOffline) {
       return <AppConnectionProblemScreen />;
@@ -930,15 +954,6 @@ export function FantasyHome({
     return (
       <AppLoadingScreen
         title={t("loading.checkingSession")}
-        description={t("loading.syncingAccount")}
-      />
-    );
-  }
-
-  if (isSigningOut && userIsSignedIn && !hasEnteredPrivateApp) {
-    return (
-      <AppLoadingScreen
-        title={t("loading.signingOut")}
         description={t("loading.syncingAccount")}
       />
     );
