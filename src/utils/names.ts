@@ -2,7 +2,7 @@ function capitalizeNamePart(value: string) {
   if (!value) return value;
 
   const [firstLetter, ...restLetters] = Array.from(value);
-  return `${firstLetter.toLocaleUpperCase("ru-RU")}${restLetters.join("").toLocaleLowerCase("ru-RU")}`;
+  return `${firstLetter.toLocaleUpperCase("uk-UA")}${restLetters.join("").toLocaleLowerCase("uk-UA")}`;
 }
 
 export function formatPersonName(name: string | null | undefined) {

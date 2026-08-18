@@ -1,4 +1,4 @@
-import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
+import { AuthenticateWithRedirectCallback } from "@clerk/react";
 
 type OAuthRedirectCallbackProps = {
   redirectUrlComplete: string;

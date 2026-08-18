@@ -1,19 +1,24 @@
-import { cronJobs } from "convex/server";
-
-import { internal } from "./_generated/api";
+import { cronJobs, makeFunctionReference, type FunctionReference } from "convex/server";
 
 const crons = cronJobs();
 
-crons.interval(
-  "sync live match statuses",
-  { minutes: 1 },
-  internal.matches.syncLiveStatusesInternal,
-);
+const sendDeadlineRemindersInternal = makeFunctionReference<"action", Record<string, never>, { reminders: number; sent: number }>(
+  "notifications:sendDeadlineRemindersInternal",
+) as unknown as FunctionReference<"action", "internal", Record<string, never>, { reminders: number; sent: number }>;
+const processPassedGameweekDeadlinesInternal = makeFunctionReference<
+  "mutation",
+  Record<string, never>,
+  { createdSnapshots: number; grantedTeams: number; processedGameweeks: number }
+>(
+  "fantasy:processPassedGameweekDeadlines",
+) as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  Record<string, never>,
+  { createdSnapshots: number; grantedTeams: number; processedGameweeks: number }
+>;
 
-crons.interval(
-  "sync match results from ESPN",
-  { hours: 1 },
-  internal.matches.syncFromEspnInternal,
-);
+crons.interval("send deadline push reminders", { hours: 1 }, sendDeadlineRemindersInternal);
+crons.interval("process fantasy gameweek deadlines", { minutes: 1 }, processPassedGameweekDeadlinesInternal);
 
 export default crons;

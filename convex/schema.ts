@@ -2,14 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import {
-  matchDecisionValidator,
-  matchStageValidator,
-  matchStatusValidator,
-  potValidator,
-  teamStageValidator,
-  tennisPotValidator,
-  tennisStageValidator,
-  tennisTourValidator,
+  fantasyFixtureEventTypeValidator,
+  fantasyFixtureSideValidator,
+  fantasyFixtureStatusValidator,
+  fantasyGameweekStatusValidator,
+  fantasyPlayerStatusDetailsValidator,
+  fantasyPlayerStoragePositionValidator,
+  fantasyPlayerStatusValidator,
+  fantasySeasonStatusValidator,
+  fantasySquadRoleValidator,
 } from "./validators";
 
 export default defineSchema({
@@ -18,187 +19,424 @@ export default defineSchema({
     email: v.optional(v.string()),
     name: v.string(),
     participantNumber: v.optional(v.number()),
+    favoriteFantasyClubId: v.optional(v.id("fantasyClubs")),
+    preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("uk"))),
+    termsAcceptedAt: v.optional(v.number()),
+    termsVersion: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_participant_number", ["participantNumber"]),
 
-  teams: defineTable({
-    name: v.string(),
-    pot: potValidator,
-    stageReached: v.optional(teamStageValidator),
-    isEliminated: v.optional(v.boolean()),
-    createdAt: v.number(),
-    updatedAt: v.optional(v.number()),
-  })
-    .index("by_name", ["name"])
-    .index("by_pot", ["pot"]),
-
-  teamAssignments: defineTable({
+  pushNotificationTokens: defineTable({
     userId: v.id("users"),
-    teamId: v.id("teams"),
-    pot: potValidator,
+    provider: v.union(v.literal("expo")),
+    token: v.string(),
+    platform: v.optional(v.string()),
+    enabled: v.boolean(),
+    lastSeenAt: v.number(),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_team", ["teamId"])
-    .index("by_pot", ["pot"])
-    .index("by_user_pot", ["userId", "pot"]),
+    .index("by_token", ["token"]),
 
-  gameSettings: defineTable({
+  pushNotificationEvents: defineTable({
     key: v.string(),
-    drawLocked: v.optional(v.boolean()),
-    drawUnlockAt: v.optional(v.number()),
-    updatedAt: v.number(),
-  }).index("by_key", ["key"]),
+    type: v.string(),
+    tokensCount: v.number(),
+    sentAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_type_sent_at", ["type", "sentAt"]),
 
-  matches: defineTable({
-    externalId: v.string(),
-    matchNumber: v.number(),
-    stage: matchStageValidator,
-    group: v.optional(v.string()),
-    scheduledAt: v.number(),
-    sourceKickoff: v.string(),
-    homeTeamId: v.optional(v.id("teams")),
-    awayTeamId: v.optional(v.id("teams")),
-    homeTeamName: v.string(),
-    awayTeamName: v.string(),
-    homeSlotName: v.optional(v.string()),
-    awaySlotName: v.optional(v.string()),
-    homeScore: v.optional(v.number()),
-    awayScore: v.optional(v.number()),
-    winnerTeamId: v.optional(v.id("teams")),
-    decidedBy: v.optional(matchDecisionValidator),
-    homePenaltyScore: v.optional(v.number()),
-    awayPenaltyScore: v.optional(v.number()),
-    status: matchStatusValidator,
-    apiFootballFixtureId: v.optional(v.number()),
-    apiFootballStatus: v.optional(v.string()),
-    apiFootballUpdatedAt: v.optional(v.number()),
-    espnEventId: v.optional(v.string()),
-    espnStatus: v.optional(v.string()),
-    espnUpdatedAt: v.optional(v.number()),
-    venue: v.optional(v.string()),
+  userFeedback: defineTable({
+    userId: v.optional(v.id("users")),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    message: v.string(),
     source: v.optional(v.string()),
+    status: v.union(
+      v.literal("new"),
+      v.literal("reviewed"),
+      v.literal("closed"),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_scheduled_at", ["scheduledAt"])
-    .index("by_external_id", ["externalId"])
-    .index("by_match_number", ["matchNumber"])
-    .index("by_status", ["status"])
-    .index("by_api_football_fixture_id", ["apiFootballFixtureId"])
-    .index("by_espn_event_id", ["espnEventId"]),
+    .index("by_user", ["userId"])
+    .index("by_status_created_at", ["status", "createdAt"]),
 
-  syncLogs: defineTable({
-    provider: v.string(),
-    ok: v.boolean(),
-    dateParam: v.optional(v.string()),
-    fetched: v.optional(v.number()),
-    normalized: v.optional(v.number()),
-    matched: v.optional(v.number()),
-    updated: v.optional(v.number()),
-    completed: v.optional(v.number()),
-    live: v.optional(v.number()),
-    scheduled: v.optional(v.number()),
-    unmatched: v.optional(v.number()),
-    error: v.optional(v.string()),
-    createdAt: v.number(),
-  })
-    .index("by_created_at", ["createdAt"])
-    .index("by_provider_created_at", ["provider", "createdAt"]),
-
-  tennisTournaments: defineTable({
+  fantasySeasons: defineTable({
     slug: v.string(),
-    title: v.string(),
-    tour: tennisTourValidator,
-    provider: v.string(),
-    providerEventId: v.string(),
-    groupingSlug: v.string(),
-    year: v.number(),
-    scoringVersion: v.optional(v.string()),
-    scoringDescription: v.optional(v.string()),
-    drawLocked: v.optional(v.boolean()),
-    drawUnlockAt: v.optional(v.number()),
-    maxParticipants: v.optional(v.number()),
+    name: v.string(),
+    leagueName: v.string(),
+    country: v.string(),
+    status: fantasySeasonStatusValidator,
+    budget: v.number(),
+    squadSize: v.number(),
+    startingSlots: v.number(),
+    activeSlots: v.optional(v.number()),
+    freeTransfersPerGameweek: v.optional(v.number()),
+    maxFreeTransfers: v.optional(v.number()),
+    maxTransfersPerGameweek: v.optional(v.number()),
+    transferPenaltyPoints: v.optional(v.number()),
+    priceChangeLimit: v.optional(v.number()),
+    maxTeams: v.optional(v.number()),
+    startAt: v.optional(v.number()),
+    endAt: v.optional(v.number()),
+    currentGameweekId: v.optional(v.id("fantasyGameweeks")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_slug", ["slug"]),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"]),
 
-  tennisCompetitors: defineTable({
-    tournamentId: v.id("tennisTournaments"),
-    espnAthleteId: v.string(),
+  fantasyScoringRules: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    version: v.string(),
+    appearance: v.number(),
+    outfieldGoal: v.number(),
+    goalkeeperGoal: v.number(),
+    outfieldAssist: v.number(),
+    goalkeeperAssist: v.number(),
+    goalkeeperConcededZero: v.number(),
+    goalkeeperConcededOne: v.number(),
+    goalkeeperConcededTwo: v.number(),
+    goalkeeperConcededExtra: v.number(),
+    yellowCard: v.number(),
+    redCard: v.number(),
+    ownGoal: v.number(),
+    penaltyMissed: v.number(),
+    penaltySaved: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_season", ["seasonId"]),
+
+  fantasyClubs: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    externalId: v.optional(v.string()),
+    sourceSlug: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
     name: v.string(),
     shortName: v.optional(v.string()),
-    nameRu: v.optional(v.string()),
-    country: v.optional(v.string()),
-    flagUrl: v.optional(v.string()),
-    seed: v.optional(v.number()),
-    ranking: v.optional(v.number()),
-    rankingPoints: v.optional(v.number()),
-    entryOrder: v.number(),
+    city: v.optional(v.string()),
+    logoUrl: v.optional(v.string()),
+    logoThumbnailUrl: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
     sortOrder: v.number(),
-    pot: v.optional(tennisPotValidator),
-    stageReached: tennisStageValidator,
-    isEliminated: v.boolean(),
+    isActive: v.boolean(),
+    sourceUpdatedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_tournament", ["tournamentId"])
-    .index("by_tournament_athlete", ["tournamentId", "espnAthleteId"])
-    .index("by_tournament_pot", ["tournamentId", "pot"]),
+    .index("by_season", ["seasonId"])
+    .index("by_season_name", ["seasonId", "name"])
+    .index("by_season_external_id", ["seasonId", "externalId"]),
 
-  tennisAssignments: defineTable({
-    tournamentId: v.id("tennisTournaments"),
-    userId: v.id("users"),
-    competitorId: v.id("tennisCompetitors"),
-    pot: v.optional(tennisPotValidator),
+  fantasyPlayers: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    clubId: v.optional(v.id("fantasyClubs")),
+    externalId: v.optional(v.string()),
+    sourceSlug: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+    lastName: v.string(),
+    displayName: v.string(),
+    position: fantasyPlayerStoragePositionValidator,
+    price: v.number(),
+    status: fantasyPlayerStatusValidator,
+    statusDetails: v.optional(fantasyPlayerStatusDetailsValidator),
+    jerseyNumber: v.optional(v.number()),
+    photoUrl: v.optional(v.string()),
+    photoThumbnailUrl: v.optional(v.string()),
+    photoProvider: v.optional(v.string()),
+    photoCloudflareId: v.optional(v.string()),
+    photoStorageKey: v.optional(v.string()),
+    photoSourceUrl: v.optional(v.string()),
+    photoSourceThumbnailUrl: v.optional(v.string()),
+    currentTeamExternalIds: v.optional(v.array(v.string())),
+    listedTeamExternalIds: v.optional(v.array(v.string())),
+    sourceStats: v.optional(
+      v.object({
+        extraLeague2025_26: v.optional(
+          v.object({
+            goals: v.number(),
+            assists: v.number(),
+            appearances: v.number(),
+            yellowCards: v.number(),
+            redCards: v.number(),
+            ownGoals: v.number(),
+          }),
+        ),
+        firstLeague2025_26: v.optional(
+          v.object({
+            goals: v.number(),
+            assists: v.number(),
+            appearances: v.number(),
+            yellowCards: v.number(),
+            redCards: v.number(),
+            ownGoals: v.number(),
+          }),
+        ),
+      }),
+    ),
+    sourceUpdatedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_club", ["clubId"])
+    .index("by_season_position", ["seasonId", "position"])
+    .index("by_season_status", ["seasonId", "status"])
+    .index("by_season_external_id", ["seasonId", "externalId"]),
+
+  fantasyPlayerPriceHistory: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    playerId: v.id("fantasyPlayers"),
+    gameweekId: v.optional(v.id("fantasyGameweeks")),
+    oldPrice: v.number(),
+    newPrice: v.number(),
+    delta: v.number(),
+    reason: v.union(
+      v.literal("initial_import"),
+      v.literal("source_import"),
+      v.literal("gameweek_recalculation"),
+      v.literal("manual_adjustment"),
+    ),
     createdAt: v.number(),
   })
-    .index("by_tournament", ["tournamentId"])
-    .index("by_user_tournament", ["userId", "tournamentId"])
-    .index("by_competitor", ["competitorId"])
-    .index("by_tournament_pot", ["tournamentId", "pot"]),
+    .index("by_season", ["seasonId"])
+    .index("by_player", ["playerId"])
+    .index("by_season_player", ["seasonId", "playerId"])
+    .index("by_gameweek", ["gameweekId"]),
 
-  tennisMatches: defineTable({
-    tournamentId: v.id("tennisTournaments"),
-    espnCompetitionId: v.string(),
-    roundName: v.string(),
-    roundOrder: v.number(),
-    bracketOrder: v.optional(v.number()),
+  fantasyGameweeks: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    number: v.number(),
+    name: v.string(),
+    status: fantasyGameweekStatusValidator,
+    deadlineAt: v.optional(v.number()),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    freeTransfersGrantedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_season_number", ["seasonId", "number"])
+    .index("by_season_status", ["seasonId", "status"]),
+
+  fantasyFixtures: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.optional(v.id("fantasyGameweeks")),
+    externalId: v.optional(v.string()),
+    sourceSlug: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    homeClubId: v.optional(v.id("fantasyClubs")),
+    awayClubId: v.optional(v.id("fantasyClubs")),
+    homeClubName: v.string(),
+    awayClubName: v.string(),
     scheduledAt: v.number(),
-    court: v.optional(v.string()),
-    player1CompetitorId: v.optional(v.id("tennisCompetitors")),
-    player2CompetitorId: v.optional(v.id("tennisCompetitors")),
-    player1Name: v.string(),
-    player2Name: v.string(),
-    player1SetScores: v.array(v.number()),
-    player2SetScores: v.array(v.number()),
-    winnerCompetitorId: v.optional(v.id("tennisCompetitors")),
-    status: matchStatusValidator,
-    espnStatus: v.optional(v.string()),
-    note: v.optional(v.string()),
-    source: v.optional(v.string()),
+    status: fantasyFixtureStatusValidator,
+    homeScore: v.optional(v.number()),
+    awayScore: v.optional(v.number()),
+    venue: v.optional(v.string()),
+    sourceUpdatedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_tournament", ["tournamentId"])
-    .index("by_tournament_competition", ["tournamentId", "espnCompetitionId"])
-    .index("by_tournament_scheduled_at", ["tournamentId", "scheduledAt"])
-    .index("by_tournament_status", ["tournamentId", "status"]),
+    .index("by_season", ["seasonId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_season_scheduled_at", ["seasonId", "scheduledAt"])
+    .index("by_season_status", ["seasonId", "status"])
+    .index("by_season_external_id", ["seasonId", "externalId"]),
 
-  tennisSyncLogs: defineTable({
-    tournamentId: v.id("tennisTournaments"),
-    provider: v.string(),
-    ok: v.boolean(),
-    fetchedCompetitors: v.optional(v.number()),
-    fetchedMatches: v.optional(v.number()),
-    updatedCompetitors: v.optional(v.number()),
-    updatedMatches: v.optional(v.number()),
-    error: v.optional(v.string()),
+  fantasyFixtureLineups: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    fixtureId: v.id("fantasyFixtures"),
+    clubId: v.optional(v.id("fantasyClubs")),
+    playerId: v.optional(v.id("fantasyPlayers")),
+    playerName: v.string(),
+    side: fantasyFixtureSideValidator,
+    jerseyNumber: v.optional(v.number()),
+    position: v.optional(fantasyPlayerStoragePositionValidator),
+    isStarter: v.optional(v.boolean()),
     createdAt: v.number(),
+    updatedAt: v.number(),
   })
-    .index("by_tournament_created_at", ["tournamentId", "createdAt"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_season", ["seasonId"])
+    .index("by_fixture", ["fixtureId"])
+    .index("by_player", ["playerId"])
+    .index("by_club", ["clubId"]),
+
+  fantasyFixtureEvents: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    fixtureId: v.id("fantasyFixtures"),
+    gameweekId: v.optional(v.id("fantasyGameweeks")),
+    clubId: v.optional(v.id("fantasyClubs")),
+    playerId: v.optional(v.id("fantasyPlayers")),
+    playerName: v.optional(v.string()),
+    side: fantasyFixtureSideValidator,
+    type: fantasyFixtureEventTypeValidator,
+    minute: v.optional(v.number()),
+    period: v.optional(
+      v.union(
+        v.literal("first_half"),
+        v.literal("second_half"),
+        v.literal("extra_time"),
+        v.literal("penalty_shootout"),
+      ),
+    ),
+    points: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_fixture", ["fixtureId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_player", ["playerId"])
+    .index("by_season_type", ["seasonId", "type"]),
+
+  fantasyPlayerFavorites: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    userId: v.id("users"),
+    playerId: v.id("fantasyPlayers"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_user_season", ["userId", "seasonId"])
+    .index("by_user_season_player", ["userId", "seasonId", "playerId"])
+    .index("by_player", ["playerId"]),
+
+  fantasyTeams: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    userId: v.id("users"),
+    name: v.string(),
+    budgetRemaining: v.number(),
+    freeTransfers: v.number(),
+    totalPoints: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_user", ["userId"])
+    .index("by_user_season", ["userId", "seasonId"]),
+
+  fantasySquadPicks: defineTable({
+    fantasyTeamId: v.id("fantasyTeams"),
+    playerId: v.id("fantasyPlayers"),
+    rosterSlot: v.number(),
+    isStarter: v.boolean(),
+    squadRole: v.optional(fantasySquadRoleValidator),
+    isCaptain: v.boolean(),
+    isViceCaptain: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_player", ["playerId"])
+    .index("by_team_slot", ["fantasyTeamId", "rosterSlot"]),
+
+  fantasyGameweekSquadPicks: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.id("fantasyGameweeks"),
+    fantasyTeamId: v.id("fantasyTeams"),
+    playerId: v.id("fantasyPlayers"),
+    rosterSlot: v.number(),
+    isStarter: v.boolean(),
+    squadRole: fantasySquadRoleValidator,
+    pointsMultiplier: v.number(),
+    isCaptain: v.boolean(),
+    isViceCaptain: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_team_gameweek", ["fantasyTeamId", "gameweekId"]),
+
+  fantasyTransfers: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.optional(v.id("fantasyGameweeks")),
+    fantasyTeamId: v.id("fantasyTeams"),
+    userId: v.id("users"),
+    fromPlayerId: v.optional(v.id("fantasyPlayers")),
+    toPlayerId: v.id("fantasyPlayers"),
+    penaltyPoints: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_team_gameweek", ["fantasyTeamId", "gameweekId"]),
+
+  fantasyPointDeductions: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    fantasyTeamId: v.id("fantasyTeams"),
+    userId: v.id("users"),
+    source: v.union(v.literal("transfer")),
+    sourceId: v.optional(v.id("fantasyTransfers")),
+    points: v.number(),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_user", ["userId"])
+    .index("by_source", ["source", "sourceId"]),
+
+  fantasyTeamGameweekScores: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.id("fantasyGameweeks"),
+    fantasyTeamId: v.id("fantasyTeams"),
+    points: v.number(),
+    basePoints: v.optional(v.number()),
+    captainBonusPoints: v.optional(v.number()),
+    transferPenaltyPoints: v.optional(v.number()),
+    totalPointsAfterGameweek: v.optional(v.number()),
+    participated: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_team_gameweek", ["fantasyTeamId", "gameweekId"]),
+
+  fantasyPlayerGameweekStats: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.id("fantasyGameweeks"),
+    playerId: v.id("fantasyPlayers"),
+    clubId: v.optional(v.id("fantasyClubs")),
+    appearances: v.optional(v.number()),
+    minutes: v.optional(v.number()),
+    goals: v.optional(v.number()),
+    assists: v.optional(v.number()),
+    yellowCards: v.optional(v.number()),
+    redCards: v.optional(v.number()),
+    ownGoals: v.optional(v.number()),
+    penaltiesMissed: v.optional(v.number()),
+    penaltiesSaved: v.optional(v.number()),
+    saves: v.optional(v.number()),
+    goalsConceded: v.optional(v.number()),
+    cleanSheet: v.optional(v.boolean()),
+    cleanSheets: v.optional(v.number()),
+    points: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_season_player", ["seasonId", "playerId"])
+    .index("by_gameweek", ["gameweekId"])
+    .index("by_player", ["playerId"])
+    .index("by_gameweek_player", ["gameweekId", "playerId"]),
 });

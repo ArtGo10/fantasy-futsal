@@ -1,6 +1,6 @@
-# World Cup Draw
+# Fantasy Futsal
 
-Expo + React Native Web app for a small authenticated World Cup 2026 team draw.
+Expo + React Native Web app for a private futsal fantasy league.
 
 ## Stack
 
@@ -45,6 +45,20 @@ Terminal 2:
 npm run web
 ```
 
+For mobile emulator testing:
+
+```bash
+npm run ios
+npm run android
+```
+
+Before native builds, run:
+
+```bash
+npm run doctor
+npx tsc --noEmit
+```
+
 ## Web Build
 
 ```bash
@@ -59,12 +73,35 @@ For Vercel:
 - Output directory: `dist`
 - Environment variables: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_CONVEX_URL`
 
+## Mobile Builds
+
+The app has Expo native identifiers and EAS build profiles:
+
+- iOS bundle identifier: `com.artemholoven.fantasy-futsal`
+- Android package: `com.artemholoven.fantasy_futsal`
+- URL scheme: `fantasy-futsal`
+
+Internal preview builds:
+
+```bash
+npm run eas:build:android -- --profile preview
+npm run eas:build:ios -- --profile preview
+```
+
+Production builds:
+
+```bash
+npm run eas:build:all -- --profile production
+```
+
+For Google OAuth in native builds, add this redirect URL in Clerk Dashboard:
+
+```text
+fantasy-futsal://oauth-native-callback
+```
+
 ## Current Product Scope
 
-- Only signed-in users can access the app.
-- First 12 registered users become participants.
-- Participants can draw one team from each of four pots.
-- A drawn team is locked and cannot be drawn by anyone else.
-- The player table and team availability are realtime through Convex.
-
-Team seed data is intentionally left empty until the final 48 teams and pots are provided.
+- Public league data is visible without signing in.
+- Signed-in users can create and manage their fantasy team.
+- The league table, squads, fixtures, and profile data are realtime through Convex.

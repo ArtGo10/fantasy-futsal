@@ -1,0 +1,3393 @@
+{
+  "source": "https://fchit.kyiv.ua/39400",
+  "generatedAt": "2026-08-10T21:07:54.372Z",
+  "note": "Regular season rounds 1-18 and playoff placeholder fixtures. Ukrainian Cup dates are intentionally excluded.",
+  "gameweeks": [
+    {
+      "number": 1,
+      "name": "Тур 1",
+      "status": "upcoming",
+      "deadlineAt": "2026-08-28T23:59:00.000+03:00",
+      "startsAt": "2026-08-29T00:00:00.000+03:00",
+      "endsAt": "2026-08-29T23:59:00.000+03:00"
+    },
+    {
+      "number": 2,
+      "name": "Тур 2",
+      "status": "upcoming",
+      "deadlineAt": "2026-09-04T23:59:00.000+03:00",
+      "startsAt": "2026-09-05T00:00:00.000+03:00",
+      "endsAt": "2026-09-05T23:59:00.000+03:00"
+    },
+    {
+      "number": 3,
+      "name": "Тур 3",
+      "status": "upcoming",
+      "deadlineAt": "2026-09-11T23:59:00.000+03:00",
+      "startsAt": "2026-09-12T00:00:00.000+03:00",
+      "endsAt": "2026-09-12T23:59:00.000+03:00"
+    },
+    {
+      "number": 4,
+      "name": "Тур 4",
+      "status": "upcoming",
+      "deadlineAt": "2026-09-18T23:59:00.000+03:00",
+      "startsAt": "2026-09-19T00:00:00.000+03:00",
+      "endsAt": "2026-09-19T23:59:00.000+03:00"
+    },
+    {
+      "number": 5,
+      "name": "Тур 5",
+      "status": "upcoming",
+      "deadlineAt": "2026-09-25T23:59:00.000+03:00",
+      "startsAt": "2026-09-26T00:00:00.000+03:00",
+      "endsAt": "2026-09-26T23:59:00.000+03:00"
+    },
+    {
+      "number": 6,
+      "name": "Тур 6",
+      "status": "upcoming",
+      "deadlineAt": "2026-10-02T23:59:00.000+03:00",
+      "startsAt": "2026-10-03T00:00:00.000+03:00",
+      "endsAt": "2026-10-03T23:59:00.000+03:00"
+    },
+    {
+      "number": 7,
+      "name": "Тур 7",
+      "status": "upcoming",
+      "deadlineAt": "2026-10-09T23:59:00.000+03:00",
+      "startsAt": "2026-10-10T00:00:00.000+03:00",
+      "endsAt": "2026-10-10T23:59:00.000+03:00"
+    },
+    {
+      "number": 8,
+      "name": "Тур 8",
+      "status": "upcoming",
+      "deadlineAt": "2026-10-24T23:59:00.000+03:00",
+      "startsAt": "2026-10-25T00:00:00.000+03:00",
+      "endsAt": "2026-10-25T23:59:00.000+03:00"
+    },
+    {
+      "number": 9,
+      "name": "Тур 9",
+      "status": "upcoming",
+      "deadlineAt": "2026-11-14T23:59:00.000+03:00",
+      "startsAt": "2026-11-15T00:00:00.000+03:00",
+      "endsAt": "2026-11-15T23:59:00.000+03:00"
+    },
+    {
+      "number": 10,
+      "name": "Тур 10",
+      "status": "upcoming",
+      "deadlineAt": "2026-11-20T23:59:00.000+03:00",
+      "startsAt": "2026-11-21T00:00:00.000+03:00",
+      "endsAt": "2026-11-21T23:59:00.000+03:00"
+    },
+    {
+      "number": 11,
+      "name": "Тур 11",
+      "status": "upcoming",
+      "deadlineAt": "2026-11-27T23:59:00.000+03:00",
+      "startsAt": "2026-11-28T00:00:00.000+03:00",
+      "endsAt": "2026-11-28T23:59:00.000+03:00"
+    },
+    {
+      "number": 12,
+      "name": "Тур 12",
+      "status": "upcoming",
+      "deadlineAt": "2026-12-18T23:59:00.000+03:00",
+      "startsAt": "2026-12-19T00:00:00.000+03:00",
+      "endsAt": "2026-12-19T23:59:00.000+03:00"
+    },
+    {
+      "number": 13,
+      "name": "Тур 13",
+      "status": "upcoming",
+      "deadlineAt": "2026-12-28T23:59:00.000+03:00",
+      "startsAt": "2026-12-29T00:00:00.000+03:00",
+      "endsAt": "2026-12-29T23:59:00.000+03:00"
+    },
+    {
+      "number": 14,
+      "name": "Тур 14",
+      "status": "upcoming",
+      "deadlineAt": "2027-01-08T23:59:00.000+03:00",
+      "startsAt": "2027-01-09T00:00:00.000+03:00",
+      "endsAt": "2027-01-09T23:59:00.000+03:00"
+    },
+    {
+      "number": 15,
+      "name": "Тур 15",
+      "status": "upcoming",
+      "deadlineAt": "2027-01-29T23:59:00.000+03:00",
+      "startsAt": "2027-01-30T00:00:00.000+03:00",
+      "endsAt": "2027-01-30T23:59:00.000+03:00"
+    },
+    {
+      "number": 16,
+      "name": "Тур 16",
+      "status": "upcoming",
+      "deadlineAt": "2027-02-12T23:59:00.000+03:00",
+      "startsAt": "2027-02-13T00:00:00.000+03:00",
+      "endsAt": "2027-02-13T23:59:00.000+03:00"
+    },
+    {
+      "number": 17,
+      "name": "Тур 17",
+      "status": "upcoming",
+      "deadlineAt": "2027-03-12T23:59:00.000+03:00",
+      "startsAt": "2027-03-13T00:00:00.000+03:00",
+      "endsAt": "2027-03-13T23:59:00.000+03:00"
+    },
+    {
+      "number": 18,
+      "name": "Тур 18",
+      "status": "upcoming",
+      "deadlineAt": "2027-04-09T23:59:00.000+03:00",
+      "startsAt": "2027-04-10T00:00:00.000+03:00",
+      "endsAt": "2027-04-10T23:59:00.000+03:00"
+    },
+    {
+      "number": 19,
+      "name": "Плей-офф 1/4 фіналу, матч 1",
+      "status": "upcoming",
+      "deadlineAt": "2027-04-23T23:59:00.000+03:00",
+      "startsAt": "2027-04-24T00:00:00.000+03:00",
+      "endsAt": "2027-04-24T23:59:00.000+03:00"
+    },
+    {
+      "number": 20,
+      "name": "Плей-офф 1/4 фіналу, матч 2",
+      "status": "upcoming",
+      "deadlineAt": "2027-04-24T23:59:00.000+03:00",
+      "startsAt": "2027-04-25T00:00:00.000+03:00",
+      "endsAt": "2027-04-25T23:59:00.000+03:00"
+    },
+    {
+      "number": 21,
+      "name": "Плей-офф 1/4 фіналу, матч 3",
+      "status": "upcoming",
+      "deadlineAt": "2027-04-29T23:59:00.000+03:00",
+      "startsAt": "2027-04-30T00:00:00.000+03:00",
+      "endsAt": "2027-04-30T23:59:00.000+03:00"
+    },
+    {
+      "number": 22,
+      "name": "Плей-офф 1/4 фіналу, матч 4 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-04-30T23:59:00.000+03:00",
+      "startsAt": "2027-05-01T00:00:00.000+03:00",
+      "endsAt": "2027-05-01T23:59:00.000+03:00"
+    },
+    {
+      "number": 23,
+      "name": "Плей-офф 1/4 фіналу, матч 5 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-07T23:59:00.000+03:00",
+      "startsAt": "2027-05-08T00:00:00.000+03:00",
+      "endsAt": "2027-05-08T23:59:00.000+03:00"
+    },
+    {
+      "number": 24,
+      "name": "Плей-офф 1/2 фіналу, матч 1",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-14T23:59:00.000+03:00",
+      "startsAt": "2027-05-15T00:00:00.000+03:00",
+      "endsAt": "2027-05-15T23:59:00.000+03:00"
+    },
+    {
+      "number": 25,
+      "name": "Плей-офф 1/2 фіналу, матч 2",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-15T23:59:00.000+03:00",
+      "startsAt": "2027-05-16T00:00:00.000+03:00",
+      "endsAt": "2027-05-16T23:59:00.000+03:00"
+    },
+    {
+      "number": 26,
+      "name": "Плей-офф 1/2 фіналу, матч 3",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-21T23:59:00.000+03:00",
+      "startsAt": "2027-05-22T00:00:00.000+03:00",
+      "endsAt": "2027-05-22T23:59:00.000+03:00"
+    },
+    {
+      "number": 27,
+      "name": "Плей-офф 1/2 фіналу, матч 4 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-22T23:59:00.000+03:00",
+      "startsAt": "2027-05-23T00:00:00.000+03:00",
+      "endsAt": "2027-05-23T23:59:00.000+03:00"
+    },
+    {
+      "number": 28,
+      "name": "Плей-офф 1/2 фіналу, матч 5 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-05-28T23:59:00.000+03:00",
+      "startsAt": "2027-05-29T00:00:00.000+03:00",
+      "endsAt": "2027-05-29T23:59:00.000+03:00"
+    },
+    {
+      "number": 29,
+      "name": "Плей-офф фінал та матч за третє місце, матч 1",
+      "status": "upcoming",
+      "deadlineAt": "2027-06-04T23:59:00.000+03:00",
+      "startsAt": "2027-06-05T00:00:00.000+03:00",
+      "endsAt": "2027-06-05T23:59:00.000+03:00"
+    },
+    {
+      "number": 30,
+      "name": "Плей-офф фінал та матч за третє місце, матч 2",
+      "status": "upcoming",
+      "deadlineAt": "2027-06-05T23:59:00.000+03:00",
+      "startsAt": "2027-06-06T00:00:00.000+03:00",
+      "endsAt": "2027-06-06T23:59:00.000+03:00"
+    },
+    {
+      "number": 31,
+      "name": "Плей-офф фінал та матч за третє місце, матч 3",
+      "status": "upcoming",
+      "deadlineAt": "2027-06-11T23:59:00.000+03:00",
+      "startsAt": "2027-06-12T00:00:00.000+03:00",
+      "endsAt": "2027-06-12T23:59:00.000+03:00"
+    },
+    {
+      "number": 32,
+      "name": "Плей-офф фінал та матч за третє місце, матч 4 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-06-12T23:59:00.000+03:00",
+      "startsAt": "2027-06-13T00:00:00.000+03:00",
+      "endsAt": "2027-06-13T23:59:00.000+03:00"
+    },
+    {
+      "number": 33,
+      "name": "Плей-офф фінал та матч за третє місце, матч 5 (за необхідності)",
+      "status": "upcoming",
+      "deadlineAt": "2027-06-18T23:59:00.000+03:00",
+      "startsAt": "2027-06-19T00:00:00.000+03:00",
+      "endsAt": "2027-06-19T23:59:00.000+03:00"
+    }
+  ],
+  "fixtures": [
+    {
+      "externalId": "21911",
+      "sourceSlug": "ahromat-kyiv-avalon-brovary-2",
+      "sourceUrl": "https://futsal.com.ua/event/ahromat-kyiv-avalon-brovary-2/",
+      "title": "Агромат — Авалон",
+      "gameweekNumber": 1,
+      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Агромат",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "21912",
+      "sourceSlug": "fantom-kyiv-khit-kyiv",
+      "sourceUrl": "https://futsal.com.ua/event/fantom-kyiv-khit-kyiv/",
+      "title": "Фантом — ХІТ",
+      "gameweekNumber": 1,
+      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Фантом",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "21913",
+      "sourceSlug": "urahan-ivano-frankivsk-skayap",
+      "sourceUrl": "https://futsal.com.ua/event/urahan-ivano-frankivsk-skayap/",
+      "title": "Ураган — SkyUp",
+      "gameweekNumber": 1,
+      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Ураган",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "21914",
+      "sourceSlug": "sokil-khmelnytskyy-alians-lviv",
+      "sourceUrl": "https://futsal.com.ua/event/sokil-khmelnytskyy-alians-lviv/",
+      "title": "Сокіл — Альянс",
+      "gameweekNumber": 1,
+      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r01-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r01-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Суха Балка",
+      "gameweekNumber": 1,
+      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r02-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r02-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Суха Балка",
+      "gameweekNumber": 2,
+      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Авалон",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r02-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r02-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Атлетік Футзал",
+      "gameweekNumber": 2,
+      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r02-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r02-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — SkyUp",
+      "gameweekNumber": 2,
+      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Альянс",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r02-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r02-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Ураган",
+      "gameweekNumber": 2,
+      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "2892",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r02-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r02-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Фантом",
+      "gameweekNumber": 2,
+      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Агромат",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r03-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r03-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Авалон",
+      "gameweekNumber": 3,
+      "scheduledAt": "2026-09-12T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Фантом",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r03-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r03-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Агромат",
+      "gameweekNumber": 3,
+      "scheduledAt": "2026-09-12T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Ураган",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r03-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r03-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Альянс",
+      "gameweekNumber": 3,
+      "scheduledAt": "2026-09-12T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "19235",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r03-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r03-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Атлетік Футзал",
+      "gameweekNumber": 3,
+      "scheduledAt": "2026-09-12T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "5586",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r03-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r03-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Сокіл",
+      "gameweekNumber": 3,
+      "scheduledAt": "2026-09-12T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r04-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r04-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Сокіл",
+      "gameweekNumber": 4,
+      "scheduledAt": "2026-09-19T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Авалон",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r04-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r04-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Суха Балка",
+      "gameweekNumber": 4,
+      "scheduledAt": "2026-09-19T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "5584",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r04-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r04-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — ХІТ",
+      "gameweekNumber": 4,
+      "scheduledAt": "2026-09-19T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r04-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r04-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Агромат",
+      "gameweekNumber": 4,
+      "scheduledAt": "2026-09-19T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Альянс",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r04-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r04-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Ураган",
+      "gameweekNumber": 4,
+      "scheduledAt": "2026-09-19T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Фантом",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r05-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r05-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Авалон",
+      "gameweekNumber": 5,
+      "scheduledAt": "2026-09-26T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Ураган",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r05-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r05-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Фантом",
+      "gameweekNumber": 5,
+      "scheduledAt": "2026-09-26T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Альянс",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r05-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r05-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Атлетік Футзал",
+      "gameweekNumber": 5,
+      "scheduledAt": "2026-09-26T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Агромат",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r05-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r05-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Суха Балка",
+      "gameweekNumber": 5,
+      "scheduledAt": "2026-09-26T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "5584",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r05-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r05-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — SkyUp",
+      "gameweekNumber": 5,
+      "scheduledAt": "2026-09-26T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Сокіл",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r06-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r06-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — SkyUp",
+      "gameweekNumber": 6,
+      "scheduledAt": "2026-10-03T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Авалон",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r06-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r06-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Сокіл",
+      "gameweekNumber": 6,
+      "scheduledAt": "2026-10-03T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "3430",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r06-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r06-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Агромат",
+      "gameweekNumber": 6,
+      "scheduledAt": "2026-10-03T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r06-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r06-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Атлетік Футзал",
+      "gameweekNumber": 6,
+      "scheduledAt": "2026-10-03T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Фантом",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r06-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r06-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Альянс",
+      "gameweekNumber": 6,
+      "scheduledAt": "2026-10-03T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Ураган",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r07-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r07-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Авалон",
+      "gameweekNumber": 7,
+      "scheduledAt": "2026-10-10T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Альянс",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r07-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r07-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Ураган",
+      "gameweekNumber": 7,
+      "scheduledAt": "2026-10-10T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r07-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r07-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Фантом",
+      "gameweekNumber": 7,
+      "scheduledAt": "2026-10-10T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r07-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r07-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Агромат",
+      "gameweekNumber": 7,
+      "scheduledAt": "2026-10-10T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r07-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r07-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — ХІТ",
+      "gameweekNumber": 7,
+      "scheduledAt": "2026-10-10T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "3438",
+      "homeClubName": "SkyUp",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r08-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r08-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — ХІТ",
+      "gameweekNumber": 8,
+      "scheduledAt": "2026-10-25T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Авалон",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r08-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r08-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — SkyUp",
+      "gameweekNumber": 8,
+      "scheduledAt": "2026-10-25T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Агромат",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r08-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r08-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Сокіл",
+      "gameweekNumber": 8,
+      "scheduledAt": "2026-10-25T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Фантом",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r08-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r08-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Суха Балка",
+      "gameweekNumber": 8,
+      "scheduledAt": "2026-10-25T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Ураган",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r08-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r08-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Альянс",
+      "gameweekNumber": 8,
+      "scheduledAt": "2026-10-25T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r09-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r09-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Атлетік Футзал",
+      "gameweekNumber": 9,
+      "scheduledAt": "2026-11-15T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Авалон",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r09-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r09-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Альянс",
+      "gameweekNumber": 9,
+      "scheduledAt": "2026-11-15T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r09-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r09-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Ураган",
+      "gameweekNumber": 9,
+      "scheduledAt": "2026-11-15T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r09-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r09-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Фантом",
+      "gameweekNumber": 9,
+      "scheduledAt": "2026-11-15T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "19258",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r09-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r09-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Агромат",
+      "gameweekNumber": 9,
+      "scheduledAt": "2026-11-15T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "5599",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r10-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r10-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Агромат",
+      "gameweekNumber": 10,
+      "scheduledAt": "2026-11-21T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Авалон",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r10-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r10-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Фантом",
+      "gameweekNumber": 10,
+      "scheduledAt": "2026-11-21T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "19258",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r10-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r10-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Ураган",
+      "gameweekNumber": 10,
+      "scheduledAt": "2026-11-21T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "2892",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r10-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r10-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Сокіл",
+      "gameweekNumber": 10,
+      "scheduledAt": "2026-11-21T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Альянс",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r10-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r10-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Атлетік Футзал",
+      "gameweekNumber": 10,
+      "scheduledAt": "2026-11-21T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r11-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r11-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Авалон",
+      "gameweekNumber": 11,
+      "scheduledAt": "2026-11-28T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r11-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r11-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Сокіл",
+      "gameweekNumber": 11,
+      "scheduledAt": "2026-11-28T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r11-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r11-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Альянс",
+      "gameweekNumber": 11,
+      "scheduledAt": "2026-11-28T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "19235",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r11-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r11-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — ХІТ",
+      "gameweekNumber": 11,
+      "scheduledAt": "2026-11-28T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Ураган",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r11-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r11-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Агромат",
+      "gameweekNumber": 11,
+      "scheduledAt": "2026-11-28T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Фантом",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r12-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r12-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Фантом",
+      "gameweekNumber": 12,
+      "scheduledAt": "2026-12-19T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Авалон",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r12-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r12-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Ураган",
+      "gameweekNumber": 12,
+      "scheduledAt": "2026-12-19T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Агромат",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r12-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r12-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — ХІТ",
+      "gameweekNumber": 12,
+      "scheduledAt": "2026-12-19T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Альянс",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r12-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r12-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — SkyUp",
+      "gameweekNumber": 12,
+      "scheduledAt": "2026-12-19T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r12-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r12-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Суха Балка",
+      "gameweekNumber": 12,
+      "scheduledAt": "2026-12-19T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r13-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r13-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Авалон",
+      "gameweekNumber": 13,
+      "scheduledAt": "2026-12-29T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r13-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r13-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — SkyUp",
+      "gameweekNumber": 13,
+      "scheduledAt": "2026-12-29T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r13-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r13-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Атлетік Футзал",
+      "gameweekNumber": 13,
+      "scheduledAt": "2026-12-29T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "5586",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r13-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r13-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Альянс",
+      "gameweekNumber": 13,
+      "scheduledAt": "2026-12-29T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Агромат",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r13-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r13-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Фантом",
+      "gameweekNumber": 13,
+      "scheduledAt": "2026-12-29T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Ураган",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r14-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r14-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Ураган",
+      "gameweekNumber": 14,
+      "scheduledAt": "2027-01-09T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Авалон",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r14-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r14-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Альянс",
+      "gameweekNumber": 14,
+      "scheduledAt": "2027-01-09T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Фантом",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r14-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r14-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Агромат",
+      "gameweekNumber": 14,
+      "scheduledAt": "2027-01-09T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "5599",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r14-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r14-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — ХІТ",
+      "gameweekNumber": 14,
+      "scheduledAt": "2027-01-09T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r14-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r14-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Сокіл",
+      "gameweekNumber": 14,
+      "scheduledAt": "2027-01-09T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "3430",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r15-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r15-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Авалон",
+      "gameweekNumber": 15,
+      "scheduledAt": "2027-01-30T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "5596",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r15-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r15-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — ХІТ",
+      "gameweekNumber": 15,
+      "scheduledAt": "2027-01-30T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Сокіл",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r15-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r15-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Суха Балка",
+      "gameweekNumber": 15,
+      "scheduledAt": "2027-01-30T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Агромат",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r15-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r15-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Фантом",
+      "gameweekNumber": 15,
+      "scheduledAt": "2027-01-30T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r15-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r15-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Ураган",
+      "gameweekNumber": 15,
+      "scheduledAt": "2027-01-30T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Альянс",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r16-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r16-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Авалон — Альянс",
+      "gameweekNumber": 16,
+      "scheduledAt": "2027-02-13T12:00:00.000+03:00",
+      "homeClubExternalId": "5596",
+      "awayClubExternalId": "19235",
+      "homeClubName": "Авалон",
+      "awayClubName": "Альянс",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r16-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r16-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — SkyUp",
+      "gameweekNumber": 16,
+      "scheduledAt": "2027-02-13T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "21695",
+      "homeClubName": "ХІТ",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r16-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r16-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Атлетік Футзал",
+      "gameweekNumber": 16,
+      "scheduledAt": "2027-02-13T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Ураган",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r16-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r16-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — Суха Балка",
+      "gameweekNumber": 16,
+      "scheduledAt": "2027-02-13T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Фантом",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r16-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r16-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — Сокіл",
+      "gameweekNumber": 16,
+      "scheduledAt": "2027-02-13T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Агромат",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r17-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r17-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "SkyUp — Агромат",
+      "gameweekNumber": 17,
+      "scheduledAt": "2027-03-13T12:00:00.000+03:00",
+      "homeClubExternalId": "21695",
+      "awayClubExternalId": "5599",
+      "homeClubName": "SkyUp",
+      "awayClubName": "Агромат",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r17-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r17-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Сокіл — Фантом",
+      "gameweekNumber": 17,
+      "scheduledAt": "2027-03-13T12:00:00.000+03:00",
+      "homeClubExternalId": "3430",
+      "awayClubExternalId": "19258",
+      "homeClubName": "Сокіл",
+      "awayClubName": "Фантом",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r17-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r17-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "ХІТ — Авалон",
+      "gameweekNumber": 17,
+      "scheduledAt": "2027-03-13T12:00:00.000+03:00",
+      "homeClubExternalId": "3438",
+      "awayClubExternalId": "5596",
+      "homeClubName": "ХІТ",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r17-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r17-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Суха Балка — Ураган",
+      "gameweekNumber": 17,
+      "scheduledAt": "2027-03-13T12:00:00.000+03:00",
+      "homeClubExternalId": "5584",
+      "awayClubExternalId": "2892",
+      "homeClubName": "Суха Балка",
+      "awayClubName": "Ураган",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r17-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r17-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Атлетік Футзал",
+      "gameweekNumber": 17,
+      "scheduledAt": "2027-03-13T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "5586",
+      "homeClubName": "Альянс",
+      "awayClubName": "Атлетік Футзал",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r18-m01",
+      "sourceSlug": "fchit-calendar-2026-27-r18-m01",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Атлетік Футзал — Авалон",
+      "gameweekNumber": 18,
+      "scheduledAt": "2027-04-10T12:00:00.000+03:00",
+      "homeClubExternalId": "5586",
+      "awayClubExternalId": "5596",
+      "homeClubName": "Атлетік Футзал",
+      "awayClubName": "Авалон",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r18-m02",
+      "sourceSlug": "fchit-calendar-2026-27-r18-m02",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Агромат — ХІТ",
+      "gameweekNumber": 18,
+      "scheduledAt": "2027-04-10T12:00:00.000+03:00",
+      "homeClubExternalId": "5599",
+      "awayClubExternalId": "3438",
+      "homeClubName": "Агромат",
+      "awayClubName": "ХІТ",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r18-m03",
+      "sourceSlug": "fchit-calendar-2026-27-r18-m03",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Альянс — Суха Балка",
+      "gameweekNumber": 18,
+      "scheduledAt": "2027-04-10T12:00:00.000+03:00",
+      "homeClubExternalId": "19235",
+      "awayClubExternalId": "5584",
+      "homeClubName": "Альянс",
+      "awayClubName": "Суха Балка",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r18-m04",
+      "sourceSlug": "fchit-calendar-2026-27-r18-m04",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Ураган — Сокіл",
+      "gameweekNumber": 18,
+      "scheduledAt": "2027-04-10T12:00:00.000+03:00",
+      "homeClubExternalId": "2892",
+      "awayClubExternalId": "3430",
+      "homeClubName": "Ураган",
+      "awayClubName": "Сокіл",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-r18-m05",
+      "sourceSlug": "fchit-calendar-2026-27-r18-m05",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фантом — SkyUp",
+      "gameweekNumber": 18,
+      "scheduledAt": "2027-04-10T12:00:00.000+03:00",
+      "homeClubExternalId": "19258",
+      "awayClubExternalId": "21695",
+      "homeClubName": "Фантом",
+      "awayClubName": "SkyUp",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": null,
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g1-s1",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g1-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "1 місце регулярки — 8 місце регулярки",
+      "gameweekNumber": 19,
+      "scheduledAt": "2027-04-24T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "1 місце регулярки",
+      "awayClubName": "8 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g1-s2",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g1-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "2 місце регулярки — 7 місце регулярки",
+      "gameweekNumber": 19,
+      "scheduledAt": "2027-04-24T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "2 місце регулярки",
+      "awayClubName": "7 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g1-s3",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g1-s3",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "3 місце регулярки — 6 місце регулярки",
+      "gameweekNumber": 19,
+      "scheduledAt": "2027-04-24T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "3 місце регулярки",
+      "awayClubName": "6 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g1-s4",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g1-s4",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "4 місце регулярки — 5 місце регулярки",
+      "gameweekNumber": 19,
+      "scheduledAt": "2027-04-24T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "4 місце регулярки",
+      "awayClubName": "5 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g2-s1",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g2-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "1 місце регулярки — 8 місце регулярки",
+      "gameweekNumber": 20,
+      "scheduledAt": "2027-04-25T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "1 місце регулярки",
+      "awayClubName": "8 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g2-s2",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g2-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "2 місце регулярки — 7 місце регулярки",
+      "gameweekNumber": 20,
+      "scheduledAt": "2027-04-25T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "2 місце регулярки",
+      "awayClubName": "7 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g2-s3",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g2-s3",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "3 місце регулярки — 6 місце регулярки",
+      "gameweekNumber": 20,
+      "scheduledAt": "2027-04-25T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "3 місце регулярки",
+      "awayClubName": "6 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g2-s4",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g2-s4",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "4 місце регулярки — 5 місце регулярки",
+      "gameweekNumber": 20,
+      "scheduledAt": "2027-04-25T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "4 місце регулярки",
+      "awayClubName": "5 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g3-s1",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g3-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "1 місце регулярки — 8 місце регулярки",
+      "gameweekNumber": 21,
+      "scheduledAt": "2027-04-30T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "1 місце регулярки",
+      "awayClubName": "8 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g3-s2",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g3-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "2 місце регулярки — 7 місце регулярки",
+      "gameweekNumber": 21,
+      "scheduledAt": "2027-04-30T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "2 місце регулярки",
+      "awayClubName": "7 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g3-s3",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g3-s3",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "3 місце регулярки — 6 місце регулярки",
+      "gameweekNumber": 21,
+      "scheduledAt": "2027-04-30T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "3 місце регулярки",
+      "awayClubName": "6 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g3-s4",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g3-s4",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "4 місце регулярки — 5 місце регулярки",
+      "gameweekNumber": 21,
+      "scheduledAt": "2027-04-30T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "4 місце регулярки",
+      "awayClubName": "5 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g4-s1",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g4-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "1 місце регулярки — 8 місце регулярки",
+      "gameweekNumber": 22,
+      "scheduledAt": "2027-05-01T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "1 місце регулярки",
+      "awayClubName": "8 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g4-s2",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g4-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "2 місце регулярки — 7 місце регулярки",
+      "gameweekNumber": 22,
+      "scheduledAt": "2027-05-01T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "2 місце регулярки",
+      "awayClubName": "7 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g4-s3",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g4-s3",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "3 місце регулярки — 6 місце регулярки",
+      "gameweekNumber": 22,
+      "scheduledAt": "2027-05-01T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "3 місце регулярки",
+      "awayClubName": "6 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g4-s4",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g4-s4",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "4 місце регулярки — 5 місце регулярки",
+      "gameweekNumber": 22,
+      "scheduledAt": "2027-05-01T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "4 місце регулярки",
+      "awayClubName": "5 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g5-s1",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g5-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "1 місце регулярки — 8 місце регулярки",
+      "gameweekNumber": 23,
+      "scheduledAt": "2027-05-08T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "1 місце регулярки",
+      "awayClubName": "8 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g5-s2",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g5-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "2 місце регулярки — 7 місце регулярки",
+      "gameweekNumber": 23,
+      "scheduledAt": "2027-05-08T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "2 місце регулярки",
+      "awayClubName": "7 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g5-s3",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g5-s3",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "3 місце регулярки — 6 місце регулярки",
+      "gameweekNumber": 23,
+      "scheduledAt": "2027-05-08T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "3 місце регулярки",
+      "awayClubName": "6 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-qf-g5-s4",
+      "sourceSlug": "fchit-calendar-2026-27-qf-g5-s4",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "4 місце регулярки — 5 місце регулярки",
+      "gameweekNumber": 23,
+      "scheduledAt": "2027-05-08T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "4 місце регулярки",
+      "awayClubName": "5 місце регулярки",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/4 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g1-s1",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g1-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 1 — Півфіналіст 4",
+      "gameweekNumber": 24,
+      "scheduledAt": "2027-05-15T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 1",
+      "awayClubName": "Півфіналіст 4",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g1-s2",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g1-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 2 — Півфіналіст 3",
+      "gameweekNumber": 24,
+      "scheduledAt": "2027-05-15T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 2",
+      "awayClubName": "Півфіналіст 3",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g2-s1",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g2-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 1 — Півфіналіст 4",
+      "gameweekNumber": 25,
+      "scheduledAt": "2027-05-16T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 1",
+      "awayClubName": "Півфіналіст 4",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g2-s2",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g2-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 2 — Півфіналіст 3",
+      "gameweekNumber": 25,
+      "scheduledAt": "2027-05-16T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 2",
+      "awayClubName": "Півфіналіст 3",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g3-s1",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g3-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 1 — Півфіналіст 4",
+      "gameweekNumber": 26,
+      "scheduledAt": "2027-05-22T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 1",
+      "awayClubName": "Півфіналіст 4",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g3-s2",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g3-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 2 — Півфіналіст 3",
+      "gameweekNumber": 26,
+      "scheduledAt": "2027-05-22T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 2",
+      "awayClubName": "Півфіналіст 3",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g4-s1",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g4-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 1 — Півфіналіст 4",
+      "gameweekNumber": 27,
+      "scheduledAt": "2027-05-23T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 1",
+      "awayClubName": "Півфіналіст 4",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g4-s2",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g4-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 2 — Півфіналіст 3",
+      "gameweekNumber": 27,
+      "scheduledAt": "2027-05-23T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 2",
+      "awayClubName": "Півфіналіст 3",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g5-s1",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g5-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 1 — Півфіналіст 4",
+      "gameweekNumber": 28,
+      "scheduledAt": "2027-05-29T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 1",
+      "awayClubName": "Півфіналіст 4",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-sf-g5-s2",
+      "sourceSlug": "fchit-calendar-2026-27-sf-g5-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Півфіналіст 2 — Півфіналіст 3",
+      "gameweekNumber": 28,
+      "scheduledAt": "2027-05-29T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Півфіналіст 2",
+      "awayClubName": "Півфіналіст 3",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф 1/2 фіналу",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g1-s1",
+      "sourceSlug": "fchit-calendar-2026-27-final-g1-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фіналіст 1 — Фіналіст 2",
+      "gameweekNumber": 29,
+      "scheduledAt": "2027-06-05T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Фіналіст 1",
+      "awayClubName": "Фіналіст 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g1-s2",
+      "sourceSlug": "fchit-calendar-2026-27-final-g1-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Учасник матчу за 3 місце 1 — Учасник матчу за 3 місце 2",
+      "gameweekNumber": 29,
+      "scheduledAt": "2027-06-05T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Учасник матчу за 3 місце 1",
+      "awayClubName": "Учасник матчу за 3 місце 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g2-s1",
+      "sourceSlug": "fchit-calendar-2026-27-final-g2-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фіналіст 1 — Фіналіст 2",
+      "gameweekNumber": 30,
+      "scheduledAt": "2027-06-06T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Фіналіст 1",
+      "awayClubName": "Фіналіст 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g2-s2",
+      "sourceSlug": "fchit-calendar-2026-27-final-g2-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Учасник матчу за 3 місце 1 — Учасник матчу за 3 місце 2",
+      "gameweekNumber": 30,
+      "scheduledAt": "2027-06-06T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Учасник матчу за 3 місце 1",
+      "awayClubName": "Учасник матчу за 3 місце 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g3-s1",
+      "sourceSlug": "fchit-calendar-2026-27-final-g3-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фіналіст 1 — Фіналіст 2",
+      "gameweekNumber": 31,
+      "scheduledAt": "2027-06-12T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Фіналіст 1",
+      "awayClubName": "Фіналіст 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g3-s2",
+      "sourceSlug": "fchit-calendar-2026-27-final-g3-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Учасник матчу за 3 місце 1 — Учасник матчу за 3 місце 2",
+      "gameweekNumber": 31,
+      "scheduledAt": "2027-06-12T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Учасник матчу за 3 місце 1",
+      "awayClubName": "Учасник матчу за 3 місце 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g4-s1",
+      "sourceSlug": "fchit-calendar-2026-27-final-g4-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фіналіст 1 — Фіналіст 2",
+      "gameweekNumber": 32,
+      "scheduledAt": "2027-06-13T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Фіналіст 1",
+      "awayClubName": "Фіналіст 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g4-s2",
+      "sourceSlug": "fchit-calendar-2026-27-final-g4-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Учасник матчу за 3 місце 1 — Учасник матчу за 3 місце 2",
+      "gameweekNumber": 32,
+      "scheduledAt": "2027-06-13T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Учасник матчу за 3 місце 1",
+      "awayClubName": "Учасник матчу за 3 місце 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g5-s1",
+      "sourceSlug": "fchit-calendar-2026-27-final-g5-s1",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Фіналіст 1 — Фіналіст 2",
+      "gameweekNumber": 33,
+      "scheduledAt": "2027-06-19T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Фіналіст 1",
+      "awayClubName": "Фіналіст 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    },
+    {
+      "externalId": "fchit-calendar-2026-27-final-g5-s2",
+      "sourceSlug": "fchit-calendar-2026-27-final-g5-s2",
+      "sourceUrl": "https://fchit.kyiv.ua/39400",
+      "title": "Учасник матчу за 3 місце 1 — Учасник матчу за 3 місце 2",
+      "gameweekNumber": 33,
+      "scheduledAt": "2027-06-19T12:00:00.000+03:00",
+      "homeClubExternalId": null,
+      "awayClubExternalId": null,
+      "homeClubName": "Учасник матчу за 3 місце 1",
+      "awayClubName": "Учасник матчу за 3 місце 2",
+      "homeScore": null,
+      "awayScore": null,
+      "status": "scheduled",
+      "venue": "Плей-офф фінал та матч за третє місце",
+      "leagueExternalIds": [
+        "810"
+      ],
+      "seasonExternalIds": [
+        "812",
+        "811"
+      ],
+      "venueExternalIds": []
+    }
+  ]
+}

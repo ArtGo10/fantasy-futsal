@@ -1,73 +1,447 @@
 import "react-native-url-polyfill/auto";
 
-import { ClerkLoaded, ClerkLoading, ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-expo";
-import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { ClerkProvider, useAuth } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { ConvexReactClient } from "convex/react";
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  AppState,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-import { AuthScreen } from "./src/components/auth/AuthScreen";
-import { ConvexAuthProblem } from "./src/components/auth/ConvexAuthProblem";
 import { MissingEnv } from "./src/components/auth/MissingEnv";
 import { OAuthRedirectCallback } from "./src/components/auth/OAuthRedirectCallback";
-import { LoadingBlock } from "./src/components/common/LoadingBlock";
-import { SignedInHome } from "./src/components/dashboard/SignedInHome";
+import { AppConnectionProblemScreen } from "./src/components/common/AppConnectionProblemScreen";
+import { AppLoadingScreen } from "./src/components/common/AppLoadingScreen";
+import { PublicWebSite } from "./src/web/PublicWebSite";
+import { usePushNotificationPermissionPrompt } from "./src/hooks/usePushNotifications";
+import { useOfflineStatus } from "./src/hooks/useOfflineStatus";
+import { FantasyHome } from "./src/features/fantasy/FantasyHome";
+import {
+  preloadFantasyBootAssets,
+  preloadFantasyStaticAssets,
+} from "./src/features/fantasy/assets/fantasyAssets";
+import { I18nProvider, useI18n } from "./src/i18n/I18nProvider";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
+import { isPublicWebPath } from "./src/web/publicSiteConfig";
 import { styles } from "./src/styles";
-import { getWebOAuthRedirectUrls, isWebOAuthCallbackPath } from "./src/utils/auth";
+import {
+  clearStoredCrashReport,
+  formatCrashReport,
+  getStoredCrashReport,
+  installGlobalCrashReporter,
+  storeCrashReportForError,
+  type StoredCrashReport,
+} from "./src/utils/crashReporter";
+import {
+  getWebOAuthRedirectUrls,
+  isWebOAuthCallbackPath,
+} from "./src/utils/auth";
+
+installGlobalCrashReporter();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
-const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
-export default function App() {
-  if (!publishableKey || !convex) {
-    return <MissingEnv />;
+const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
+
+const DEFAULT_SAFE_AREA_EDGES = ["top", "right", "bottom", "left"] as const;
+const TOP_EDGE_TO_EDGE_SAFE_AREA_EDGES = ["right", "bottom", "left"] as const;
+
+if (Platform.OS !== "web") {
+  void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+  SplashScreen.setOptions({
+    duration: Platform.OS === "android" ? 0 : 250,
+    fade: Platform.OS !== "android",
+  });
+}
+
+function hideNativeSplash() {
+  if (Platform.OS === "web") return;
+
+  void SplashScreen.hideAsync().catch(() => undefined);
+}
+
+function NativeSplashAutoHide() {
+  useEffect(() => {
+    hideNativeSplash();
+  }, []);
+
+  return null;
+}
+
+function useStoredCrashReportNotice() {
+  const [storedCrashReport, setStoredCrashReport] =
+    useState<StoredCrashReport | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void getStoredCrashReport().then((report) => {
+      if (isMounted) {
+        setStoredCrashReport(report);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const clearCrashReport = useCallback(async () => {
+    await clearStoredCrashReport();
+    setStoredCrashReport(null);
+  }, []);
+
+  return { clearCrashReport, storedCrashReport };
+}
+
+function CrashReportNoticeScreen({
+  onContinue,
+  report,
+}: {
+  onContinue: () => void;
+  report: StoredCrashReport;
+}) {
+  const reportText = useMemo(() => formatCrashReport(report), [report]);
+  const occurredAt = useMemo(
+    () => new Date(report.timestamp).toLocaleString(),
+    [report.timestamp],
+  );
+
+  useEffect(() => {
+    hideNativeSplash();
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.page}>
+          <View style={styles.panel}>
+            <Text style={styles.title}>Previous crash detected</Text>
+            <Text style={styles.bodyText}>
+              The app saved details from the last startup/runtime crash. Send
+              this screen or the text below so we can see what failed.
+            </Text>
+            <View style={styles.panel}>
+              <Text style={styles.label}>Time</Text>
+              <Text style={styles.bodyText}>{occurredAt}</Text>
+              <Text style={styles.label}>Source</Text>
+              <Text style={styles.bodyText}>{report.source}</Text>
+            </View>
+            <Text selectable style={styles.input}>
+              {reportText}
+            </Text>
+            <Pressable onPress={onContinue} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Clear and continue</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
+
+function useAppResumeResetKey() {
+  const appStateRef = useRef(AppState.currentState);
+  const suspendedAtRef = useRef<number | null>(
+    /inactive|background/.test(AppState.currentState) ? Date.now() : null,
+  );
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const previousAppState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      if (/inactive|background/.test(nextAppState)) {
+        if (!/inactive|background/.test(previousAppState)) {
+          suspendedAtRef.current = Date.now();
+        }
+        return;
+      }
+
+      if (
+        nextAppState === "active" &&
+        /inactive|background/.test(previousAppState)
+      ) {
+        const suspendedAt = suspendedAtRef.current;
+        suspendedAtRef.current = null;
+
+        if (
+          suspendedAt &&
+          Date.now() - suspendedAt >= LONG_SLEEP_APP_RESET_MS
+        ) {
+          setResetKey((current) => current + 1);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  return resetKey;
+}
+
+function AppContent({
+  isCompletingOAuthRedirect,
+  isOffline,
+  onTopEdgeToEdgeChange,
+  redirectUrlComplete,
+}: {
+  isCompletingOAuthRedirect: boolean;
+  isOffline: boolean;
+  onTopEdgeToEdgeChange: (isEnabled: boolean) => void;
+  redirectUrlComplete: string;
+}) {
+  const { t } = useI18n();
+
+  usePushNotificationPermissionPrompt();
+
+  if (isCompletingOAuthRedirect) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <>
+        <OAuthRedirectCallback redirectUrlComplete={redirectUrlComplete} />
+        <AppLoadingScreen
+          title={t("loading.oauthComplete")}
+          description={t("loading.syncingAccount")}
+        />
+      </>
+    );
   }
 
+  return (
+    <FantasyHome
+      isOffline={isOffline}
+      onTopEdgeToEdgeChange={onTopEdgeToEdgeChange}
+    />
+  );
+}
+
+function AppBootLoading() {
+  const { t } = useI18n();
+
+  return (
+    <AppLoadingScreen
+      title={t("loading.checkingSession")}
+      description={t("loading.syncingAccount")}
+    />
+  );
+}
+
+type AppRuntimeErrorBoundaryProps = {
+  children: ReactNode;
+};
+
+type AppRuntimeErrorBoundaryState = {
+  error: unknown | null;
+};
+
+class AppRuntimeErrorBoundary extends Component<
+  AppRuntimeErrorBoundaryProps,
+  AppRuntimeErrorBoundaryState
+> {
+  state: AppRuntimeErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    console.warn("[app-runtime-error]", error, errorInfo.componentStack);
+    void storeCrashReportForError({
+      componentStack: errorInfo.componentStack,
+      error,
+      fatal: false,
+      source: "errorBoundary",
+    });
+  }
+
+  handleRetry = () => {
+    this.setState({ error: null });
+  };
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <View style={[styles.container, styles.centerBlock]}>
+        <Text style={styles.title}>Something went wrong</Text>
+        <Text style={styles.mutedText}>
+          The app could not load this screen. Try again, or restart the app if
+          the problem repeats.
+        </Text>
+        <Pressable onPress={this.handleRetry} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+}
+
+function ClerkSessionGate({
+  children,
+  isOffline,
+}: {
+  children: ReactNode;
+  isOffline: boolean;
+}) {
+  const { isLoaded } = useAuth();
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(isLoaded);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setHasLoadedOnce(true);
+    }
+  }, [isLoaded]);
+
+  if (!isLoaded && !hasLoadedOnce) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return <AppBootLoading />;
+  }
+
+  return <>{children}</>;
+}
+
+function ConfiguredApp({
+  clerkPublishableKey,
+  convexUrl,
+}: {
+  clerkPublishableKey: string;
+  convexUrl: string;
+}) {
+  const convexClient = useMemo(
+    () => new ConvexReactClient(convexUrl),
+    [convexUrl],
+  );
+  const [isTopEdgeToEdge, setIsTopEdgeToEdge] = useState(false);
+  const [rootLayoutReady, setRootLayoutReady] = useState(false);
   const isCompletingOAuthRedirect = isWebOAuthCallbackPath();
+  const isOffline = useOfflineStatus();
+  const statusBarStyle =
+    isTopEdgeToEdge || isCompletingOAuthRedirect ? "light" : "dark";
+
+  const handleRootLayout = useCallback(() => {
+    setRootLayoutReady(true);
+  }, []);
+
+  useEffect(() => {
+    void preloadFantasyBootAssets().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (rootLayoutReady) {
+      hideNativeSplash();
+    }
+  }, [rootLayoutReady]);
+
+  useEffect(() => {
+    void preloadFantasyStaticAssets().catch(() => undefined);
+  }, []);
+
   const { redirectUrlComplete } = getWebOAuthRedirectUrls();
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ConvexClerkProvider client={convex}>
+    <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
+      <ConvexClerkProvider client={convexClient}>
         <SafeAreaProvider>
-          <SafeAreaView style={styles.container}>
-            <ClerkLoading>
-              <LoadingBlock />
-            </ClerkLoading>
+          <I18nProvider>
+            <SafeAreaView
+              edges={
+                isTopEdgeToEdge
+                  ? TOP_EDGE_TO_EDGE_SAFE_AREA_EDGES
+                  : DEFAULT_SAFE_AREA_EDGES
+              }
+              onLayout={handleRootLayout}
+              style={styles.container}
+            >
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={0}
+                style={styles.keyboardAvoidingRoot}
+              >
+                <AppRuntimeErrorBoundary>
+                  <ClerkSessionGate isOffline={isOffline}>
+                    <AppContent
+                      isOffline={isOffline}
+                      isCompletingOAuthRedirect={isCompletingOAuthRedirect}
+                      onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
+                      redirectUrlComplete={redirectUrlComplete}
+                    />
+                  </ClerkSessionGate>
+                </AppRuntimeErrorBoundary>
+              </KeyboardAvoidingView>
 
-            <ClerkLoaded>
-              {isCompletingOAuthRedirect ? (
-                <>
-                  <OAuthRedirectCallback redirectUrlComplete={redirectUrlComplete} />
-                  <LoadingBlock text="Завершаем вход через Google..." />
-                </>
-              ) : (
-                <>
-                  <SignedIn>
-                    <AuthLoading>
-                      <LoadingBlock text="Проверяем сессию..." />
-                    </AuthLoading>
-                    <Authenticated>
-                      <SignedInHome />
-                    </Authenticated>
-                    <Unauthenticated>
-                      <ConvexAuthProblem />
-                    </Unauthenticated>
-                  </SignedIn>
-                  <SignedOut>
-                    <AuthScreen />
-                  </SignedOut>
-                </>
-              )}
-            </ClerkLoaded>
-
-            <StatusBar style="dark" />
-          </SafeAreaView>
+              <StatusBar style={statusBarStyle} />
+            </SafeAreaView>
+          </I18nProvider>
         </SafeAreaProvider>
       </ConvexClerkProvider>
     </ClerkProvider>
+  );
+}
+
+export default function App() {
+  const appResumeResetKey = useAppResumeResetKey();
+  const { clearCrashReport, storedCrashReport } = useStoredCrashReportNotice();
+
+  if (storedCrashReport) {
+    return (
+      <CrashReportNoticeScreen
+        onContinue={() => void clearCrashReport()}
+        report={storedCrashReport}
+      />
+    );
+  }
+
+  if (Platform.OS === "web" && isPublicWebPath()) {
+    return (
+      <I18nProvider>
+        <PublicWebSite />
+      </I18nProvider>
+    );
+  }
+
+  if (!publishableKey || !convexUrl) {
+    return (
+      <I18nProvider>
+        <NativeSplashAutoHide />
+        <MissingEnv />
+      </I18nProvider>
+    );
+  }
+
+  return (
+    <ConfiguredApp
+      clerkPublishableKey={publishableKey}
+      convexUrl={convexUrl}
+      key={appResumeResetKey}
+    />
   );
 }

@@ -1,0 +1,1206 @@
+import { useAuth, useClerk, useUser } from "@clerk/expo";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { Image } from "expo-image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Pressable, Text, View } from "react-native";
+import { Bell, Check } from "lucide-react-native";
+
+import { AuthScreen } from "../../components/auth/AuthScreen";
+import { TOKEN_FETCH_TIMEOUT_MS } from "../../constants";
+import { AppConnectionProblemScreen } from "../../components/common/AppConnectionProblemScreen";
+import { AppLoadingOverlay } from "../../components/common/AppLoadingOverlay";
+import { AppLoadingScreen } from "../../components/common/AppLoadingScreen";
+import { LegalConsentText } from "../../components/legal/LegalConsentText";
+import {
+  LegalTextSheet,
+  type LegalTextKind,
+} from "../../components/legal/LegalTextSheet";
+import { useCurrentUserBootstrap } from "../../hooks/useCurrentUserBootstrap";
+import { LEGAL_VERSION } from "../../legal/legalContent";
+import { clearStoredLegalAcceptance } from "../../legal/legalAcceptanceStorage";
+import { useExpoPushTokenRegistration } from "../../hooks/usePushNotifications";
+import { useI18n } from "../../i18n/I18nProvider";
+import { api } from "../../lib/convexApi";
+import { styles } from "../../styles";
+import { colors } from "../../theme/tokens";
+import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
+import { formatPersonName } from "../../utils/names";
+import { FantasyBottomTabs } from "./FantasyBottomTabs";
+import {
+  HeaderActionOverlay,
+  type HeaderActionOverlayConfig,
+} from "./components/HeaderActionOverlay";
+import { SeasonScreen } from "./screens/SeasonScreen";
+import { LeagueScreen } from "./screens/LeagueScreen";
+import { MarketScreen } from "./screens/MarketScreen";
+import { MyTeamScreen } from "./screens/MyTeamScreen";
+import { NotificationsScreen } from "./screens/NotificationsScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
+import {
+  EXTRA_LIGA_SMALL_ICON_IMAGE,
+  FANTASY_CRITICAL_IMAGE_MODULES,
+  FANTASY_STATIC_IMAGE_PROPS,
+  preloadFantasyStaticAssets,
+} from "./assets/fantasyAssets";
+import type { FantasyTab, FantasyTabId } from "./types";
+import {
+  localizeFantasyClubs,
+  localizeFantasyFixtures,
+  localizeFantasyGameweeks,
+  localizeFantasyPlayers,
+  localizeFantasyTeam,
+} from "./utils/localizedFantasyData";
+
+const FANTASY_TABS: FantasyTab[] = [
+  { id: "team" },
+  { id: "league" },
+  { id: "market" },
+  { id: "season" },
+  { id: "profile" },
+];
+
+type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
+
+const CONVEX_AUTH_PROBLEM_GRACE_MS = 30000;
+const PRIVATE_LOADING_OVERLAY_TIMEOUT_MS = 15000;
+const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
+const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
+const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
+const wait = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("Timed out while warming up Convex token.")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+function useLastDefinedValue<T>(
+  value: T | undefined,
+  cacheKey: string | undefined,
+) {
+  const cachedRef = useRef<{
+    cacheKey: string | undefined;
+    value: T | undefined;
+  }>({ cacheKey, value: undefined });
+
+  if (cachedRef.current.cacheKey !== cacheKey) {
+    cachedRef.current = { cacheKey, value: undefined };
+  }
+
+  if (value !== undefined) {
+    cachedRef.current.value = value;
+  }
+
+  return value === undefined ? cachedRef.current.value : value;
+}
+
+function FantasyStaticImagePreloader() {
+  return (
+    <View pointerEvents="none" style={styles.staticImagePreloadLayer}>
+      {FANTASY_CRITICAL_IMAGE_MODULES.map((source, index) => (
+        <Image
+          {...FANTASY_STATIC_IMAGE_PROPS}
+          contentFit="cover"
+          key={index}
+          recyclingKey={`fantasy-critical-preload-${index}`}
+          source={source}
+          style={styles.staticImagePreloadImage}
+        />
+      ))}
+    </View>
+  );
+}
+
+function FantasyShellHeader({
+  onNotificationsPress,
+}: {
+  onNotificationsPress: () => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <View style={styles.fantasyHeader}>
+      <View style={styles.fantasyHeaderTitleGroup}>
+        <View style={styles.fantasyHeaderTitleRow}>
+          <Image
+            {...FANTASY_STATIC_IMAGE_PROPS}
+            contentFit="contain"
+            source={EXTRA_LIGA_SMALL_ICON_IMAGE}
+            style={styles.fantasyHeaderLogo}
+          />
+          <Text style={styles.fantasyAppTitle}>
+            {t("competition.extraLiga.title")}
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        accessibilityLabel={t("notifications.title")}
+        accessibilityRole="button"
+        onPress={onNotificationsPress}
+        style={styles.fantasyHeaderIconButton}
+      >
+        <Bell color={colors.brand.blue} size={21} strokeWidth={2.4} />
+      </Pressable>
+    </View>
+  );
+}
+
+export function FantasyHome({
+  isOffline = false,
+  onTopEdgeToEdgeChange,
+}: {
+  isOffline?: boolean;
+  onTopEdgeToEdgeChange?: (isEnabled: boolean) => void;
+} = {}) {
+  const { language, t } = useI18n();
+  const {
+    getToken,
+    isLoaded: authIsLoaded,
+    isSignedIn,
+    sessionClaims,
+  } = useAuth();
+  const getTokenRef = useRef(getToken);
+  const appStateRef = useRef(AppState.currentState);
+  const preferredLanguageSyncKeyRef = useRef<string | null>(null);
+  const previousPrivateLoadingOverlayDebugRef = useRef<string | null>(null);
+  const [privateLoadingTimedOut, setPrivateLoadingTimedOut] = useState(false);
+  const { signOut } = useClerk();
+  const { user } = useUser();
+  const convexAuth = useConvexAuth();
+  const upsertCurrentUser = useMutation(api.users.upsertCurrentUser);
+  const acceptCurrentUserTerms = useMutation(api.users.acceptCurrentUserTerms);
+  const deleteCurrentUserData = useMutation(api.users.deleteCurrentUserData);
+  const toggleFavoritePlayer = useMutation(api.fantasy.toggleFavoritePlayer);
+  const upsertExpoPushToken = useMutation(
+    api.notifications.upsertExpoPushToken,
+  );
+
+  const [activeTab, setActiveTab] = useState<FantasyTabId>("team");
+  const [hasEnteredPrivateApp, setHasEnteredPrivateApp] = useState(false);
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<FantasyTabId>>(
+    () => new Set(["team", "market"]),
+  );
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [convexTokenStatus, setConvexTokenStatus] =
+    useState<ConvexTokenStatus>("idle");
+  const [foregroundRefreshNonce, setForegroundRefreshNonce] = useState(0);
+  const [canShowAuthProblem, setCanShowAuthProblem] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [headerActionOverlay, setHeaderActionOverlay] =
+    useState<HeaderActionOverlayConfig | null>(null);
+  const [isShellHeaderHidden, setIsShellHeaderHidden] = useState(false);
+  const [areBottomTabsHidden, setAreBottomTabsHidden] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [shouldLoadPointsBreakdowns, setShouldLoadPointsBreakdowns] =
+    useState(false);
+  const [hasAcceptedRequiredLegal, setHasAcceptedRequiredLegal] =
+    useState(false);
+  const [requiredLegalBusy, setRequiredLegalBusy] = useState(false);
+  const [requiredLegalErrorText, setRequiredLegalErrorText] = useState<
+    string | null
+  >(null);
+  const [requiredLegalSheetKind, setRequiredLegalSheetKind] =
+    useState<LegalTextKind | null>(null);
+
+  const rawProfileName =
+    user?.fullName ??
+    getMetadataDisplayName(user?.unsafeMetadata) ??
+    user?.username ??
+    undefined;
+  const userIsSignedIn = authIsLoaded
+    ? Boolean(isSignedIn)
+    : hasEnteredPrivateApp;
+  const preferDefaultToken = sessionClaims?.aud === "convex";
+  const convexTokenReady = convexTokenStatus === "ready";
+  const convexTokenFailed = convexTokenStatus === "failed";
+  const hasRawAuthProblem =
+    userIsSignedIn &&
+    !convexAuth.isLoading &&
+    (!convexAuth.isAuthenticated || convexTokenFailed);
+  const userCanUsePrivateFeatures =
+    userIsSignedIn && convexAuth.isAuthenticated && convexTokenReady;
+  const canUseNetworkedPrivateFeatures =
+    userCanUsePrivateFeatures && !isOffline;
+  const privateDataCacheKey = user?.id;
+  const shouldQueryPrivateData = canUseNetworkedPrivateFeatures;
+  const fantasyOverviewQuery = useQuery(
+    api.fantasy.overview,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyTeamQuery = useQuery(
+    api.fantasy.myTeam,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyPlayersQuery = useQuery(
+    api.fantasy.listPlayers,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyTeamsQuery = useQuery(
+    api.fantasy.listFantasyTeams,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyClubsQuery = useQuery(
+    api.fantasy.listClubs,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyGameweeksQuery = useQuery(
+    api.fantasy.listGameweeks,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyFixturesQuery = useQuery(
+    api.fantasy.listFixtures,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const seasonPlayerStatisticsQuery = useQuery(
+    api.fantasy.seasonPlayerStatistics,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const favoritePlayerIdsQuery = useQuery(
+    api.fantasy.myFavoritePlayerIds,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const gameweekPointsBreakdownQuery = useQuery(
+    api.fantasy.myGameweekPointsBreakdown,
+    shouldQueryPrivateData && shouldLoadPointsBreakdowns ? {} : "skip",
+  );
+  const seasonPointsBreakdownQuery = useQuery(
+    api.fantasy.mySeasonPointsBreakdown,
+    shouldQueryPrivateData && shouldLoadPointsBreakdowns ? {} : "skip",
+  );
+  const currentUserProfileQuery = useQuery(
+    api.users.me,
+    shouldQueryPrivateData ? {} : "skip",
+  );
+  const fantasyOverview = useLastDefinedValue(
+    fantasyOverviewQuery,
+    privateDataCacheKey,
+  );
+  const fantasyTeam = useLastDefinedValue(
+    fantasyTeamQuery,
+    privateDataCacheKey,
+  );
+  const fantasyPlayers = useLastDefinedValue(
+    fantasyPlayersQuery,
+    privateDataCacheKey,
+  );
+  const fantasyTeams = useLastDefinedValue(
+    fantasyTeamsQuery,
+    privateDataCacheKey,
+  );
+  const fantasyClubs = useLastDefinedValue(
+    fantasyClubsQuery,
+    privateDataCacheKey,
+  );
+  const fantasyGameweeks = useLastDefinedValue(
+    fantasyGameweeksQuery,
+    privateDataCacheKey,
+  );
+  const fantasyFixtures = useLastDefinedValue(
+    fantasyFixturesQuery,
+    privateDataCacheKey,
+  );
+  const seasonPlayerStatistics = useLastDefinedValue(
+    seasonPlayerStatisticsQuery,
+    privateDataCacheKey,
+  );
+  const favoritePlayerIds = useLastDefinedValue(
+    favoritePlayerIdsQuery,
+    privateDataCacheKey,
+  );
+  const gameweekPointsBreakdown = useLastDefinedValue(
+    gameweekPointsBreakdownQuery,
+    privateDataCacheKey,
+  );
+  const seasonPointsBreakdown = useLastDefinedValue(
+    seasonPointsBreakdownQuery,
+    privateDataCacheKey,
+  );
+  const currentUserProfile = useLastDefinedValue(
+    currentUserProfileQuery,
+    privateDataCacheKey,
+  );
+  const currentBackendUser = currentUserProfile?.user ?? null;
+  const localizedFantasyClubs = useMemo(
+    () => localizeFantasyClubs(fantasyClubs, language),
+    [fantasyClubs, language],
+  );
+  const localizedFantasyPlayers = useMemo(
+    () =>
+      localizeFantasyPlayers(fantasyPlayers, language, localizedFantasyClubs),
+    [fantasyPlayers, language, localizedFantasyClubs],
+  );
+  const localizedFantasyFixtures = useMemo(
+    () =>
+      localizeFantasyFixtures(fantasyFixtures, language, localizedFantasyClubs),
+    [fantasyFixtures, language, localizedFantasyClubs],
+  );
+  const localizedFantasyGameweeks = useMemo(
+    () => localizeFantasyGameweeks(fantasyGameweeks, language),
+    [fantasyGameweeks, language],
+  );
+  const localizedFantasyTeam = useMemo(
+    () => localizeFantasyTeam(fantasyTeam, language, localizedFantasyClubs),
+    [fantasyTeam, language, localizedFantasyClubs],
+  );
+
+  useEffect(() => {
+    void preloadFantasyStaticAssets().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const currentGameweekNumber =
+      fantasyOverview?.currentGameweek?.number ?? null;
+    if (!currentGameweekNumber) {
+      previousGameweekNumberRef.current = null;
+      setDeadlineNoticeText(null);
+      return;
+    }
+
+    const previousGameweekNumber = previousGameweekNumberRef.current;
+    previousGameweekNumberRef.current = currentGameweekNumber;
+    if (
+      previousGameweekNumber === null ||
+      currentGameweekNumber <= previousGameweekNumber
+    ) {
+      return;
+    }
+
+    setDeadlineNoticeText(
+      t("team.deadlineRolloverNotice").replace(
+        "{number}",
+        String(currentGameweekNumber),
+      ),
+    );
+    const timeoutId = setTimeout(() => setDeadlineNoticeText(null), 8000);
+    return () => clearTimeout(timeoutId);
+  }, [fantasyOverview?.currentGameweek?.number, t]);
+
+  const profileName = rawProfileName
+    ? formatPersonName(rawProfileName)
+    : userIsSignedIn
+      ? t("user.managerFallback")
+      : t("user.guest");
+  const profileEmail = user?.primaryEmailAddress?.emailAddress ?? undefined;
+  const [deadlineNoticeText, setDeadlineNoticeText] = useState<string | null>(
+    null,
+  );
+  const previousGameweekNumberRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
+  useEffect(() => {
+    if (authIsLoaded && !isSignedIn) {
+      setHasEnteredPrivateApp(false);
+      setIsSigningOut(false);
+    }
+  }, [authIsLoaded, isSignedIn]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const previousAppState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      if (
+        userIsSignedIn &&
+        nextAppState === "active" &&
+        /inactive|background/.test(previousAppState)
+      ) {
+        setCanShowAuthProblem(false);
+        setConvexTokenStatus("idle");
+        setForegroundRefreshNonce((current) => current + 1);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [userIsSignedIn]);
+
+  const currentAuthUserId = isSignedIn ? user?.id : undefined;
+  const previousAuthUserIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!authIsLoaded) return;
+    if (previousAuthUserIdRef.current === currentAuthUserId) return;
+
+    previousAuthUserIdRef.current = currentAuthUserId;
+    setActiveTab("team");
+    setVisitedTabs(new Set(["team", "market"]));
+    setIsNotificationsOpen(false);
+    setHeaderActionOverlay(null);
+    setIsShellHeaderHidden(false);
+    setAreBottomTabsHidden(false);
+    setHasAcceptedRequiredLegal(false);
+    setRequiredLegalBusy(false);
+    setRequiredLegalErrorText(null);
+    setRequiredLegalSheetKind(null);
+  }, [authIsLoaded, currentAuthUserId]);
+
+  useEffect(() => {
+    if (activeTab !== "team") {
+      setHeaderActionOverlay(null);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!hasRawAuthProblem) {
+      setCanShowAuthProblem(false);
+      return undefined;
+    }
+
+    if (convexTokenFailed) {
+      setCanShowAuthProblem(true);
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setCanShowAuthProblem(true);
+    }, CONVEX_AUTH_PROBLEM_GRACE_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [convexTokenFailed, hasRawAuthProblem]);
+
+  useEffect(() => {
+    if (
+      !userIsSignedIn ||
+      isOffline ||
+      convexAuth.isLoading ||
+      !convexAuth.isAuthenticated
+    ) {
+      setConvexTokenStatus((current) => {
+        if (isOffline && current === "ready") {
+          return current;
+        }
+
+        return current === "idle" ? current : "idle";
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setConvexTokenStatus((current) =>
+      current === "loading" ? current : "loading",
+    );
+
+    const warmUpConvexToken = async () => {
+      const tokenRequests = preferDefaultToken
+        ? [{}, { template: "convex" as const }]
+        : [{ template: "convex" as const }, {}];
+      const startedAt = Date.now();
+      const hasWarmupTimedOut = () =>
+        Date.now() - startedAt >= CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS;
+
+      warmupAttempts: for (
+        let attempt = 0;
+        attempt < CONVEX_TOKEN_WARMUP_ATTEMPTS;
+        attempt += 1
+      ) {
+        if (hasWarmupTimedOut()) break;
+
+        for (const request of tokenRequests) {
+          if (hasWarmupTimedOut()) break warmupAttempts;
+
+          try {
+            const token = await withTimeout(
+              getTokenRef.current(request),
+              TOKEN_FETCH_TIMEOUT_MS,
+            );
+            if (token) {
+              if (!cancelled) {
+                setConvexTokenStatus("ready");
+              }
+              return;
+            }
+          } catch {
+            // Clerk may need a short moment after OAuth before every token variant is available.
+          }
+        }
+
+        if (cancelled) return;
+        if (hasWarmupTimedOut()) break;
+        await wait(CONVEX_TOKEN_WARMUP_DELAY_MS);
+      }
+
+      if (!cancelled) {
+        setConvexTokenStatus("failed");
+      }
+    };
+
+    void warmUpConvexToken();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    convexAuth.isAuthenticated,
+    convexAuth.isLoading,
+    foregroundRefreshNonce,
+    isOffline,
+    preferDefaultToken,
+    userIsSignedIn,
+  ]);
+
+  const clearError = useCallback(() => setErrorText(null), []);
+  const setAsyncError = useCallback(
+    (message: string) => setErrorText(message),
+    [],
+  );
+  const handleTabChange = useCallback((nextTab: FantasyTabId) => {
+    setVisitedTabs((current) => {
+      if (current.has(nextTab)) return current;
+
+      const next = new Set(current);
+      next.add(nextTab);
+      return next;
+    });
+    setActiveTab(nextTab);
+  }, []);
+  const profileReady = useCurrentUserBootstrap({
+    onError: setAsyncError,
+    onStart: clearError,
+    preferredLanguage: language,
+    profileEmail,
+    profileName,
+    upsertCurrentUser,
+    userId: canUseNetworkedPrivateFeatures ? user?.id : undefined,
+  });
+
+  const currentTermsAreAccepted = Boolean(
+    currentBackendUser?.termsAcceptedAt &&
+    currentBackendUser.termsVersion === LEGAL_VERSION,
+  );
+  const shouldWaitForCurrentUserProfile =
+    userCanUsePrivateFeatures &&
+    profileReady &&
+    currentUserProfile === undefined;
+  const shouldRequireLegalAcceptance = Boolean(
+    userCanUsePrivateFeatures &&
+    profileReady &&
+    currentBackendUser &&
+    !currentTermsAreAccepted,
+  );
+
+  useEffect(() => {
+    if (userCanUsePrivateFeatures && profileReady) {
+      setHasEnteredPrivateApp(true);
+    }
+  }, [profileReady, userCanUsePrivateFeatures]);
+
+  useEffect(() => {
+    if (!userIsSignedIn) {
+      preferredLanguageSyncKeyRef.current = null;
+    }
+  }, [userIsSignedIn]);
+
+  useEffect(() => {
+    if (
+      !canUseNetworkedPrivateFeatures ||
+      !profileReady ||
+      !currentBackendUser
+    ) {
+      return undefined;
+    }
+
+    const syncKey = `${currentBackendUser.clerkId}:${language}`;
+    if (currentBackendUser.preferredLanguage === language) {
+      preferredLanguageSyncKeyRef.current = syncKey;
+      return undefined;
+    }
+
+    if (preferredLanguageSyncKeyRef.current === syncKey) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      preferredLanguageSyncKeyRef.current = syncKey;
+      void upsertCurrentUser({
+        email: profileEmail,
+        name: profileName,
+        preferredLanguage: language,
+      }).catch(() => {
+        if (preferredLanguageSyncKeyRef.current === syncKey) {
+          preferredLanguageSyncKeyRef.current = null;
+        }
+      });
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    canUseNetworkedPrivateFeatures,
+    currentBackendUser,
+    language,
+    profileEmail,
+    profileName,
+    profileReady,
+    upsertCurrentUser,
+  ]);
+
+  useExpoPushTokenRegistration({
+    enabled: canUseNetworkedPrivateFeatures && profileReady,
+    upsertExpoPushToken,
+  });
+
+  const handleToggleFavoritePlayer = useCallback(
+    (playerId: Id<"fantasyPlayers">, isFavorite: boolean) => {
+      void toggleFavoritePlayer({ isFavorite, playerId }).catch(
+        (error: unknown) => {
+          setAsyncError(
+            error instanceof Error ? error.message : t("common.loading"),
+          );
+        },
+      );
+    },
+    [setAsyncError, t, toggleFavoritePlayer],
+  );
+
+  const isLeagueTabActive = activeTab === "league";
+  const isTeamTabActive = activeTab === "team";
+  const isMarketTabActive = activeTab === "market";
+  const isSeasonTabActive = activeTab === "season";
+  const isProfileTabActive = activeTab === "profile";
+  const leagueTabWasVisited = visitedTabs.has("league");
+  const marketTabWasVisited = visitedTabs.has("market");
+  const seasonTabWasVisited = visitedTabs.has("season");
+  const profileTabWasVisited = visitedTabs.has("profile");
+
+  const handleRequiredLegalAccept = useCallback(async () => {
+    if (!hasAcceptedRequiredLegal) {
+      setRequiredLegalErrorText(t("auth.termsRequired"));
+      return;
+    }
+
+    try {
+      setRequiredLegalBusy(true);
+      setRequiredLegalErrorText(null);
+      await acceptCurrentUserTerms({
+        termsAcceptedAt: Date.now(),
+        termsVersion: LEGAL_VERSION,
+      });
+      await clearStoredLegalAcceptance();
+    } catch (error) {
+      setRequiredLegalErrorText(getErrorMessage(error, language));
+    } finally {
+      setRequiredLegalBusy(false);
+    }
+  }, [acceptCurrentUserTerms, hasAcceptedRequiredLegal, language, t]);
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      setErrorText(null);
+      setIsSigningOut(true);
+      await clearStoredLegalAcceptance();
+      await signOut();
+    } catch (error) {
+      setIsSigningOut(false);
+      setAsyncError(getErrorMessage(error, language));
+    }
+  }, [language, setAsyncError, signOut]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    const clerkUser = user as { delete?: () => Promise<unknown> } & typeof user;
+    if (!clerkUser?.delete) {
+      throw new Error(t("profile.deleteAccountFailed"));
+    }
+
+    await deleteCurrentUserData({});
+    await clearStoredLegalAcceptance();
+    await clerkUser.delete();
+    await signOut();
+  }, [deleteCurrentUserData, signOut, t, user]);
+
+  const handlePointsDetailsVisibleChange = useCallback((isVisible: boolean) => {
+    if (isVisible) {
+      setShouldLoadPointsBreakdowns(true);
+    }
+  }, []);
+
+  const leagueScreen = useMemo(
+    () => <LeagueScreen teams={fantasyTeams} />,
+    [fantasyTeams],
+  );
+  const teamScreen = useMemo(
+    () => (
+      <MyTeamScreen
+        fantasyClubs={localizedFantasyClubs}
+        fantasyOverview={fantasyOverview}
+        fantasyPlayers={localizedFantasyPlayers}
+        fantasyTeam={localizedFantasyTeam}
+        fantasyTeams={fantasyTeams}
+        fantasyGameweeks={localizedFantasyGameweeks}
+        gameweekPointsBreakdown={gameweekPointsBreakdown}
+        seasonPointsBreakdown={seasonPointsBreakdown}
+        isActive={isTeamTabActive}
+        managerName={profileName}
+        onBottomTabsHiddenChange={setAreBottomTabsHidden}
+        onHeaderActionOverlayChange={setHeaderActionOverlay}
+        onPointsDetailsVisibleChange={handlePointsDetailsVisibleChange}
+        onShellHeaderHiddenChange={setIsShellHeaderHidden}
+        onTopEdgeToEdgeChange={onTopEdgeToEdgeChange}
+      />
+    ),
+    [
+      fantasyOverview,
+      localizedFantasyClubs,
+      localizedFantasyPlayers,
+      localizedFantasyTeam,
+      fantasyTeams,
+      localizedFantasyGameweeks,
+      gameweekPointsBreakdown,
+      seasonPointsBreakdown,
+      isTeamTabActive,
+      profileName,
+      handlePointsDetailsVisibleChange,
+      setAreBottomTabsHidden,
+      setIsShellHeaderHidden,
+      onTopEdgeToEdgeChange,
+    ],
+  );
+  const marketScreen = useMemo(
+    () => (
+      <MarketScreen
+        clubs={localizedFantasyClubs}
+        favoritePlayerIds={favoritePlayerIds}
+        onToggleFavorite={handleToggleFavoritePlayer}
+        players={localizedFantasyPlayers}
+      />
+    ),
+    [
+      localizedFantasyClubs,
+      localizedFantasyPlayers,
+      favoritePlayerIds,
+      handleToggleFavoritePlayer,
+    ],
+  );
+  const seasonScreen = useMemo(
+    () => (
+      <SeasonScreen
+        clubs={localizedFantasyClubs}
+        fixtures={localizedFantasyFixtures}
+        gameweeks={localizedFantasyGameweeks}
+        playerStatistics={seasonPlayerStatistics}
+      />
+    ),
+    [
+      localizedFantasyClubs,
+      localizedFantasyFixtures,
+      localizedFantasyGameweeks,
+      seasonPlayerStatistics,
+    ],
+  );
+  const profileScreen = useMemo(
+    () => (
+      <ProfileScreen
+        canQueryPrivateData={shouldQueryPrivateData}
+        email={profileEmail}
+        fixtures={localizedFantasyFixtures}
+        gameweeks={localizedFantasyGameweeks}
+        isAdmin={Boolean(currentUserProfile?.isAdmin)}
+        name={profileName}
+        onDeleteAccount={handleDeleteAccount}
+        onSignOut={handleSignOut}
+        players={localizedFantasyPlayers}
+      />
+    ),
+    [
+      currentUserProfile?.isAdmin,
+      shouldQueryPrivateData,
+      localizedFantasyGameweeks,
+      handleDeleteAccount,
+      handleSignOut,
+      localizedFantasyFixtures,
+      localizedFantasyPlayers,
+      profileEmail,
+      profileName,
+    ],
+  );
+
+  const privateLoadingOverlayReason =
+    hasEnteredPrivateApp && userIsSignedIn
+      ? isSigningOut
+        ? "signingOut"
+        : !isOffline && convexAuth.isLoading
+          ? "convexAuthLoading"
+          : !isOffline && !convexAuth.isAuthenticated && !canShowAuthProblem
+            ? "convexAuthNotAuthenticated"
+            : !isOffline &&
+                convexAuth.isAuthenticated &&
+                !convexTokenReady &&
+                !canShowAuthProblem
+              ? "convexTokenNotReady"
+              : !isOffline && shouldWaitForCurrentUserProfile
+                ? "currentUserProfileLoading"
+                : !isOffline && userCanUsePrivateFeatures && !profileReady
+                  ? "profileBootstrap"
+                  : null
+      : null;
+  const privateLoadingOverlayTitle =
+    privateLoadingOverlayReason === "signingOut"
+      ? t("loading.signingOut")
+      : privateLoadingOverlayReason === "currentUserProfileLoading" ||
+          privateLoadingOverlayReason === "profileBootstrap"
+        ? t("loading.preparingProfile")
+        : privateLoadingOverlayReason
+          ? t("loading.checkingSession")
+          : null;
+  const privateLoadingOverlayDebugKey = privateLoadingOverlayReason
+    ? JSON.stringify({
+        reason: privateLoadingOverlayReason,
+        authIsLoaded,
+        canShowAuthProblem,
+        convexAuthIsAuthenticated: convexAuth.isAuthenticated,
+        convexAuthIsLoading: convexAuth.isLoading,
+        convexTokenStatus,
+        foregroundRefreshNonce,
+        hasEnteredPrivateApp,
+        isOffline,
+        profileReady,
+        shouldWaitForCurrentUserProfile,
+        userCanUsePrivateFeatures,
+        userIsSignedIn,
+      })
+    : null;
+
+  useEffect(() => {
+    if (!privateLoadingOverlayReason) {
+      setPrivateLoadingTimedOut(false);
+      return undefined;
+    }
+
+    setPrivateLoadingTimedOut(false);
+    const timeoutId = setTimeout(() => {
+      setPrivateLoadingTimedOut(true);
+    }, PRIVATE_LOADING_OVERLAY_TIMEOUT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [foregroundRefreshNonce, privateLoadingOverlayReason]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (
+      previousPrivateLoadingOverlayDebugRef.current ===
+      privateLoadingOverlayDebugKey
+    ) {
+      return;
+    }
+
+    previousPrivateLoadingOverlayDebugRef.current =
+      privateLoadingOverlayDebugKey;
+
+    if (!privateLoadingOverlayDebugKey) return;
+
+    console.log(
+      "[FantasyHome] loading overlay",
+      JSON.parse(privateLoadingOverlayDebugKey),
+    );
+  }, [privateLoadingOverlayDebugKey]);
+
+  if (!authIsLoaded && !hasEnteredPrivateApp) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("loading.checkingSession")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
+  if (isSigningOut && userIsSignedIn && !hasEnteredPrivateApp) {
+    return (
+      <AppLoadingScreen
+        title={t("loading.signingOut")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
+  if (shouldWaitForCurrentUserProfile && !hasEnteredPrivateApp) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("loading.preparingProfile")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
+  if (shouldRequireLegalAcceptance) {
+    return (
+      <View style={styles.fantasyShell}>
+        <FantasyStaticImagePreloader />
+        <FantasyShellHeader
+          onNotificationsPress={() => setIsNotificationsOpen(true)}
+        />
+        <View style={styles.fantasyScreen}>
+          <View style={styles.panel}>
+            <Text style={styles.sectionTitle}>{t("auth.termsGateTitle")}</Text>
+            <Text style={styles.mutedText}>
+              {t("auth.termsGateDescription")}
+            </Text>
+
+            <View style={styles.legalConsentGroup}>
+              <View style={styles.legalConsentRow}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: hasAcceptedRequiredLegal }}
+                  hitSlop={8}
+                  onPress={() => {
+                    setHasAcceptedRequiredLegal((current) => !current);
+                    setRequiredLegalErrorText(null);
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.legalCheckbox,
+                      hasAcceptedRequiredLegal
+                        ? styles.legalCheckboxChecked
+                        : null,
+                    ]}
+                  >
+                    {hasAcceptedRequiredLegal ? (
+                      <Check
+                        color={colors.text.inverse}
+                        size={15}
+                        strokeWidth={3}
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
+                <LegalConsentText
+                  onPrivacyPress={() => setRequiredLegalSheetKind("privacy")}
+                  onTermsPress={() => setRequiredLegalSheetKind("terms")}
+                />
+              </View>
+            </View>
+
+            {requiredLegalErrorText ? (
+              <Text style={styles.errorText}>{requiredLegalErrorText}</Text>
+            ) : null}
+
+            <Pressable
+              disabled={requiredLegalBusy || !hasAcceptedRequiredLegal}
+              onPress={() => void handleRequiredLegalAccept()}
+              style={[
+                styles.authPrimaryButton,
+                requiredLegalBusy || !hasAcceptedRequiredLegal
+                  ? styles.buttonDisabled
+                  : null,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {requiredLegalBusy
+                  ? t("auth.wait")
+                  : t("auth.acceptTermsContinue")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+        <LegalTextSheet
+          kind={requiredLegalSheetKind ?? "terms"}
+          onClose={() => setRequiredLegalSheetKind(null)}
+          visible={Boolean(requiredLegalSheetKind)}
+        />
+      </View>
+    );
+  }
+
+  if (!userIsSignedIn) {
+    return <AuthScreen title={t("auth.welcomeTitle")} />;
+  }
+
+  if (isOffline && !hasEnteredPrivateApp && !userCanUsePrivateFeatures) {
+    return <AppConnectionProblemScreen />;
+  }
+
+  if (
+    userIsSignedIn &&
+    !hasEnteredPrivateApp &&
+    (convexAuth.isLoading ||
+      (!convexAuth.isAuthenticated && !canShowAuthProblem) ||
+      (convexAuth.isAuthenticated && !convexTokenReady && !canShowAuthProblem))
+  ) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("loading.oauthComplete")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
+  if (userCanUsePrivateFeatures && !profileReady && !hasEnteredPrivateApp) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("loading.preparingProfile")}
+        description={t("loading.syncingAccount")}
+      />
+    );
+  }
+
+  const authProblemText =
+    hasRawAuthProblem && canShowAuthProblem ? t("session.authProblem") : null;
+  const sessionRestoreProblemText =
+    privateLoadingTimedOut && privateLoadingOverlayReason
+      ? t("session.restoreProblem")
+      : null;
+  const connectionProblemText = isOffline
+    ? t("network.offlineDescription")
+    : null;
+  const inlineMessageText =
+    errorText ??
+    authProblemText ??
+    sessionRestoreProblemText ??
+    connectionProblemText ??
+    deadlineNoticeText;
+  const inlineMessageStyle =
+    deadlineNoticeText && inlineMessageText === deadlineNoticeText
+      ? [styles.fantasyInlineMessage, styles.fantasyInlineMessageInfo]
+      : styles.fantasyInlineMessage;
+  const inlineMessageTextStyle =
+    deadlineNoticeText && inlineMessageText === deadlineNoticeText
+      ? styles.fantasyInlineMessageInfoText
+      : styles.errorText;
+
+  if (authProblemText) {
+    return (
+      <View style={styles.fantasyShell}>
+        <FantasyShellHeader
+          onNotificationsPress={() => setIsNotificationsOpen(true)}
+        />
+
+        <View style={styles.fantasyInlineMessage}>
+          <Text style={styles.errorText}>{authProblemText}</Text>
+        </View>
+
+        <View style={styles.fantasyScreen}>
+          <View style={styles.panel}>
+            <Text style={styles.sectionTitle}>{profileName}</Text>
+            <Text style={styles.mutedText}>
+              {profileEmail ?? t("profile.noEmail")}
+            </Text>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => void handleSignOut()}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {t("profile.signOut")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (isNotificationsOpen) {
+    return <NotificationsScreen onBack={() => setIsNotificationsOpen(false)} />;
+  }
+
+  return (
+    <View style={styles.fantasyShell}>
+      <FantasyStaticImagePreloader />
+      {isShellHeaderHidden ? null : (
+        <FantasyShellHeader
+          onNotificationsPress={() => setIsNotificationsOpen(true)}
+        />
+      )}
+      <HeaderActionOverlay config={headerActionOverlay} />
+
+      {inlineMessageText ? (
+        <View style={inlineMessageStyle}>
+          <Text style={inlineMessageTextStyle}>{inlineMessageText}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.fantasyContent}>
+        <View
+          pointerEvents={isLeagueTabActive ? "auto" : "none"}
+          style={[
+            styles.fantasyCachedTabPanel,
+            isLeagueTabActive ? null : styles.fantasyCachedTabPanelHidden,
+          ]}
+        >
+          {leagueTabWasVisited ? leagueScreen : null}
+        </View>
+        <View
+          pointerEvents={isTeamTabActive ? "auto" : "none"}
+          style={[
+            styles.fantasyCachedTabPanel,
+            isTeamTabActive ? null : styles.fantasyCachedTabPanelHidden,
+          ]}
+        >
+          {teamScreen}
+        </View>
+        <View
+          pointerEvents={isMarketTabActive ? "auto" : "none"}
+          style={[
+            styles.fantasyCachedTabPanel,
+            isMarketTabActive ? null : styles.fantasyCachedTabPanelHidden,
+          ]}
+        >
+          {marketTabWasVisited ? marketScreen : null}
+        </View>
+        <View
+          pointerEvents={isSeasonTabActive ? "auto" : "none"}
+          style={[
+            styles.fantasyCachedTabPanel,
+            isSeasonTabActive ? null : styles.fantasyCachedTabPanelHidden,
+          ]}
+        >
+          {seasonTabWasVisited ? seasonScreen : null}
+        </View>
+        <View
+          pointerEvents={isProfileTabActive ? "auto" : "none"}
+          style={[
+            styles.fantasyCachedTabPanel,
+            isProfileTabActive ? null : styles.fantasyCachedTabPanelHidden,
+          ]}
+        >
+          {profileTabWasVisited ? profileScreen : null}
+        </View>
+      </View>
+
+      {areBottomTabsHidden ? null : (
+        <FantasyBottomTabs
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          tabs={FANTASY_TABS}
+        />
+      )}
+
+      {privateLoadingOverlayTitle && !privateLoadingTimedOut ? (
+        <AppLoadingOverlay title={privateLoadingOverlayTitle} />
+      ) : null}
+    </View>
+  );
+}

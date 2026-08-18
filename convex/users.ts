@@ -1,7 +1,8 @@
 import { mutation, query } from "./_generated/server";
-import { MAX_PARTICIPANTS } from "./validators";
-import { getCurrentUser, requireIdentity } from "./authHelpers";
+import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
 import { v } from "convex/values";
+
+const MAX_FEEDBACK_MESSAGE_LENGTH = 4000;
 
 function normalizeOptional(value: string | undefined) {
   const trimmed = value?.trim();
@@ -12,7 +13,7 @@ function capitalizeNamePart(value: string) {
   if (!value) return value;
 
   const [firstLetter, ...restLetters] = Array.from(value);
-  return `${firstLetter.toLocaleUpperCase("ru-RU")}${restLetters.join("").toLocaleLowerCase("ru-RU")}`;
+  return `${firstLetter.toLocaleUpperCase("uk-UA")}${restLetters.join("").toLocaleLowerCase("uk-UA")}`;
 }
 
 function formatPersonName(name: string) {
@@ -20,21 +21,32 @@ function formatPersonName(name: string) {
     .trim()
     .replace(/\s+/g, " ")
     .split(" ")
-    .map((word) => word.split(/([-’'])/).map(capitalizeNamePart).join(""))
+    .map((word) =>
+      word
+        .split(/([-’'])/)
+        .map(capitalizeNamePart)
+        .join(""),
+    )
     .join(" ");
 }
 
-function resolveName(identity: Awaited<ReturnType<typeof requireIdentity>>, name?: string, email?: string) {
+function resolveName(
+  identity: Awaited<ReturnType<typeof requireIdentity>>,
+  name?: string,
+  email?: string,
+) {
   const normalizedName = normalizeOptional(name);
   if (normalizedName) return formatPersonName(normalizedName);
 
   if (identity.name?.trim()) return formatPersonName(identity.name);
   if (identity.nickname?.trim()) return formatPersonName(identity.nickname);
 
-  const resolvedEmail = normalizeOptional(email) ?? normalizeOptional(identity.email);
-  if (resolvedEmail) return formatPersonName(resolvedEmail.split("@")[0] || "Игрок");
+  const resolvedEmail =
+    normalizeOptional(email) ?? normalizeOptional(identity.email);
+  if (resolvedEmail)
+    return formatPersonName(resolvedEmail.split("@")[0] || "Manager");
 
-  return `Игрок ${identity.subject.slice(-6)}`;
+  return `Manager ${identity.subject.slice(-6)}`;
 }
 
 function toUserView(user: {
@@ -43,6 +55,10 @@ function toUserView(user: {
   email?: string;
   name: string;
   participantNumber?: number;
+  favoriteFantasyClubId?: string;
+  preferredLanguage?: "en" | "uk";
+  termsAcceptedAt?: number;
+  termsVersion?: string;
   createdAt: number;
 }) {
   return {
@@ -51,34 +67,21 @@ function toUserView(user: {
     email: user.email ?? null,
     name: user.name,
     participantNumber: user.participantNumber ?? null,
-    isParticipant: user.participantNumber !== undefined,
+    favoriteFantasyClubId: user.favoriteFantasyClubId ?? null,
+    preferredLanguage: user.preferredLanguage ?? null,
+    termsAcceptedAt: user.termsAcceptedAt ?? null,
+    termsVersion: user.termsVersion ?? null,
     createdAt: user.createdAt,
   };
-}
-
-function getParticipants(users: Array<{ participantNumber?: number }>) {
-  return users.filter((user) => user.participantNumber !== undefined);
-}
-
-function getNextParticipantNumber(users: Array<{ participantNumber?: number }>) {
-  const participants = getParticipants(users);
-
-  if (participants.length >= MAX_PARTICIPANTS) {
-    return undefined;
-  }
-
-  return (
-    participants.reduce(
-      (highest, user) => Math.max(highest, user.participantNumber ?? 0),
-      0,
-    ) + 1
-  );
 }
 
 export const upsertCurrentUser = mutation({
   args: {
     email: v.optional(v.string()),
     name: v.optional(v.string()),
+    preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("uk"))),
+    termsAcceptedAt: v.optional(v.number()),
+    termsVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
@@ -87,74 +90,323 @@ export const upsertCurrentUser = mutation({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
-    const users = await ctx.db.query("users").collect();
-    const participantCount = getParticipants(users).length;
-    const email = normalizeOptional(args.email) ?? normalizeOptional(identity.email);
+    const email =
+      normalizeOptional(args.email) ?? normalizeOptional(identity.email);
     const name = resolveName(identity, args.name, email);
     const now = Date.now();
 
+    const newUserLegalAcceptancePatch =
+      args.termsAcceptedAt && args.termsVersion
+        ? {
+            termsAcceptedAt: args.termsAcceptedAt,
+            termsVersion: args.termsVersion,
+          }
+        : {};
+    const preferredLanguagePatch = args.preferredLanguage
+      ? { preferredLanguage: args.preferredLanguage }
+      : {};
+
     if (existing) {
-      const participantNumber = existing.participantNumber ?? getNextParticipantNumber(users);
       await ctx.db.patch(existing._id, {
         email,
         name,
-        participantNumber,
+        ...preferredLanguagePatch,
         updatedAt: now,
       });
 
       return {
-        accepted: participantNumber !== undefined,
-        user: toUserView({ ...existing, email, name, participantNumber }),
-        participantCount:
-          existing.participantNumber === undefined && participantNumber !== undefined
-            ? participantCount + 1
-            : participantCount,
-        userCount: users.length,
-        maxParticipants: MAX_PARTICIPANTS,
+        user: toUserView({
+          ...existing,
+          email,
+          name,
+          ...preferredLanguagePatch,
+        }),
       };
     }
 
-    const participantNumber = getNextParticipantNumber(users);
     const userId = await ctx.db.insert("users", {
       clerkId: identity.subject,
       email,
       name,
-      participantNumber,
+      ...newUserLegalAcceptancePatch,
+      ...preferredLanguagePatch,
       createdAt: now,
       updatedAt: now,
     });
 
     return {
-      accepted: participantNumber !== undefined,
       user: {
         id: userId,
         clerkId: identity.subject,
         email: email ?? null,
         name,
-        participantNumber: participantNumber ?? null,
-        isParticipant: participantNumber !== undefined,
+        participantNumber: null,
+        favoriteFantasyClubId: null,
+        preferredLanguage: preferredLanguagePatch.preferredLanguage ?? null,
+        termsAcceptedAt: newUserLegalAcceptancePatch.termsAcceptedAt ?? null,
+        termsVersion: newUserLegalAcceptancePatch.termsVersion ?? null,
         createdAt: now,
       },
-      participantCount: participantNumber !== undefined ? participantCount + 1 : participantCount,
-      userCount: users.length + 1,
-      maxParticipants: MAX_PARTICIPANTS,
     };
+  },
+});
+
+export const acceptCurrentUserTerms = mutation({
+  args: {
+    termsAcceptedAt: v.number(),
+    termsVersion: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    await ctx.db.patch(user._id, {
+      termsAcceptedAt: args.termsAcceptedAt,
+      termsVersion: args.termsVersion,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      user: toUserView({
+        ...user,
+        termsAcceptedAt: args.termsAcceptedAt,
+        termsVersion: args.termsVersion,
+      }),
+    };
+  },
+});
+
+export const updateFavoriteFantasyClub = mutation({
+  args: {
+    favoriteClubId: v.union(v.id("fantasyClubs"), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const patch = args.favoriteClubId
+      ? { favoriteFantasyClubId: args.favoriteClubId, updatedAt: Date.now() }
+      : { favoriteFantasyClubId: undefined, updatedAt: Date.now() };
+
+    await ctx.db.patch(user._id, patch);
+    return { favoriteFantasyClubId: args.favoriteClubId };
   },
 });
 
 export const me = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getCurrentUser(ctx);
-    const users = await ctx.db.query("users").collect();
-    const participantCount = getParticipants(users).length;
+    const { identity, user } = await getCurrentUser(ctx);
 
     return {
-      accepted: Boolean(user?.participantNumber !== undefined),
+      isAdmin: isAdminUser(identity, user),
       user: user ? toUserView(user) : null,
-      participantCount,
-      userCount: users.length,
-      maxParticipants: MAX_PARTICIPANTS,
+    };
+  },
+});
+
+export const submitFeedback = mutation({
+  args: {
+    message: v.string(),
+    source: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const message = args.message.trim();
+    if (message.length < 3) {
+      throw new Error("Feedback message is too short.");
+    }
+    if (message.length > MAX_FEEDBACK_MESSAGE_LENGTH) {
+      throw new Error("Feedback message is too long.");
+    }
+
+    const now = Date.now();
+    const feedbackId = await ctx.db.insert("userFeedback", {
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+      message,
+      source: normalizeOptional(args.source),
+      status: "new",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { feedbackId };
+  },
+});
+
+export const listFeedback = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { identity, user } = await getCurrentUser(ctx);
+    if (!isAdminUser(identity, user)) return [];
+
+    const limit = Math.min(Math.max(Math.floor(args.limit ?? 20), 1), 50);
+    const items = await ctx.db
+      .query("userFeedback")
+      .withIndex("by_status_created_at", (q) => q.eq("status", "new"))
+      .order("desc")
+      .take(limit);
+
+    return items.map((item) => ({
+      id: item._id,
+      userId: item.userId ?? null,
+      email: item.email ?? null,
+      name: item.name ?? null,
+      message: item.message,
+      source: item.source ?? null,
+      status: item.status,
+      createdAt: item.createdAt,
+    }));
+  },
+});
+
+export const deleteCurrentUserData = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      return {
+        deleted: false,
+        favorites: 0,
+        feedback: 0,
+        gameweekSquadPicks: 0,
+        pushTokens: 0,
+        squadPicks: 0,
+        pointDeductions: 0,
+        teamScores: 0,
+        teams: 0,
+        transfers: 0,
+      };
+    }
+
+    let deletedGameweekSquadPicks = 0;
+    let deletedSquadPicks = 0;
+    let deletedTeamScores = 0;
+    let deletedTransfers = 0;
+    let deletedPointDeductions = 0;
+    const fantasyTeams = await ctx.db
+      .query("fantasyTeams")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    for (const fantasyTeam of fantasyTeams) {
+      const picks = await ctx.db
+        .query("fantasySquadPicks")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+      for (const pick of picks) {
+        await ctx.db.delete(pick._id);
+        deletedSquadPicks += 1;
+      }
+
+      const gameweekPicks = await ctx.db
+        .query("fantasyGameweekSquadPicks")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+      for (const gameweekPick of gameweekPicks) {
+        await ctx.db.delete(gameweekPick._id);
+        deletedGameweekSquadPicks += 1;
+      }
+
+      const deductions = await ctx.db
+        .query("fantasyPointDeductions")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+      for (const deduction of deductions) {
+        await ctx.db.delete(deduction._id);
+        deletedPointDeductions += 1;
+      }
+
+      const transfers = await ctx.db
+        .query("fantasyTransfers")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+      for (const transfer of transfers) {
+        await ctx.db.delete(transfer._id);
+        deletedTransfers += 1;
+      }
+
+      const scores = await ctx.db
+        .query("fantasyTeamGameweekScores")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+      for (const score of scores) {
+        await ctx.db.delete(score._id);
+        deletedTeamScores += 1;
+      }
+    }
+
+    const favorites = await ctx.db
+      .query("fantasyPlayerFavorites")
+      .filter((q) => q.eq(q.field("userId"), user._id))
+      .collect();
+    for (const favorite of favorites) {
+      await ctx.db.delete(favorite._id);
+    }
+
+    const pushTokens = await ctx.db
+      .query("pushNotificationTokens")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const pushToken of pushTokens) {
+      await ctx.db.delete(pushToken._id);
+    }
+
+    const feedbackItems = await ctx.db
+      .query("userFeedback")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const feedbackItem of feedbackItems) {
+      await ctx.db.delete(feedbackItem._id);
+    }
+
+    const remainingDeductions = await ctx.db
+      .query("fantasyPointDeductions")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const deduction of remainingDeductions) {
+      await ctx.db.delete(deduction._id);
+      deletedPointDeductions += 1;
+    }
+
+    const remainingTransfers = await ctx.db
+      .query("fantasyTransfers")
+      .filter((q) => q.eq(q.field("userId"), user._id))
+      .collect();
+    for (const transfer of remainingTransfers) {
+      await ctx.db.delete(transfer._id);
+      deletedTransfers += 1;
+    }
+
+    for (const fantasyTeam of fantasyTeams) {
+      await ctx.db.delete(fantasyTeam._id);
+    }
+
+    await ctx.db.delete(user._id);
+
+    return {
+      deleted: true,
+      favorites: favorites.length,
+      feedback: feedbackItems.length,
+      gameweekSquadPicks: deletedGameweekSquadPicks,
+      pointDeductions: deletedPointDeductions,
+      pushTokens: pushTokens.length,
+      squadPicks: deletedSquadPicks,
+      teamScores: deletedTeamScores,
+      teams: fantasyTeams.length,
+      transfers: deletedTransfers,
     };
   },
 });

@@ -10,11 +10,11 @@
 
 import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
-import type * as draw from "../draw.js";
+import type * as fantasy from "../fantasy.js";
+import type * as futsalImport from "../futsalImport.js";
 import type * as health from "../health.js";
-import type * as matches from "../matches.js";
-import type * as teams from "../teams.js";
-import type * as tennis from "../tennis.js";
+import type * as notificationInternals from "../notificationInternals.js";
+import type * as notifications from "../notifications.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 
@@ -27,11 +27,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
   crons: typeof crons;
-  draw: typeof draw;
+  fantasy: typeof fantasy;
+  futsalImport: typeof futsalImport;
   health: typeof health;
-  matches: typeof matches;
-  teams: typeof teams;
-  tennis: typeof tennis;
+  notificationInternals: typeof notificationInternals;
+  notifications: typeof notifications;
   users: typeof users;
   validators: typeof validators;
 }>;

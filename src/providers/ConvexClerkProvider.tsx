@@ -1,7 +1,15 @@
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import type { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithAuth } from "convex/react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AppState } from "react-native";
 
 import { TOKEN_FETCH_TIMEOUT_MS } from "../constants";
 
@@ -14,7 +22,13 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("Не удалось вовремя получить токен авторизации.")), timeoutMs);
+        timeoutId = setTimeout(
+          () =>
+            reject(
+              new Error("Timed out while getting the authorization token."),
+            ),
+          timeoutMs,
+        );
       }),
     ]);
   } finally {
@@ -32,10 +46,18 @@ async function getClerkConvexToken(
   const tokenRequests = preferDefaultToken
     ? [{ skipCache }, { template: "convex" as const, skipCache }]
     : [{ template: "convex" as const, skipCache }, { skipCache }];
+  const fallbackTokenRequests = skipCache
+    ? []
+    : preferDefaultToken
+      ? [{ skipCache: true }, { template: "convex" as const, skipCache: true }]
+      : [{ template: "convex" as const, skipCache: true }, { skipCache: true }];
 
-  for (const request of tokenRequests) {
+  for (const request of [...tokenRequests, ...fallbackTokenRequests]) {
     try {
-      const token = await withTimeout(getToken(request), TOKEN_FETCH_TIMEOUT_MS);
+      const token = await withTimeout(
+        getToken(request),
+        TOKEN_FETCH_TIMEOUT_MS,
+      );
       if (token) return token;
     } catch {
       // Convex integration uses the default token; JWT templates use "convex".
@@ -48,17 +70,40 @@ async function getClerkConvexToken(
 function useClerkConvexAuth() {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth();
   const getTokenRef = useRef(getToken);
+  const appStateRef = useRef(AppState.currentState);
+  const [foregroundRefreshNonce, setForegroundRefreshNonce] = useState(0);
   const preferDefaultToken = sessionClaims?.aud === "convex";
 
   useEffect(() => {
     getTokenRef.current = getToken;
   }, [getToken]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const previousAppState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      if (
+        isSignedIn &&
+        nextAppState === "active" &&
+        /inactive|background/.test(previousAppState)
+      ) {
+        setForegroundRefreshNonce((current) => current + 1);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [isSignedIn]);
+
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
-      return await getClerkConvexToken(getTokenRef.current, forceRefreshToken, preferDefaultToken);
+      return await getClerkConvexToken(
+        getTokenRef.current,
+        forceRefreshToken,
+        preferDefaultToken,
+      );
     },
-    [preferDefaultToken],
+    [foregroundRefreshNonce, preferDefaultToken],
   );
 
   return useMemo(

@@ -1,30 +1,93 @@
 {
   "expo": {
-    "name": "WC2026",
-    "slug": "wc2026",
+    "name": "Fantasy Futsal",
+    "slug": "fantasy-extra-liga",
     "version": "1.0.0",
+    "scheme": "fantasy-futsal",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "./assets/fantasy-futsal-splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#160932"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.artemholoven.fantasy-futsal",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.artemholoven.fantasy_futsal",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0B5EA8",
+        "foregroundImage": "./assets/app-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "@clerk/expo",
+        {
+          "appleSignIn": false
+        }
+      ],
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#2171B8",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0",
+            "buildReactNativeFromSource": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#160932",
+          "image": "./assets/fantasy-futsal-splash.png",
+          "resizeMode": "cover",
+          "imageWidth": 360,
+          "android": {
+            "backgroundColor": "#160932",
+            "image": "./assets/fantasy-futsal-splash.png",
+            "resizeMode": "cover",
+            "imageWidth": 360
+          },
+          "ios": {
+            "backgroundColor": "#160932",
+            "image": "./assets/fantasy-futsal-splash.png",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true
+          }
+        }
+      ],
+      "./plugins/with-ios-build-fixes",
+      "expo-image"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7e226041-0b59-4e57-9222-fe117d544e1f"
+      }
+    },
+    "owner": "artgo10"
   }
 }

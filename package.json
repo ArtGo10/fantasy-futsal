@@ -1,5 +1,5 @@
 {
-  "name": "wc2026",
+  "name": "fantasy-futsal",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -9,21 +9,46 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web",
     "dev": "expo start",
+    "dev:client": "expo start --dev-client",
+    "doctor": "npx expo-doctor",
+    "eas:build:android": "npx eas-cli build --platform android",
+    "eas:build:ios": "npx eas-cli build --platform ios",
+    "eas:build:ios:dev": "npx eas-cli build --platform ios --profile development",
+    "eas:build:ios:simulator": "npx eas-cli build --platform ios --profile simulator",
+    "eas:build:all": "npx eas-cli build --platform all",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "data:futsal": "node scripts/fetch-futsal-source.mjs",
+    "data:futsal:import:dry": "node scripts/import-futsal-source.mjs",
+    "data:futsal:import": "node scripts/import-futsal-source.mjs --apply",
+    "data:futsal:images:r2": "node scripts/sync-futsal-player-images-r2.mjs",
+    "preinstall": "node scripts/ensure-npm-10.cjs",
+    "deps:sync": "npx npm@10.9.3 install --package-lock-only --include=dev --ignore-scripts",
+    "deps:check": "npx npm@10.9.3 ci --include=dev --ignore-scripts --dry-run",
+    "data:futsal:prices": "node scripts/reprice-futsal-source.mjs"
   },
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
+    "@clerk/expo": "^4.2.2",
+    "@react-native-community/netinfo": "11.5.2",
+    "@shopify/flash-list": "2.0.2",
     "convex": "^1.33.1",
-    "expo": "~55.0.6",
-    "expo-auth-session": "~55.0.8",
-    "expo-secure-store": "~55.0.8",
-    "expo-status-bar": "~55.0.4",
-    "expo-web-browser": "~55.0.9",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native": "0.83.2",
+    "expo": "~55.0.29",
+    "expo-auth-session": "~55.0.18",
+    "expo-build-properties": "~55.0.17",
+    "expo-constants": "~55.0.17",
+    "expo-dev-client": "~55.0.38",
+    "expo-image": "~55.0.11",
+    "expo-notifications": "~55.0.26",
+    "expo-secure-store": "~55.0.17",
+    "expo-splash-screen": "~55.0.23",
+    "expo-status-bar": "~55.0.6",
+    "expo-web-browser": "~55.0.19",
+    "lucide-react-native": "^1.31.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-native": "0.83.10",
     "react-native-safe-area-context": "~5.6.2",
+    "react-native-svg": "15.15.3",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "^0.21.0"
   },
@@ -31,5 +56,25 @@
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "expo": {
+    "install": {
+      "exclude": [
+        "react",
+        "react-dom"
+      ]
+    },
+    "autolinking": {
+      "ios": {
+        "exclude": [
+          "@clerk/expo"
+        ]
+      }
+    }
+  },
+  "private": true,
+  "packageManager": "npm@10.9.3",
+  "engines": {
+    "node": ">=20.19.4",
+    "npm": ">=10.9.3"
+  }
 }
