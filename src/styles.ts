@@ -577,14 +577,11 @@ export const styles = StyleSheet.create({
   },
   fantasyScreenScroll: {
     flex: 1,
+    minHeight: 0,
     width: "100%",
   },
   fantasyScreenFixedFooterSafe: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 20,
+    flexShrink: 0,
     backgroundColor: "rgba(246, 248, 252, 0.96)",
     borderTopWidth: 1,
     borderTopColor: "rgba(216, 222, 233, 0.72)",
@@ -1530,11 +1527,11 @@ export const styles = StyleSheet.create({
   teamCreateSetupScreen: {
     width: "100%",
     flexGrow: 1,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   teamCreateSetupHero: {
     width: "auto",
-    aspectRatio: 1,
+    aspectRatio: 0.78,
     overflow: "hidden",
     borderRadius: 0,
     backgroundColor: colors.brand.blue,

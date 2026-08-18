@@ -13,7 +13,6 @@ import {
 import appIcon from "../../assets/fantasy-futsal-big-icon.png";
 import splashImage from "../../assets/fantasy-futsal-splash.png";
 import { LanguageSwitcher } from "../components/common/LanguageSwitcher";
-import { WEB_APP_PATH } from "../constants";
 import { useI18n } from "../i18n/I18nProvider";
 import type { LanguageCode } from "../i18n/translations";
 import { getLegalContent, type LegalKind } from "../legal/legalContent";
@@ -71,7 +70,6 @@ type PublicCopy = {
   };
   notFound: { title: string; description: string; cta: string };
   footer: string;
-  openApp: string;
   updatedAt: string;
 };
 
@@ -188,7 +186,6 @@ const COPY: Record<LanguageCode, PublicCopy> = {
       cta: "Go home",
     },
     footer: "Fantasy Futsal is an entertainment fantasy sports app.",
-    openApp: "Open web app",
     updatedAt: "Updated",
   },
   uk: {
@@ -305,7 +302,6 @@ const COPY: Record<LanguageCode, PublicCopy> = {
       cta: "На головну",
     },
     footer: "Fantasy Futsal — розважальний fantasy-застосунок для спорту.",
-    openApp: "Відкрити web-застосунок",
     updatedAt: "Оновлено",
   },
 };
@@ -365,12 +361,6 @@ export function PublicWebSite() {
     void Linking.openURL(`mailto:${PUBLIC_SITE_SUPPORT_EMAIL}`);
   };
 
-  const openWebApp = () => {
-    if (typeof window !== "undefined") {
-      window.location.assign(WEB_APP_PATH);
-    }
-  };
-
   return (
     <ScrollView
       contentContainerStyle={webStyles.pageContent}
@@ -416,7 +406,7 @@ export function PublicWebSite() {
       </View>
 
       {route === "/" ? (
-        <LandingPage copy={copy} navigate={navigate} openWebApp={openWebApp} />
+        <LandingPage copy={copy} navigate={navigate} />
       ) : route === "/privacy" ? (
         <LegalPage copy={copy} kind="privacy" language={language} />
       ) : route === "/terms" ? (
@@ -439,11 +429,9 @@ export function PublicWebSite() {
 function LandingPage({
   copy,
   navigate,
-  openWebApp,
 }: {
   copy: PublicCopy;
   navigate: (path: PublicWebPath) => void;
-  openWebApp: () => void;
 }) {
   return (
     <View style={webStyles.main}>
@@ -514,14 +502,6 @@ function LandingPage({
           </Pressable>
         ))}
       </View>
-
-      <Pressable
-        accessibilityRole="link"
-        onPress={openWebApp}
-        style={webStyles.webAppLink}
-      >
-        <Text style={webStyles.webAppLinkText}>{copy.openApp}</Text>
-      </Pressable>
     </View>
   );
 }
@@ -969,16 +949,6 @@ const webStyles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.medium,
-    lineHeight: typography.lineHeight.sm,
-  },
-  webAppLink: {
-    alignSelf: "flex-start",
-    paddingVertical: spacing.sm,
-  },
-  webAppLinkText: {
-    color: colors.app.primary,
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.sm,
   },
   articleShell: {

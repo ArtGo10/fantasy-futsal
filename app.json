@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Fantasy Futsal",
-    "slug": "fantasy-extra-liga",
+    "slug": "fantasy-futsal",
     "version": "1.0.0",
     "scheme": "fantasy-futsal",
     "orientation": "portrait",
@@ -83,11 +83,6 @@
       "./plugins/with-ios-build-fixes",
       "expo-image"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "7e226041-0b59-4e57-9222-fe117d544e1f"
-      }
-    },
     "owner": "artgo10",
     "androidStatusBar": {
       "backgroundColor": "#160932",
@@ -97,6 +92,11 @@
     "androidNavigationBar": {
       "backgroundColor": "#160932",
       "barStyle": "light-content"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "703116e2-c971-45cb-bc44-86d3e43a0d7a"
+      }
     }
   }
 }

@@ -11,6 +11,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BottomSheet } from "../components/BottomSheet";
 import { useI18n } from "../../../i18n/I18nProvider";
+import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { LanguageCode, TranslationKey } from "../../../i18n/translations";
 import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
@@ -47,6 +48,7 @@ type MatchDetailEventType =
   | "goal"
   | "assist"
   | "yellow_card"
+  | "second_yellow_red"
   | "red_card"
   | "own_goal"
   | "penalty_missed"
@@ -158,6 +160,7 @@ const MATCH_EVENT_LABEL_KEYS: Record<MatchDetailEventType, TranslationKey> = {
   penalty_missed: "matchDetails.event.penalty_missed",
   penalty_saved: "matchDetails.event.penalty_saved",
   red_card: "matchDetails.event.red_card",
+  second_yellow_red: "matchDetails.event.second_yellow_red",
   yellow_card: "matchDetails.event.yellow_card",
 };
 
@@ -1041,8 +1044,7 @@ function SeasonCalendar({
   const selectedClubLabel = selectedClub
     ? (selectedClub.shortName ?? selectedClub.name)
     : t("season.allClubs");
-  const isAllGameweeksSelected =
-    selectedGameweekId === ALL_GAMEWEEKS_FILTER_ID;
+  const isAllGameweeksSelected = selectedGameweekId === ALL_GAMEWEEKS_FILTER_ID;
   const selectedGameweek = isAllGameweeksSelected
     ? null
     : (gameweeks.find((gameweek) => gameweek.id === selectedGameweekId) ??
@@ -1812,6 +1814,15 @@ export function SeasonScreen({
   const [openPicker, setOpenPicker] = useState<PickerKind | null>(null);
   const [selectedFixtureDetailsId, setSelectedFixtureDetailsId] =
     useState<Id<"fantasyFixtures"> | null>(null);
+
+  useDismissKeyboardOnChange([
+    activeSection,
+    tableMode,
+    openPicker,
+    selectedGameweekId,
+    selectedCalendarClubId,
+    selectedFixtureDetailsId,
+  ]);
   const isLoading =
     clubs === undefined || fixtures === undefined || gameweeks === undefined;
   const sortedGameweeks = useMemo(
@@ -1854,11 +1865,12 @@ export function SeasonScreen({
     () => getDefaultGameweekId(calendarGameweeks, calendarFixtures),
     [calendarFixtures, calendarGameweeks],
   );
-  const isAllGameweeksSelected =
-    selectedGameweekId === ALL_GAMEWEEKS_FILTER_ID;
+  const isAllGameweeksSelected = selectedGameweekId === ALL_GAMEWEEKS_FILTER_ID;
   const selectedGameweek = isAllGameweeksSelected
     ? null
-    : (calendarGameweeks.find((gameweek) => gameweek.id === selectedGameweekId) ??
+    : (calendarGameweeks.find(
+        (gameweek) => gameweek.id === selectedGameweekId,
+      ) ??
       calendarGameweeks.find((gameweek) => gameweek.id === defaultGameweekId) ??
       calendarGameweeks[0] ??
       null);
@@ -1928,7 +1940,9 @@ export function SeasonScreen({
   };
   const resetCalendarFilters = () => {
     setSelectedCalendarClubId(null);
-    setSelectedGameweekId(defaultGameweekId ?? calendarGameweeks[0]?.id ?? null);
+    setSelectedGameweekId(
+      defaultGameweekId ?? calendarGameweeks[0]?.id ?? null,
+    );
     setCalendarGameweekDirty(false);
   };
   const selectedFixtureDetails = useQuery(

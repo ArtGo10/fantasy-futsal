@@ -77,21 +77,38 @@ const EXTRA_LEAGUE_REAL_CLUB_NAMES_TO_RESTORE = new Set([
   "SkyUp",
 ]);
 const FANTASY_DEFAULT_SCORING_RULES = {
-  version: "futsal-fantasy-v1",
+  version: "futsal-fantasy-v2",
   appearance: 1,
-  outfieldGoal: 4,
-  goalkeeperGoal: 8,
+  outfieldGoal: 3,
+  goalkeeperGoal: 6,
   outfieldAssist: 2,
-  goalkeeperAssist: 6,
+  goalkeeperAssist: 4,
   goalkeeperConcededZero: 4,
-  goalkeeperConcededOne: 2,
+  goalkeeperConcededOne: 3,
   goalkeeperConcededTwo: 1,
-  goalkeeperConcededExtra: -1,
+  goalkeeperConcededThree: 0,
+  goalkeeperConcededFour: -1,
+  goalkeeperConcededFive: -3,
+  goalkeeperConcededSixPlus: -4,
+  goalkeeperConcededExtra: 0,
+  outfieldTeamGoalsScoredZero: -1,
+  outfieldTeamGoalsScoredOneTwo: 0,
+  outfieldTeamGoalsScoredThreeFour: 1,
+  outfieldTeamGoalsScoredFiveSix: 2,
+  outfieldTeamGoalsScoredSevenPlus: 3,
+  outfieldConcededZero: 3,
+  outfieldConcededOne: 2,
+  outfieldConcededTwo: 1,
+  outfieldConcededThree: 0,
+  outfieldConcededFour: -1,
+  outfieldConcededFive: -2,
+  outfieldConcededSixPlus: -3,
   yellowCard: -1,
-  redCard: -3,
+  secondYellowRedCard: -3,
+  redCard: -4,
   ownGoal: -2,
-  penaltyMissed: -4,
-  penaltySaved: 10,
+  penaltyMissed: -2,
+  penaltySaved: 0,
 };
 
 type FixtureProfileDoubleClub = {
@@ -240,12 +257,15 @@ function toPublicFantasyPlayerPosition(
   return position === "goalkeeper" ? "goalkeeper" : "universal";
 }
 
-type FantasyPlayerStatusDetailsInput = {
-  message?: string;
-  messageEn?: string;
-  messageUk?: string;
-  updatedAt?: number;
-} | null | undefined;
+type FantasyPlayerStatusDetailsInput =
+  | {
+      message?: string;
+      messageEn?: string;
+      messageUk?: string;
+      updatedAt?: number;
+    }
+  | null
+  | undefined;
 
 function normalizeFantasyPlayerStatusDetails(
   details: FantasyPlayerStatusDetailsInput,
@@ -320,9 +340,7 @@ function roundFantasyMoney(value: number) {
 
 function roundFantasyPrice(value: number) {
   return Number(
-    (
-      Math.round(value / FANTASY_PRICE_STEP) * FANTASY_PRICE_STEP
-    ).toFixed(1),
+    (Math.round(value / FANTASY_PRICE_STEP) * FANTASY_PRICE_STEP).toFixed(1),
   );
 }
 
@@ -376,25 +394,11 @@ function toScoringRulesView(
   rule: Doc<"fantasyScoringRules"> | null,
   seasonId: Id<"fantasySeasons">,
 ) {
-  const source = rule ?? FANTASY_DEFAULT_SCORING_RULES;
+  const source = getScoringRuleValues(rule);
   return {
     id: rule?._id ?? null,
     seasonId,
-    version: source.version,
-    appearance: source.appearance,
-    outfieldGoal: source.outfieldGoal,
-    goalkeeperGoal: source.goalkeeperGoal,
-    outfieldAssist: source.outfieldAssist,
-    goalkeeperAssist: source.goalkeeperAssist,
-    goalkeeperConcededZero: source.goalkeeperConcededZero,
-    goalkeeperConcededOne: source.goalkeeperConcededOne,
-    goalkeeperConcededTwo: source.goalkeeperConcededTwo,
-    goalkeeperConcededExtra: source.goalkeeperConcededExtra,
-    yellowCard: source.yellowCard,
-    redCard: source.redCard,
-    ownGoal: source.ownGoal,
-    penaltyMissed: source.penaltyMissed,
-    penaltySaved: source.penaltySaved,
+    ...source,
     createdAt: rule?.createdAt ?? null,
     updatedAt: rule?.updatedAt ?? null,
   };
@@ -1292,7 +1296,10 @@ export const listPlayers = query({
             : 0;
         const latestGameweekStat = latestCompletedGameweek
           ? statsByGameweekAndPlayerId.get(
-              getPlayerGameweekStatsKey(latestCompletedGameweek._id, player._id),
+              getPlayerGameweekStatsKey(
+                latestCompletedGameweek._id,
+                player._id,
+              ),
             )
           : undefined;
         return {
@@ -1443,6 +1450,10 @@ type PlayerStatsAccumulator = {
   points: number;
   redCards: number;
   saves: number;
+  secondYellowRedCards: number;
+  teamGoalsConcededPoints: number;
+  teamGoalsScored: number;
+  teamGoalsScoredPoints: number;
   yellowCards: number;
 };
 
@@ -1467,6 +1478,10 @@ function getEmptyPlayerStats(): PlayerStatsAccumulator {
     points: 0,
     redCards: 0,
     saves: 0,
+    secondYellowRedCards: 0,
+    teamGoalsConcededPoints: 0,
+    teamGoalsScored: 0,
+    teamGoalsScoredPoints: 0,
     yellowCards: 0,
   };
 }
@@ -1504,23 +1519,91 @@ type MutablePlayerGameweekStats = PlayerStatsAccumulator & {
 function getScoringRuleValues(
   rule: Doc<"fantasyScoringRules"> | null,
 ): ScoringRuleValues {
-  const source = rule ?? FANTASY_DEFAULT_SCORING_RULES;
+  const source =
+    rule?.version === FANTASY_DEFAULT_SCORING_RULES.version
+      ? rule
+      : FANTASY_DEFAULT_SCORING_RULES;
   return {
-    version: source.version,
-    appearance: source.appearance,
-    outfieldGoal: source.outfieldGoal,
-    goalkeeperGoal: source.goalkeeperGoal,
-    outfieldAssist: source.outfieldAssist,
-    goalkeeperAssist: source.goalkeeperAssist,
-    goalkeeperConcededZero: source.goalkeeperConcededZero,
-    goalkeeperConcededOne: source.goalkeeperConcededOne,
-    goalkeeperConcededTwo: source.goalkeeperConcededTwo,
-    goalkeeperConcededExtra: source.goalkeeperConcededExtra,
-    yellowCard: source.yellowCard,
-    redCard: source.redCard,
-    ownGoal: source.ownGoal,
-    penaltyMissed: source.penaltyMissed,
-    penaltySaved: source.penaltySaved,
+    version: FANTASY_DEFAULT_SCORING_RULES.version,
+    appearance: source.appearance ?? FANTASY_DEFAULT_SCORING_RULES.appearance,
+    outfieldGoal:
+      source.outfieldGoal ?? FANTASY_DEFAULT_SCORING_RULES.outfieldGoal,
+    goalkeeperGoal:
+      source.goalkeeperGoal ?? FANTASY_DEFAULT_SCORING_RULES.goalkeeperGoal,
+    outfieldAssist:
+      source.outfieldAssist ?? FANTASY_DEFAULT_SCORING_RULES.outfieldAssist,
+    goalkeeperAssist:
+      source.goalkeeperAssist ?? FANTASY_DEFAULT_SCORING_RULES.goalkeeperAssist,
+    goalkeeperConcededZero:
+      source.goalkeeperConcededZero ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededZero,
+    goalkeeperConcededOne:
+      source.goalkeeperConcededOne ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededOne,
+    goalkeeperConcededTwo:
+      source.goalkeeperConcededTwo ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededTwo,
+    goalkeeperConcededThree:
+      source.goalkeeperConcededThree ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededThree,
+    goalkeeperConcededFour:
+      source.goalkeeperConcededFour ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededFour,
+    goalkeeperConcededFive:
+      source.goalkeeperConcededFive ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededFive,
+    goalkeeperConcededSixPlus:
+      source.goalkeeperConcededSixPlus ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededSixPlus,
+    goalkeeperConcededExtra:
+      source.goalkeeperConcededExtra ??
+      FANTASY_DEFAULT_SCORING_RULES.goalkeeperConcededExtra,
+    outfieldTeamGoalsScoredZero:
+      source.outfieldTeamGoalsScoredZero ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldTeamGoalsScoredZero,
+    outfieldTeamGoalsScoredOneTwo:
+      source.outfieldTeamGoalsScoredOneTwo ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldTeamGoalsScoredOneTwo,
+    outfieldTeamGoalsScoredThreeFour:
+      source.outfieldTeamGoalsScoredThreeFour ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldTeamGoalsScoredThreeFour,
+    outfieldTeamGoalsScoredFiveSix:
+      source.outfieldTeamGoalsScoredFiveSix ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldTeamGoalsScoredFiveSix,
+    outfieldTeamGoalsScoredSevenPlus:
+      source.outfieldTeamGoalsScoredSevenPlus ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldTeamGoalsScoredSevenPlus,
+    outfieldConcededZero:
+      source.outfieldConcededZero ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededZero,
+    outfieldConcededOne:
+      source.outfieldConcededOne ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededOne,
+    outfieldConcededTwo:
+      source.outfieldConcededTwo ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededTwo,
+    outfieldConcededThree:
+      source.outfieldConcededThree ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededThree,
+    outfieldConcededFour:
+      source.outfieldConcededFour ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededFour,
+    outfieldConcededFive:
+      source.outfieldConcededFive ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededFive,
+    outfieldConcededSixPlus:
+      source.outfieldConcededSixPlus ??
+      FANTASY_DEFAULT_SCORING_RULES.outfieldConcededSixPlus,
+    yellowCard: source.yellowCard ?? FANTASY_DEFAULT_SCORING_RULES.yellowCard,
+    secondYellowRedCard:
+      source.secondYellowRedCard ??
+      FANTASY_DEFAULT_SCORING_RULES.secondYellowRedCard,
+    redCard: source.redCard ?? FANTASY_DEFAULT_SCORING_RULES.redCard,
+    ownGoal: source.ownGoal ?? FANTASY_DEFAULT_SCORING_RULES.ownGoal,
+    penaltyMissed:
+      source.penaltyMissed ?? FANTASY_DEFAULT_SCORING_RULES.penaltyMissed,
+    penaltySaved:
+      source.penaltySaved ?? FANTASY_DEFAULT_SCORING_RULES.penaltySaved,
   };
 }
 
@@ -1542,12 +1625,37 @@ function getFixtureEventPoints(
       ? rules.goalkeeperAssist
       : rules.outfieldAssist;
   if (type === "yellow_card") return rules.yellowCard;
+  if (type === "second_yellow_red") return rules.secondYellowRedCard;
   if (type === "red_card") return rules.redCard;
   if (type === "own_goal") return rules.ownGoal;
   if (type === "penalty_missed") return rules.penaltyMissed;
   if (type === "penalty_saved") return rules.penaltySaved;
 
   return 0;
+}
+
+function getOutfieldTeamGoalsScoredPoints(
+  teamGoalsScored: number,
+  rules: ScoringRuleValues,
+) {
+  if (teamGoalsScored <= 0) return rules.outfieldTeamGoalsScoredZero;
+  if (teamGoalsScored <= 2) return rules.outfieldTeamGoalsScoredOneTwo;
+  if (teamGoalsScored <= 4) return rules.outfieldTeamGoalsScoredThreeFour;
+  if (teamGoalsScored <= 6) return rules.outfieldTeamGoalsScoredFiveSix;
+  return rules.outfieldTeamGoalsScoredSevenPlus;
+}
+
+function getOutfieldConcededPoints(
+  goalsConceded: number,
+  rules: ScoringRuleValues,
+) {
+  if (goalsConceded <= 0) return rules.outfieldConcededZero;
+  if (goalsConceded === 1) return rules.outfieldConcededOne;
+  if (goalsConceded === 2) return rules.outfieldConcededTwo;
+  if (goalsConceded === 3) return rules.outfieldConcededThree;
+  if (goalsConceded === 4) return rules.outfieldConcededFour;
+  if (goalsConceded === 5) return rules.outfieldConcededFive;
+  return rules.outfieldConcededSixPlus;
 }
 
 function getGoalkeeperConcededPoints(
@@ -1557,10 +1665,10 @@ function getGoalkeeperConcededPoints(
   if (goalsConceded <= 0) return rules.goalkeeperConcededZero;
   if (goalsConceded === 1) return rules.goalkeeperConcededOne;
   if (goalsConceded === 2) return rules.goalkeeperConcededTwo;
-  return (
-    rules.goalkeeperConcededTwo +
-    (goalsConceded - 2) * rules.goalkeeperConcededExtra
-  );
+  if (goalsConceded === 3) return rules.goalkeeperConcededThree;
+  if (goalsConceded === 4) return rules.goalkeeperConcededFour;
+  if (goalsConceded === 5) return rules.goalkeeperConcededFive;
+  return rules.goalkeeperConcededSixPlus;
 }
 
 function getMutablePlayerGameweekStats(
@@ -2017,6 +2125,10 @@ async function recalculateGameweekScoresInternal(
       if (event.type === "goal") playerStats.goals += 1;
       if (event.type === "assist") playerStats.assists += 1;
       if (event.type === "yellow_card") playerStats.yellowCards += 1;
+      if (event.type === "second_yellow_red") {
+        playerStats.redCards += 1;
+        playerStats.secondYellowRedCards += 1;
+      }
       if (event.type === "red_card") playerStats.redCards += 1;
       if (event.type === "own_goal") playerStats.ownGoals += 1;
       if (event.type === "penalty_missed") playerStats.penaltiesMissed += 1;
@@ -2047,29 +2159,48 @@ async function recalculateGameweekScoresInternal(
       continue;
 
     for (const player of players) {
-      if (
-        toPublicFantasyPlayerPosition(player.position) !== "goalkeeper" ||
-        !player.clubId
-      )
-        continue;
+      if (!player.clubId) continue;
 
-      const isHomeGoalkeeper = fixture.homeClubId === player.clubId;
-      const isAwayGoalkeeper = fixture.awayClubId === player.clubId;
-      if (!isHomeGoalkeeper && !isAwayGoalkeeper) continue;
+      const isHomePlayer = fixture.homeClubId === player.clubId;
+      const isAwayPlayer = fixture.awayClubId === player.clubId;
+      if (!isHomePlayer && !isAwayPlayer) continue;
 
       const playerStats = statsByPlayerId.get(player._id);
       if (!playerStats?.appearanceFixtureKeys.has(String(fixture._id)))
         continue;
 
-      const goalsConceded = isHomeGoalkeeper
+      const teamGoalsScored = isHomePlayer
+        ? fixture.homeScore
+        : fixture.awayScore;
+      const goalsConceded = isHomePlayer
         ? fixture.awayScore
         : fixture.homeScore;
+      const position = toPublicFantasyPlayerPosition(player.position);
       playerStats.goalsConceded += goalsConceded;
+      playerStats.teamGoalsScored += teamGoalsScored;
       if (goalsConceded === 0) playerStats.cleanSheets += 1;
-      playerStats.points += getGoalkeeperConcededPoints(
+
+      if (position === "goalkeeper") {
+        const concededPoints = getGoalkeeperConcededPoints(
+          goalsConceded,
+          scoringRules,
+        );
+        playerStats.teamGoalsConcededPoints += concededPoints;
+        playerStats.points += concededPoints;
+        continue;
+      }
+
+      const scoredPoints = getOutfieldTeamGoalsScoredPoints(
+        teamGoalsScored,
+        scoringRules,
+      );
+      const concededPoints = getOutfieldConcededPoints(
         goalsConceded,
         scoringRules,
       );
+      playerStats.teamGoalsScoredPoints += scoredPoints;
+      playerStats.teamGoalsConcededPoints += concededPoints;
+      playerStats.points += scoredPoints + concededPoints;
     }
   }
 
@@ -2106,6 +2237,10 @@ async function recalculateGameweekScoresInternal(
       points: Number(stats.points.toFixed(2)),
       redCards: stats.redCards,
       saves: stats.saves,
+      secondYellowRedCards: stats.secondYellowRedCards,
+      teamGoalsConcededPoints: Number(stats.teamGoalsConcededPoints.toFixed(2)),
+      teamGoalsScored: stats.teamGoalsScored,
+      teamGoalsScoredPoints: Number(stats.teamGoalsScoredPoints.toFixed(2)),
       yellowCards: stats.yellowCards,
       createdAt: now,
       updatedAt: now,
@@ -2464,11 +2599,13 @@ type PlayerPointLineKind =
   | "goal"
   | "assist"
   | "yellow_card"
+  | "second_yellow_red"
   | "red_card"
   | "own_goal"
   | "penalty_missed"
   | "penalty_saved"
-  | "goalkeeper_conceded";
+  | "team_goals_scored"
+  | "team_goals_conceded";
 
 function addPlayerPointLine(
   lines: Array<{
@@ -2510,7 +2647,8 @@ function buildPlayerPointLines(
   const goals = stat.goals ?? 0;
   const assists = stat.assists ?? 0;
   const yellowCards = stat.yellowCards ?? 0;
-  const redCards = stat.redCards ?? 0;
+  const secondYellowRedCards = stat.secondYellowRedCards ?? 0;
+  const redCards = Math.max(0, (stat.redCards ?? 0) - secondYellowRedCards);
   const ownGoals = stat.ownGoals ?? 0;
   const penaltiesMissed = stat.penaltiesMissed ?? 0;
   const penaltiesSaved = stat.penaltiesSaved ?? 0;
@@ -2529,6 +2667,12 @@ function buildPlayerPointLines(
     yellowCards,
     yellowCards * rules.yellowCard,
   );
+  addPlayerPointLine(
+    lines,
+    "second_yellow_red",
+    secondYellowRedCards,
+    secondYellowRedCards * rules.secondYellowRedCard,
+  );
   addPlayerPointLine(lines, "red_card", redCards, redCards * rules.redCard);
   addPlayerPointLine(lines, "own_goal", ownGoals, ownGoals * rules.ownGoal);
   addPlayerPointLine(
@@ -2545,18 +2689,32 @@ function buildPlayerPointLines(
   );
 
   const explicitLinePoints = lines.reduce((sum, line) => sum + line.points, 0);
-  const goalkeeperConcededPoints = roundFantasyPoints(
-    stat.points - explicitLinePoints,
-  );
-  if (
-    position === "goalkeeper" &&
-    Math.abs(goalkeeperConcededPoints) >= 0.001
-  ) {
+  const storedTeamGoalsScoredPoints = stat.teamGoalsScoredPoints ?? 0;
+  const storedTeamGoalsConcededPoints =
+    stat.teamGoalsConcededPoints ??
+    (position === "goalkeeper"
+      ? roundFantasyPoints(stat.points - explicitLinePoints)
+      : 0);
+
+  if (position === "goalkeeper") {
     addPlayerPointLine(
       lines,
-      "goalkeeper_conceded",
+      "team_goals_conceded",
       stat.goalsConceded ?? null,
-      goalkeeperConcededPoints,
+      storedTeamGoalsConcededPoints,
+    );
+  } else {
+    addPlayerPointLine(
+      lines,
+      "team_goals_scored",
+      stat.teamGoalsScored ?? null,
+      storedTeamGoalsScoredPoints,
+    );
+    addPlayerPointLine(
+      lines,
+      "team_goals_conceded",
+      stat.goalsConceded ?? null,
+      storedTeamGoalsConcededPoints,
     );
   }
 
@@ -2953,76 +3111,74 @@ export const seasonPlayerStatistics = query({
     }
 
     const leaderboard = players.map((player) => {
-        const club = player.clubId
-          ? (clubsById.get(player.clubId) ?? null)
-          : null;
-        const stats = statsByPlayerId.get(player._id) ?? getEmptyPlayerStats();
-        const selectedByTeams = pickedByPlayerId.get(player._id) ?? 0;
-        const selectedPercent =
-          fantasyTeams.length > 0
-            ? Number(((selectedByTeams / fantasyTeams.length) * 100).toFixed(1))
-            : 0;
-        const latestPriceHistory = latestPriceHistoryByPlayerId.get(player._id);
-        const priceDelta = latestPriceHistory
-          ? Number(latestPriceHistory.delta.toFixed(1))
+      const club = player.clubId
+        ? (clubsById.get(player.clubId) ?? null)
+        : null;
+      const stats = statsByPlayerId.get(player._id) ?? getEmptyPlayerStats();
+      const selectedByTeams = pickedByPlayerId.get(player._id) ?? 0;
+      const selectedPercent =
+        fantasyTeams.length > 0
+          ? Number(((selectedByTeams / fantasyTeams.length) * 100).toFixed(1))
           : 0;
-        const averagePointsPerMatch =
-          stats.appearances > 0
-            ? Number((stats.points / stats.appearances).toFixed(1))
-            : 0;
-        const latestGameweekStat = latestCompletedGameweek
-          ? statsByGameweekAndPlayerId.get(
-              getPlayerGameweekStatsKey(latestCompletedGameweek._id, player._id),
-            )
-          : undefined;
-        const valueScore =
-          player.price > 0
-            ? Number((stats.points / player.price).toFixed(1))
-            : 0;
+      const latestPriceHistory = latestPriceHistoryByPlayerId.get(player._id);
+      const priceDelta = latestPriceHistory
+        ? Number(latestPriceHistory.delta.toFixed(1))
+        : 0;
+      const averagePointsPerMatch =
+        stats.appearances > 0
+          ? Number((stats.points / stats.appearances).toFixed(1))
+          : 0;
+      const latestGameweekStat = latestCompletedGameweek
+        ? statsByGameweekAndPlayerId.get(
+            getPlayerGameweekStatsKey(latestCompletedGameweek._id, player._id),
+          )
+        : undefined;
+      const valueScore =
+        player.price > 0 ? Number((stats.points / player.price).toFixed(1)) : 0;
 
-        return {
-          id: player._id,
-          clubId: player.clubId ?? null,
-          clubName: club?.name ?? null,
-          clubLogoUrl: club?.logoUrl ?? null,
-          clubLogoThumbnailUrl: club?.logoThumbnailUrl ?? null,
-          displayName: player.displayName,
-          firstName: player.firstName ?? null,
-          lastName: player.lastName,
-          photoUrl: player.photoUrl ?? null,
-          photoThumbnailUrl: player.photoThumbnailUrl ?? null,
-          position: toPublicFantasyPlayerPosition(player.position),
-          price: player.price,
-          previousPrice:
-            latestPriceHistory && Math.abs(priceDelta) >= 0.1
-              ? latestPriceHistory.oldPrice
-              : null,
-          priceChangedAt: latestPriceHistory?.createdAt ?? null,
-          priceDelta,
-          status: player.status,
-          statusDetails: toFantasyPlayerStatusDetailsView(player),
-          appearances: stats.appearances,
-          assists: stats.assists,
-          averagePointsPerGameweek: averagePointsPerMatch,
-          averagePointsPerMatch,
-          cleanSheets: stats.cleanSheets,
-          goals: stats.goals,
-          goalsConceded: stats.goalsConceded,
-          lastGameweekPoints: latestGameweekStat
-            ? Number(latestGameweekStat.points.toFixed(1))
-            : 0,
-          ownGoals: stats.ownGoals,
-          penaltiesMissed: stats.penaltiesMissed,
-          penaltiesSaved: stats.penaltiesSaved,
-          points: Number(stats.points.toFixed(1)),
-          redCards: stats.redCards,
-          saves: stats.saves,
-          selectedByTeams,
-          selectedPercent,
-          valueScore,
-          yellowCards: stats.yellowCards,
-        };
-      });
+      return {
+        id: player._id,
+        clubId: player.clubId ?? null,
+        clubName: club?.name ?? null,
+        clubLogoUrl: club?.logoUrl ?? null,
+        clubLogoThumbnailUrl: club?.logoThumbnailUrl ?? null,
+        displayName: player.displayName,
+        firstName: player.firstName ?? null,
+        lastName: player.lastName,
+        photoUrl: player.photoUrl ?? null,
+        photoThumbnailUrl: player.photoThumbnailUrl ?? null,
+        position: toPublicFantasyPlayerPosition(player.position),
+        price: player.price,
+        previousPrice:
+          latestPriceHistory && Math.abs(priceDelta) >= 0.1
+            ? latestPriceHistory.oldPrice
+            : null,
+        priceChangedAt: latestPriceHistory?.createdAt ?? null,
+        priceDelta,
+        status: player.status,
+        statusDetails: toFantasyPlayerStatusDetailsView(player),
+        appearances: stats.appearances,
+        assists: stats.assists,
+        averagePointsPerGameweek: averagePointsPerMatch,
+        averagePointsPerMatch,
+        cleanSheets: stats.cleanSheets,
+        goals: stats.goals,
+        goalsConceded: stats.goalsConceded,
+        lastGameweekPoints: latestGameweekStat
+          ? Number(latestGameweekStat.points.toFixed(1))
+          : 0,
+        ownGoals: stats.ownGoals,
+        penaltiesMissed: stats.penaltiesMissed,
+        penaltiesSaved: stats.penaltiesSaved,
+        points: Number(stats.points.toFixed(1)),
+        redCards: stats.redCards,
+        saves: stats.saves,
+        selectedByTeams,
+        selectedPercent,
+        valueScore,
+        yellowCards: stats.yellowCards,
+      };
+    });
 
     const topScorer =
       [...leaderboard].sort(
@@ -3339,7 +3495,8 @@ export const myTeam = query({
     const hasGameweekSnapshot = gameweekSquadPicks.some(
       (snapshot) => snapshot.seasonId === season._id,
     );
-    const hasParticipated = participatedTeamScores.length > 0 || hasGameweekSnapshot;
+    const hasParticipated =
+      participatedTeamScores.length > 0 || hasGameweekSnapshot;
     const teamScoresByGameweekNumber = participatedTeamScores
       .map((score) => ({
         gameweekNumber: gameweeksById.get(score.gameweekId)?.number ?? 0,
@@ -3466,7 +3623,7 @@ export const myTeam = query({
                   photoSourceThumbnailUrl:
                     player.photoSourceThumbnailUrl ?? null,
                   status: player.status,
-          statusDetails: toFantasyPlayerStatusDetailsView(player),
+                  statusDetails: toFantasyPlayerStatusDetailsView(player),
                 }
               : null,
           };
@@ -4216,7 +4373,11 @@ export const upsertFixtureEvent = mutation({
 
     if (existingEvent) {
       await ctx.db.patch(existingEvent._id, payload);
-      const refresh = await refreshGameweekAfterFixtureChange(ctx, fixture, now);
+      const refresh = await refreshGameweekAfterFixtureChange(
+        ctx,
+        fixture,
+        now,
+      );
       return {
         created: false,
         eventId: existingEvent._id,
@@ -4278,7 +4439,11 @@ export const upsertFixtureLineup = mutation({
 
     if (existingLineup) {
       await ctx.db.patch(existingLineup._id, payload);
-      const refresh = await refreshGameweekAfterFixtureChange(ctx, fixture, now);
+      const refresh = await refreshGameweekAfterFixtureChange(
+        ctx,
+        fixture,
+        now,
+      );
       return { created: false, lineupId: existingLineup._id, refresh };
     }
 
@@ -4362,39 +4527,39 @@ export const resetGameweekSimulation = mutation({
       pointDeductions,
       priceHistories,
     ] = await Promise.all([
-        ctx.db
-          .query("fantasyFixtures")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyFixtureEvents")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyPlayerGameweekStats")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyTeamGameweekScores")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyGameweekSquadPicks")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyTransfers")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-        ctx.db
-          .query("fantasyPointDeductions")
-          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
-          .collect(),
-        ctx.db
-          .query("fantasyPlayerPriceHistory")
-          .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-          .collect(),
-      ]);
+      ctx.db
+        .query("fantasyFixtures")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureEvents")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerGameweekStats")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyTeamGameweekScores")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyGameweekSquadPicks")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyTransfers")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPointDeductions")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerPriceHistory")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+    ]);
 
     const participatingTeamIds = new Set(
       teamScores
@@ -4423,7 +4588,9 @@ export const resetGameweekSimulation = mutation({
       deletedPriceHistories += 1;
     }
 
-    const transferIdsToDelete = new Set(transfers.map((transfer) => transfer._id));
+    const transferIdsToDelete = new Set(
+      transfers.map((transfer) => transfer._id),
+    );
     for (const event of events) await ctx.db.delete(event._id);
     for (const stat of playerStats) await ctx.db.delete(stat._id);
     for (const score of teamScores) await ctx.db.delete(score._id);
@@ -4458,7 +4625,8 @@ export const resetGameweekSimulation = mutation({
       );
       await ctx.db.patch(fantasyTeam._id, {
         totalPoints,
-        ...(shouldRevokeFreeTransfers && participatingTeamIds.has(fantasyTeam._id)
+        ...(shouldRevokeFreeTransfers &&
+        participatingTeamIds.has(fantasyTeam._id)
           ? {
               freeTransfers: Math.max(
                 0,
@@ -4495,6 +4663,47 @@ export const resetGameweekSimulation = mutation({
         ? participatingTeamIds.size
         : 0,
       resetFixtures: fixtures.length,
+    };
+  },
+});
+
+export const clearGameweekDeadline = mutation({
+  args: {
+    gameweekNumber: v.number(),
+    makeCurrent: v.optional(v.boolean()),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const gameweek = await findGameweekByNumber(
+      ctx,
+      season._id,
+      args.gameweekNumber,
+    );
+    if (!gameweek) {
+      throw new Error(`Тур ${args.gameweekNumber} не найден.`);
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(gameweek._id, {
+      deadlineAt: undefined,
+      status: "open",
+      updatedAt: now,
+    });
+
+    if (args.makeCurrent ?? true) {
+      await ctx.db.patch(season._id, {
+        currentGameweekId: gameweek._id,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      gameweekId: gameweek._id,
+      previousDeadlineAt: gameweek.deadlineAt ?? null,
+      status: "open",
     };
   },
 });
@@ -4948,8 +5157,153 @@ export const updatePlayerStatus = mutation({
       id: player._id,
       displayName: player.displayName,
       status: args.status,
-      statusDetails: statusDetails ? toFantasyPlayerStatusDetailsView({ statusDetails }) : null,
+      statusDetails: statusDetails
+        ? toFantasyPlayerStatusDetailsView({ statusDetails })
+        : null,
     };
+  },
+});
+
+export const applyPlayerRosterCorrections = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+    updates: v.array(
+      v.object({
+        playerId: v.optional(v.id("fantasyPlayers")),
+        playerName: v.optional(v.string()),
+        expectedClubName: v.optional(v.string()),
+        clubName: v.optional(v.string()),
+        status: v.optional(fantasyPlayerStatusValidator),
+        statusDetails: v.optional(
+          v.union(fantasyPlayerStatusDetailsValidator, v.null()),
+        ),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const now = Date.now();
+    const [players, clubs] = await Promise.all([
+      ctx.db
+        .query("fantasyPlayers")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyClubs")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+    ]);
+    const clubsById = new Map(clubs.map((club) => [club._id, club]));
+    const clubsByName = new Map(
+      clubs.map((club) => [normalizeText(club.name).toLowerCase(), club]),
+    );
+
+    const findPlayerForUpdate = async (update: {
+      expectedClubName?: string;
+      playerId?: Id<"fantasyPlayers">;
+      playerName?: string;
+    }) => {
+      if (update.playerId) {
+        const player = await ctx.db.get(update.playerId);
+        if (!player || player.seasonId !== season._id) {
+          throw new Error(`Игрок ${update.playerId} не найден.`);
+        }
+        return player;
+      }
+
+      const normalizedName = normalizeText(update.playerName ?? "").toLowerCase();
+      if (!normalizedName) {
+        throw new Error("Нужно передать playerId или playerName.");
+      }
+
+      let matches = players.filter((player) => {
+        const candidates = [
+          player.displayName,
+          player.lastName,
+          [player.firstName, player.lastName].filter(Boolean).join(" "),
+        ]
+          .filter(Boolean)
+          .map((value) => normalizeText(value).toLowerCase());
+
+        return candidates.includes(normalizedName);
+      });
+
+      if (update.expectedClubName) {
+        const normalizedExpectedClubName = normalizeText(
+          update.expectedClubName,
+        ).toLowerCase();
+        const matchesInClub = matches.filter((player) => {
+          const club = player.clubId ? clubsById.get(player.clubId) : null;
+          return (
+            normalizeText(club?.name ?? "").toLowerCase() ===
+            normalizedExpectedClubName
+          );
+        });
+        if (matchesInClub.length > 0) matches = matchesInClub;
+      }
+
+      if (matches.length === 0) {
+        throw new Error(`Игрок ${update.playerName} не найден.`);
+      }
+      if (matches.length > 1) {
+        throw new Error(
+          `Найдено несколько игроков для ${update.playerName}: ${matches
+            .map((player) => player.displayName)
+            .join(", ")}.`,
+        );
+      }
+
+      return matches[0];
+    };
+
+    const results = [];
+    for (const update of args.updates) {
+      const player = await findPlayerForUpdate(update);
+      const previousClub = player.clubId ? clubsById.get(player.clubId) : null;
+      const patch: Partial<Doc<"fantasyPlayers">> = { updatedAt: now };
+
+      if (update.clubName !== undefined) {
+        const targetClub = clubsByName.get(
+          normalizeText(update.clubName).toLowerCase(),
+        );
+        if (!targetClub) {
+          throw new Error(`Клуб ${update.clubName} не найден.`);
+        }
+        patch.clubId = targetClub._id;
+      }
+
+      if (update.status !== undefined) {
+        patch.status = update.status;
+      }
+      if (update.statusDetails !== undefined) {
+        patch.statusDetails =
+          update.statusDetails === null
+            ? undefined
+            : normalizeFantasyPlayerStatusDetails(update.statusDetails, now);
+      }
+
+      await ctx.db.patch(player._id, patch);
+      const targetClub = patch.clubId ? clubsById.get(patch.clubId) : previousClub;
+      results.push({
+        id: player._id,
+        displayName: player.displayName,
+        previousClubName: previousClub?.name ?? null,
+        clubName: targetClub?.name ?? null,
+        status: update.status ?? player.status,
+        statusDetails:
+          update.statusDetails === undefined
+            ? toFantasyPlayerStatusDetailsView(player)
+            : patch.statusDetails
+              ? toFantasyPlayerStatusDetailsView({
+                  statusDetails: patch.statusDetails,
+                })
+              : null,
+      });
+    }
+
+    return { updated: results.length, results };
   },
 });
 
@@ -5275,8 +5629,14 @@ export const saveMyTeam = mutation({
 
     let season = await requireExistingSeason(ctx, args.seasonSlug);
     const now = Date.now();
-    const rolloverState = await processSeasonDeadlineRollovers(ctx, season, now);
-    if (rolloverState.currentGameweekId !== (season.currentGameweekId ?? null)) {
+    const rolloverState = await processSeasonDeadlineRollovers(
+      ctx,
+      season,
+      now,
+    );
+    if (
+      rolloverState.currentGameweekId !== (season.currentGameweekId ?? null)
+    ) {
       season = (await ctx.db.get(season._id)) ?? season;
     }
     const name = normalizeText(args.name);

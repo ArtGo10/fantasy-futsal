@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
 import { useI18n } from "../../../i18n/I18nProvider";
+import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { LanguageCode, TranslationKey } from "../../../i18n/translations";
 import { api } from "../../../lib/convexApi";
 import { LanguageSwitcher } from "../../../components/common/LanguageSwitcher";
@@ -23,6 +24,7 @@ type AdminFixtureEventType =
   | "goal"
   | "assist"
   | "yellow_card"
+  | "second_yellow_red"
   | "red_card"
   | "own_goal"
   | "penalty_missed"
@@ -54,6 +56,7 @@ const ADMIN_EVENT_TYPES: AdminFixtureEventType[] = [
   "goal",
   "assist",
   "yellow_card",
+  "second_yellow_red",
   "red_card",
   "own_goal",
   "penalty_missed",
@@ -67,6 +70,7 @@ const ADMIN_EVENT_LABEL_KEYS: Record<AdminFixtureEventType, TranslationKey> = {
   penalty_missed: "profile.adminFixtureEventType.penaltyMissed",
   penalty_saved: "profile.adminFixtureEventType.penaltySaved",
   red_card: "profile.adminFixtureEventType.redCard",
+  second_yellow_red: "profile.adminFixtureEventType.secondYellowRed",
   yellow_card: "profile.adminFixtureEventType.yellowCard",
 };
 
@@ -192,6 +196,17 @@ export function ProfileScreen({
     null,
   );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  useDismissKeyboardOnChange([
+    selectedAdminFixtureId,
+    adminEventType,
+    adminEventSide,
+    adminEventPlayerId,
+    legalSheetKind,
+    feedbackSheetOpen,
+    deleteConfirmOpen,
+  ]);
+
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteErrorText, setDeleteErrorText] = useState<string | null>(null);
 

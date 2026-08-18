@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { useI18n } from "../../../i18n/I18nProvider";
+import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { TranslationKey } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
@@ -40,31 +41,45 @@ function normalizeLeagueMetric(value: number | null | undefined) {
 function getLeagueMetric(team: FantasyLeagueTeam, mode: LeagueMode) {
   if (mode === "average") return normalizeLeagueMetric(team.averagePoints);
   if (mode === "record") return normalizeLeagueMetric(team.bestGameweekPoints);
-  if (mode === "lastWeek") return normalizeLeagueMetric(team.lastGameweekPoints);
+  if (mode === "lastWeek")
+    return normalizeLeagueMetric(team.lastGameweekPoints);
   return normalizeLeagueMetric(team.totalPoints);
 }
 
-function getFormattedLeagueMetric(value: number | null | undefined, mode: LeagueMode, language: keyof typeof LANGUAGE_LOCALES) {
+function getFormattedLeagueMetric(
+  value: number | null | undefined,
+  mode: LeagueMode,
+  language: keyof typeof LANGUAGE_LOCALES,
+) {
   const normalizedValue = normalizeLeagueMetric(value);
 
   return new Intl.NumberFormat(LANGUAGE_LOCALES[language], {
     maximumFractionDigits: mode === "average" ? 1 : 0,
-    minimumFractionDigits: mode === "average" && !Number.isInteger(normalizedValue) ? 1 : 0,
+    minimumFractionDigits:
+      mode === "average" && !Number.isInteger(normalizedValue) ? 1 : 0,
   }).format(normalizedValue);
 }
 
-export function LeagueScreen({ teams }: { teams: FantasyLeagueTeam[] | undefined }) {
+export function LeagueScreen({
+  teams,
+}: {
+  teams: FantasyLeagueTeam[] | undefined;
+}) {
   const { language, t } = useI18n();
   const [leagueMode, setLeagueMode] = useState<LeagueMode>("total");
   const [isModePickerOpen, setModePickerOpen] = useState(false);
+
+  useDismissKeyboardOnChange([leagueMode, isModePickerOpen]);
   const isLoading = teams === undefined;
-  const selectedMode = LEAGUE_MODES.find((mode) => mode.id === leagueMode) ?? LEAGUE_MODES[0];
+  const selectedMode =
+    LEAGUE_MODES.find((mode) => mode.id === leagueMode) ?? LEAGUE_MODES[0];
   const sortedTeams = useMemo(
     () =>
       [...(teams ?? [])].sort(
         (a, b) =>
           getLeagueMetric(b, leagueMode) - getLeagueMetric(a, leagueMode) ||
-          normalizeLeagueMetric(b.totalPoints) - normalizeLeagueMetric(a.totalPoints) ||
+          normalizeLeagueMetric(b.totalPoints) -
+            normalizeLeagueMetric(a.totalPoints) ||
           a.name.localeCompare(b.name),
       ),
     [leagueMode, teams],
@@ -88,9 +103,19 @@ export function LeagueScreen({ teams }: { teams: FantasyLeagueTeam[] | undefined
       {!isLoading && teams.length > 0 ? (
         <>
           <View style={styles.leagueToolbar}>
-            <Pressable accessibilityRole="button" onPress={() => setModePickerOpen(true)} style={styles.leagueModeButton}>
-              <Text numberOfLines={1} style={styles.leagueModeButtonText}>{t(selectedMode.labelKey)}</Text>
-              <ChevronDown color={colors.text.secondary} size={18} strokeWidth={2.3} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setModePickerOpen(true)}
+              style={styles.leagueModeButton}
+            >
+              <Text numberOfLines={1} style={styles.leagueModeButtonText}>
+                {t(selectedMode.labelKey)}
+              </Text>
+              <ChevronDown
+                color={colors.text.secondary}
+                size={18}
+                strokeWidth={2.3}
+              />
             </Pressable>
           </View>
 
@@ -108,16 +133,29 @@ export function LeagueScreen({ teams }: { teams: FantasyLeagueTeam[] | undefined
                     </Text>
                   ) : null}
                 </View>
-                <Text style={styles.leaguePoints}>{getFormattedLeagueMetric(getLeagueMetric(team, leagueMode), leagueMode, language)}</Text>
+                <Text style={styles.leaguePoints}>
+                  {getFormattedLeagueMetric(
+                    getLeagueMetric(team, leagueMode),
+                    leagueMode,
+                    language,
+                  )}
+                </Text>
               </View>
             ))}
           </View>
         </>
       ) : null}
 
-      <BottomSheet contentScrollEnabled={false} onClose={() => setModePickerOpen(false)} visible={isModePickerOpen}>
+      <BottomSheet
+        contentScrollEnabled={false}
+        onClose={() => setModePickerOpen(false)}
+        visible={isModePickerOpen}
+      >
         <View style={styles.leaguePickerContent}>
-          <ScrollView style={styles.leaguePickerScroll} contentContainerStyle={styles.seasonPickerOptions}>
+          <ScrollView
+            style={styles.leaguePickerScroll}
+            contentContainerStyle={styles.seasonPickerOptions}
+          >
             {LEAGUE_MODES.map((mode) => {
               const isSelected = mode.id === leagueMode;
               return (
@@ -128,15 +166,32 @@ export function LeagueScreen({ teams }: { teams: FantasyLeagueTeam[] | undefined
                     setLeagueMode(mode.id);
                     setModePickerOpen(false);
                   }}
-                  style={[styles.seasonPickerOption, isSelected ? styles.seasonPickerOptionSelected : null]}
+                  style={[
+                    styles.seasonPickerOption,
+                    isSelected ? styles.seasonPickerOptionSelected : null,
+                  ]}
                 >
                   <View style={styles.seasonPickerOptionBody}>
                     <View style={styles.seasonPickerOptionTextGroup}>
-                      <Text numberOfLines={1} style={styles.seasonPickerOptionText}>{t(mode.labelKey)}</Text>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.seasonPickerOptionText}
+                      >
+                        {t(mode.labelKey)}
+                      </Text>
                     </View>
                   </View>
-                  <View style={[styles.seasonPickerOptionRadio, isSelected ? styles.seasonPickerOptionRadioSelected : null]}>
-                    {isSelected ? <View style={styles.seasonPickerOptionRadioDot} /> : null}
+                  <View
+                    style={[
+                      styles.seasonPickerOptionRadio,
+                      isSelected
+                        ? styles.seasonPickerOptionRadioSelected
+                        : null,
+                    ]}
+                  >
+                    {isSelected ? (
+                      <View style={styles.seasonPickerOptionRadioDot} />
+                    ) : null}
                   </View>
                 </Pressable>
               );

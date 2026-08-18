@@ -15,6 +15,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 
 import { useI18n } from "../../i18n/I18nProvider";
+import { useDismissKeyboardOnChange } from "../../hooks/useDismissKeyboardOnChange";
 import { storeLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { LegalConsentText } from "../legal/LegalConsentText";
 import { LegalTextSheet, type LegalTextKind } from "../legal/LegalTextSheet";
@@ -121,7 +122,11 @@ function AuthPasswordInput({
           onPress={onToggleVisibility}
           style={styles.authPasswordToggle}
         >
-          <VisibilityIcon color={colors.text.secondary} size={20} strokeWidth={2.2} />
+          <VisibilityIcon
+            color={colors.text.secondary}
+            size={20}
+            strokeWidth={2.2}
+          />
         </Pressable>
       }
       rightAccessoryWidth={50}
@@ -153,11 +158,7 @@ type ClerkPasswordResetAttempt = ClerkSignInAttempt & {
   }) => Promise<ClerkSignInAttempt>;
 };
 
-export function AuthScreen({
-  title = "Fantasy Futsal",
-}: {
-  title?: string;
-}) {
+export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
   const { language, t } = useI18n();
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
@@ -199,6 +200,15 @@ export function AuthScreen({
     awaitingVerification ||
     awaitingSignInVerification ||
     passwordResetStep === "code";
+
+  useDismissKeyboardOnChange([
+    authStep,
+    mode,
+    awaitingVerification,
+    awaitingSignInVerification,
+    passwordResetStep,
+    legalSheetKind,
+  ]);
   const canSubmit = useMemo(() => {
     if (isLoading || !isReady) return false;
     if (passwordResetStep === "email") return Boolean(email.trim());
@@ -678,7 +688,6 @@ export function AuthScreen({
     }
   };
 
-
   return (
     <View style={styles.authShellDark}>
       <ImageBackground
@@ -932,7 +941,9 @@ export function AuthScreen({
                             clearFormError();
                           }}
                           onToggleVisibility={() =>
-                            setIsConfirmNewPasswordVisible((current) => !current)
+                            setIsConfirmNewPasswordVisible(
+                              (current) => !current,
+                            )
                           }
                           placeholder={t("auth.confirmNewPasswordPlaceholder")}
                           toggleLabel={
@@ -961,7 +972,9 @@ export function AuthScreen({
                         <View
                           style={[
                             styles.legalCheckbox,
-                            hasAcceptedLegal ? styles.legalCheckboxChecked : null,
+                            hasAcceptedLegal
+                              ? styles.legalCheckboxChecked
+                              : null,
                           ]}
                         >
                           {hasAcceptedLegal ? (

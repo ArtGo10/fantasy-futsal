@@ -3,7 +3,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, Keyboard, Pressable, Text, View } from "react-native";
 import { Bell, Check } from "lucide-react-native";
 
 import { AuthScreen } from "../../components/auth/AuthScreen";
@@ -17,6 +17,7 @@ import {
   type LegalTextKind,
 } from "../../components/legal/LegalTextSheet";
 import { useCurrentUserBootstrap } from "../../hooks/useCurrentUserBootstrap";
+import { useDismissKeyboardOnChange } from "../../hooks/useDismissKeyboardOnChange";
 import { LEGAL_VERSION } from "../../legal/legalContent";
 import { clearStoredLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { useExpoPushTokenRegistration } from "../../hooks/usePushNotifications";
@@ -558,12 +559,21 @@ export function FantasyHome({
     userIsSignedIn,
   ]);
 
+  useDismissKeyboardOnChange([
+    activeTab,
+    isNotificationsOpen,
+    requiredLegalSheetKind,
+    isShellHeaderHidden,
+    areBottomTabsHidden,
+  ]);
+
   const clearError = useCallback(() => setErrorText(null), []);
   const setAsyncError = useCallback(
     (message: string) => setErrorText(message),
     [],
   );
   const handleTabChange = useCallback((nextTab: FantasyTabId) => {
+    Keyboard.dismiss();
     setVisitedTabs((current) => {
       if (current.has(nextTab)) return current;
 

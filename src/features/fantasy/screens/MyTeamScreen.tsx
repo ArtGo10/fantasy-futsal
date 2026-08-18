@@ -32,6 +32,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
 import { LoadingLogo } from "../../../components/common/LoadingLogo";
+import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import {
   LegalTextSheet,
   type LegalTextKind,
@@ -108,11 +109,13 @@ type PlayerPointLineKind =
   | "goal"
   | "assist"
   | "yellow_card"
+  | "second_yellow_red"
   | "red_card"
   | "own_goal"
   | "penalty_missed"
   | "penalty_saved"
-  | "goalkeeper_conceded";
+  | "team_goals_scored"
+  | "team_goals_conceded";
 
 type FantasyOverview =
   | {
@@ -396,11 +399,13 @@ const POINT_LINE_LABEL_KEYS: Record<PlayerPointLineKind, TranslationKey> = {
   appearance: "team.pointsLine.appearance",
   assist: "team.pointsLine.assist",
   goal: "team.pointsLine.goal",
-  goalkeeper_conceded: "team.pointsLine.goalkeeper_conceded",
   own_goal: "team.pointsLine.own_goal",
   penalty_missed: "team.pointsLine.penalty_missed",
   penalty_saved: "team.pointsLine.penalty_saved",
   red_card: "team.pointsLine.red_card",
+  second_yellow_red: "team.pointsLine.second_yellow_red",
+  team_goals_conceded: "team.pointsLine.team_goals_conceded",
+  team_goals_scored: "team.pointsLine.team_goals_scored",
   yellow_card: "team.pointsLine.yellow_card",
 };
 
@@ -784,7 +789,7 @@ function TeamCreateSetup({
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"
-          contentPosition="top center"
+          contentPosition="center"
           source={FANTASY_TEAM_IMAGE}
           style={styles.teamCreateSetupHeroImage}
         />
@@ -2743,6 +2748,17 @@ export function MyTeamScreen({
     useState<PlayerPickerDropdown>(null);
   const [showSaveHint, setShowSaveHint] = useState(false);
   const [teamName, setTeamName] = useState(() => initialDraftState.teamName);
+
+  useDismissKeyboardOnChange([
+    teamWorkspaceMode,
+    teamViewMode,
+    transferStep,
+    isPlayerPickerOpen,
+    detailSlot?.rosterSlot ?? null,
+    isFavoriteClubPickerOpen,
+    legalSheetKind,
+  ]);
+
   const fantasyTeamDraftSignature =
     createFantasyTeamDraftSignature(fantasyTeam);
   const syncedFantasyTeamDraftSignatureRef = useRef(fantasyTeamDraftSignature);

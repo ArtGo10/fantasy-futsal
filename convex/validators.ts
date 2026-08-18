@@ -1,16 +1,48 @@
 import { v } from "convex/values";
 
-export const FANTASY_SEASON_STATUSES = ["draft", "setup", "active", "completed", "archived"] as const;
-export const FANTASY_GAMEWEEK_STATUSES = ["upcoming", "open", "locked", "live", "completed"] as const;
-export const FANTASY_FIXTURE_STATUSES = ["scheduled", "live", "completed", "postponed", "cancelled"] as const;
+export const FANTASY_SEASON_STATUSES = [
+  "draft",
+  "setup",
+  "active",
+  "completed",
+  "archived",
+] as const;
+export const FANTASY_GAMEWEEK_STATUSES = [
+  "upcoming",
+  "open",
+  "locked",
+  "live",
+  "completed",
+] as const;
+export const FANTASY_FIXTURE_STATUSES = [
+  "scheduled",
+  "live",
+  "completed",
+  "postponed",
+  "cancelled",
+] as const;
 export const FANTASY_PLAYER_POSITIONS = ["goalkeeper", "universal"] as const;
-export const FANTASY_PLAYER_STORAGE_POSITIONS = ["goalkeeper", "fixo", "winger", "pivot", "universal"] as const;
-export const FANTASY_PLAYER_STATUSES = ["active", "doubtful", "injured", "suspended", "unavailable", "left"] as const;
+export const FANTASY_PLAYER_STORAGE_POSITIONS = [
+  "goalkeeper",
+  "fixo",
+  "winger",
+  "pivot",
+  "universal",
+] as const;
+export const FANTASY_PLAYER_STATUSES = [
+  "active",
+  "doubtful",
+  "injured",
+  "suspended",
+  "unavailable",
+  "left",
+] as const;
 export const FANTASY_SQUAD_ROLES = ["starter", "bench", "reserve"] as const;
 export const FANTASY_FIXTURE_EVENT_TYPES = [
   "goal",
   "assist",
   "yellow_card",
+  "second_yellow_red",
   "red_card",
   "own_goal",
   "penalty_missed",
@@ -22,10 +54,12 @@ export type FantasySeasonStatus = (typeof FANTASY_SEASON_STATUSES)[number];
 export type FantasyGameweekStatus = (typeof FANTASY_GAMEWEEK_STATUSES)[number];
 export type FantasyFixtureStatus = (typeof FANTASY_FIXTURE_STATUSES)[number];
 export type FantasyPlayerPosition = (typeof FANTASY_PLAYER_POSITIONS)[number];
-export type FantasyPlayerStoragePosition = (typeof FANTASY_PLAYER_STORAGE_POSITIONS)[number];
+export type FantasyPlayerStoragePosition =
+  (typeof FANTASY_PLAYER_STORAGE_POSITIONS)[number];
 export type FantasyPlayerStatus = (typeof FANTASY_PLAYER_STATUSES)[number];
 export type FantasySquadRole = (typeof FANTASY_SQUAD_ROLES)[number];
-export type FantasyFixtureEventType = (typeof FANTASY_FIXTURE_EVENT_TYPES)[number];
+export type FantasyFixtureEventType =
+  (typeof FANTASY_FIXTURE_EVENT_TYPES)[number];
 export type FantasyFixtureSide = (typeof FANTASY_FIXTURE_SIDES)[number];
 
 export const fantasySeasonStatusValidator = v.union(
@@ -83,6 +117,7 @@ export const fantasyFixtureEventTypeValidator = v.union(
   v.literal("goal"),
   v.literal("assist"),
   v.literal("yellow_card"),
+  v.literal("second_yellow_red"),
   v.literal("red_card"),
   v.literal("own_goal"),
   v.literal("penalty_missed"),

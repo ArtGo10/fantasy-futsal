@@ -1,17 +1,12 @@
 import { FlashList } from "@shopify/flash-list";
 import { Check, ChevronDown, Star } from "lucide-react-native";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Keyboard, Pressable, ScrollView, Text, View } from "react-native";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
 import { useI18n } from "../../../i18n/I18nProvider";
+import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { TranslationKey } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
