@@ -14,7 +14,6 @@
     },
     "ios": {
       "bundleIdentifier": "com.artemholoven.fantasy-futsal",
-      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -37,7 +36,7 @@
       [
         "@clerk/expo",
         {
-          "appleSignIn": false
+          "appleSignIn": true
         }
       ],
       "expo-secure-store",
