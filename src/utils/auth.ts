@@ -35,7 +35,8 @@ const AUTH_ERROR_MESSAGES: Record<
   }
 > = {
   en: {
-    accountExists: "This account already exists.",
+    accountExists:
+      "An account with this email already exists. Sign in instead.",
     actionFailed:
       "Could not complete the action. Check the details and try again.",
     emailInvalid: "Enter a valid email address.",
@@ -62,7 +63,8 @@ const AUTH_ERROR_MESSAGES: Record<
     verification: "Could not verify the code. Check the code and try again.",
   },
   uk: {
-    accountExists: "Такий акаунт уже існує.",
+    accountExists:
+      "Акаунт із цією поштою вже існує. Увійдіть замість реєстрації.",
     actionFailed:
       "Не вдалося виконати дію. Перевірте дані та спробуйте ще раз.",
     emailInvalid: "Введіть коректну пошту.",
@@ -285,8 +287,25 @@ export function getErrorMessage(
     return messages.incorrectPassword;
   }
   if (
-    normalized.includes("already") &&
-    (normalized.includes("exist") || normalized.includes("taken"))
+    normalized.includes("identifier_exists") ||
+    normalized.includes("form_identifier_exists") ||
+    normalized.includes("email_address_exists") ||
+    normalized.includes("email_exists") ||
+    normalized.includes("account_exists") ||
+    normalized.includes("user_exists") ||
+    normalized.includes("already_registered") ||
+    normalized.includes("already registered") ||
+    normalized.includes("already have an account") ||
+    normalized.includes("email already") ||
+    normalized.includes("address already") ||
+    normalized.includes("already been taken") ||
+    normalized.includes("has been taken") ||
+    normalized.includes("is taken") ||
+    normalized.includes("email taken") ||
+    ((paramName.includes("email") || normalized.includes("email")) &&
+      normalized.includes("taken")) ||
+    (normalized.includes("already") &&
+      (normalized.includes("exist") || normalized.includes("taken")))
   ) {
     return messages.accountExists;
   }

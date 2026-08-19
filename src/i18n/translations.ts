@@ -361,6 +361,8 @@ const en = {
     "You are signed in, but the app session is not confirmed yet. Public sections are available. To manage your team, try refreshing the app.",
   "session.restoreProblem":
     "We could not refresh the app session. Showing the last available data; reopen the app if actions do not respond.",
+  "session.startupProblem":
+    "We could not load your app session. Check your connection and restart the app if this repeats.",
   "notifications.title": "Notifications",
   "notifications.emptyTitle": "No notifications yet",
   "notifications.emptyDescription":
@@ -954,6 +956,8 @@ const uk: Record<TranslationKey, string> = {
     "Ви увійшли в акаунт, але сесію застосунку ще не підтверджено. Публічні розділи доступні, а для керування командою спробуйте оновити застосунок.",
   "session.restoreProblem":
     "Не вдалося оновити сесію застосунку. Показуємо останні доступні дані; перезапустіть застосунок, якщо дії не відповідають.",
+  "session.startupProblem":
+    "Не вдалося завантажити сесію застосунку. Перевірте підключення й перезапустіть застосунок, якщо це повториться.",
   "notifications.title": "Сповіщення",
   "notifications.emptyTitle": "Сповіщень поки немає",
   "notifications.emptyDescription":

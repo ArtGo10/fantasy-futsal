@@ -858,12 +858,7 @@ function TeamCreateSetup({
         </View>
       </View>
 
-      <View
-        style={[
-          styles.teamBuilderFooterActions,
-          styles.teamCreateSetupActions,
-        ]}
-      >
+      <View style={styles.teamBuilderFooterActions}>
         <Pressable
           accessibilityRole="button"
           onPress={onCancel}

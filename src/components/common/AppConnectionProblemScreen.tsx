@@ -7,9 +7,17 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { styles } from "../../styles";
 import fantasyFutsalAppIcon from "../../../assets/fantasy-futsal-big-icon.png";
 
-export function AppConnectionProblemScreen() {
+export function AppConnectionProblemScreen({
+  description,
+  title,
+}: {
+  description?: string;
+  title?: string;
+} = {}) {
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
+  const resolvedTitle = title ?? t("network.offlineTitle");
+  const resolvedDescription = description ?? t("network.offlineDescription");
 
   return (
     <View
@@ -33,11 +41,9 @@ export function AppConnectionProblemScreen() {
         />
         <Text style={styles.appLoadingBrand}>{t("app.title")}</Text>
         <View style={styles.appLoadingTextGroup}>
-          <Text style={styles.appLoadingTitle}>
-            {t("network.offlineTitle")}
-          </Text>
+          <Text style={styles.appLoadingTitle}>{resolvedTitle}</Text>
           <Text style={styles.appLoadingDescription}>
-            {t("network.offlineDescription")}
+            {resolvedDescription}
           </Text>
         </View>
       </View>

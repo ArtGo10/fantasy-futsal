@@ -67,6 +67,7 @@ type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
 const CONVEX_AUTH_PROBLEM_GRACE_MS = 30000;
 const PRIVATE_LOADING_OVERLAY_TIMEOUT_MS = 15000;
 const CONNECTION_TOAST_DURATION_MS = 3500;
+const CONNECTION_TOAST_RESUME_GRACE_MS = 8000;
 const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
@@ -187,6 +188,7 @@ export function FantasyHome({
   } = useAuth();
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
+  const lastForegroundResumeAtRef = useRef(0);
   const wasOfflineRef = useRef(isOffline);
   const preferredLanguageSyncKeyRef = useRef<string | null>(null);
   const previousPrivateLoadingOverlayDebugRef = useRef<string | null>(null);
@@ -246,6 +248,9 @@ export function FantasyHome({
     userIsSignedIn &&
     !convexAuth.isLoading &&
     (!convexAuth.isAuthenticated || convexTokenFailed);
+  const hasAuthBootstrapProblem =
+    userIsSignedIn &&
+    (convexAuth.isLoading || !convexAuth.isAuthenticated || convexTokenFailed);
   const userCanUsePrivateFeatures =
     userIsSignedIn && convexAuth.isAuthenticated && convexTokenReady;
   const canUseNetworkedPrivateFeatures =
@@ -443,13 +448,17 @@ export function FantasyHome({
       appStateRef.current = nextAppState;
 
       if (
-        userIsSignedIn &&
         nextAppState === "active" &&
         /inactive|background/.test(previousAppState)
       ) {
-        setCanShowAuthProblem(false);
-        setConvexTokenStatus("idle");
-        setForegroundRefreshNonce((current) => current + 1);
+        lastForegroundResumeAtRef.current = Date.now();
+        setIsConnectionToastVisible(false);
+
+        if (userIsSignedIn) {
+          setCanShowAuthProblem(false);
+          setConvexTokenStatus("idle");
+          setForegroundRefreshNonce((current) => current + 1);
+        }
       }
     });
 
@@ -483,12 +492,12 @@ export function FantasyHome({
   }, [activeTab]);
 
   useEffect(() => {
-    if (!hasRawAuthProblem) {
+    if (!hasAuthBootstrapProblem) {
       setCanShowAuthProblem(false);
       return undefined;
     }
 
-    if (convexTokenFailed) {
+    if (convexTokenFailed || hasRawAuthProblem) {
       setCanShowAuthProblem(true);
       return undefined;
     }
@@ -500,7 +509,7 @@ export function FantasyHome({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [convexTokenFailed, hasRawAuthProblem]);
+  }, [convexTokenFailed, hasAuthBootstrapProblem, hasRawAuthProblem]);
 
   useEffect(() => {
     if (
@@ -655,12 +664,25 @@ export function FantasyHome({
       return undefined;
     }
 
-    setIsConnectionToastVisible(true);
-    const timeoutId = setTimeout(() => {
-      setIsConnectionToastVisible(false);
-    }, CONNECTION_TOAST_DURATION_MS);
+    const resumedAgoMs = Date.now() - lastForegroundResumeAtRef.current;
+    const showDelayMs = Math.max(
+      CONNECTION_TOAST_RESUME_GRACE_MS - resumedAgoMs,
+      0,
+    );
+    let hideTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    const showTimeoutId = setTimeout(() => {
+      setIsConnectionToastVisible(true);
+      hideTimeoutId = setTimeout(() => {
+        setIsConnectionToastVisible(false);
+      }, CONNECTION_TOAST_DURATION_MS);
+    }, showDelayMs);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(showTimeoutId);
+      if (hideTimeoutId) {
+        clearTimeout(hideTimeoutId);
+      }
+    };
   }, [isOffline]);
 
   useEffect(() => {
@@ -1079,7 +1101,7 @@ export function FantasyHome({
   if (
     userIsSignedIn &&
     !hasEnteredPrivateApp &&
-    (convexAuth.isLoading ||
+    ((convexAuth.isLoading && !canShowAuthProblem) ||
       (!convexAuth.isAuthenticated && !canShowAuthProblem) ||
       (convexAuth.isAuthenticated && !convexTokenReady && !canShowAuthProblem))
   ) {
@@ -1109,7 +1131,9 @@ export function FantasyHome({
   }
 
   const authProblemText =
-    hasRawAuthProblem && canShowAuthProblem ? t("session.authProblem") : null;
+    hasAuthBootstrapProblem && canShowAuthProblem
+      ? t("session.authProblem")
+      : null;
   const sessionRestoreProblemText =
     privateLoadingTimedOut &&
     privateLoadingOverlayReason &&

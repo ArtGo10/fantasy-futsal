@@ -61,6 +61,8 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
 const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
+const AUTH_BOOT_TIMEOUT_MS = 15000;
+const AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT = 1;
 
 const DEFAULT_SAFE_AREA_EDGES = ["top", "right", "bottom", "left"] as const;
 const TOP_EDGE_TO_EDGE_SAFE_AREA_EDGES = ["right", "bottom", "left"] as const;
@@ -303,24 +305,83 @@ class AppRuntimeErrorBoundary extends Component<
 }
 
 function ClerkSessionGate({
+  authBootRecoveryAttempts,
   children,
   isOffline,
+  onRecoverAuthBoot,
 }: {
+  authBootRecoveryAttempts: number;
   children: ReactNode;
   isOffline: boolean;
+  onRecoverAuthBoot: () => void;
 }) {
+  const { t } = useI18n();
   const { isLoaded } = useAuth();
   const [hasLoadedOnce, setHasLoadedOnce] = useState(isLoaded);
+  const [hasBootTimedOut, setHasBootTimedOut] = useState(false);
+  const wasOfflineRef = useRef(isOffline);
+  const hasRequestedRecoveryRef = useRef(false);
 
   useEffect(() => {
     if (isLoaded) {
       setHasLoadedOnce(true);
+      setHasBootTimedOut(false);
+      hasRequestedRecoveryRef.current = false;
     }
   }, [isLoaded]);
+
+  useEffect(() => {
+    const wasOffline = wasOfflineRef.current;
+    wasOfflineRef.current = isOffline;
+
+    if (
+      wasOffline &&
+      !isOffline &&
+      !isLoaded &&
+      !hasLoadedOnce &&
+      authBootRecoveryAttempts < AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT
+    ) {
+      hasRequestedRecoveryRef.current = true;
+      setHasBootTimedOut(false);
+      onRecoverAuthBoot();
+    }
+  }, [authBootRecoveryAttempts, hasLoadedOnce, isLoaded, isOffline, onRecoverAuthBoot]);
+
+  useEffect(() => {
+    if (isOffline || isLoaded || hasLoadedOnce) {
+      setHasBootTimedOut(false);
+      return undefined;
+    }
+
+    setHasBootTimedOut(false);
+    const timeoutId = setTimeout(() => {
+      if (
+        !hasRequestedRecoveryRef.current &&
+        authBootRecoveryAttempts < AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT
+      ) {
+        hasRequestedRecoveryRef.current = true;
+        onRecoverAuthBoot();
+        return;
+      }
+
+      setHasBootTimedOut(true);
+    }, AUTH_BOOT_TIMEOUT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [authBootRecoveryAttempts, hasLoadedOnce, isLoaded, isOffline, onRecoverAuthBoot]);
 
   if (!isLoaded && !hasLoadedOnce) {
     if (isOffline) {
       return <AppConnectionProblemScreen />;
+    }
+
+    if (hasBootTimedOut) {
+      return (
+        <AppConnectionProblemScreen
+          title={t("loading.checkingSession")}
+          description={t("session.startupProblem")}
+        />
+      );
     }
 
     return <AppBootLoading />;
@@ -340,6 +401,8 @@ function ConfiguredApp({
     () => new ConvexReactClient(convexUrl),
     [convexUrl],
   );
+  const [authBootRecoveryAttempts, setAuthBootRecoveryAttempts] = useState(0);
+  const [sessionProviderResetKey, setSessionProviderResetKey] = useState(0);
   const [isTopEdgeToEdge, setIsTopEdgeToEdge] = useState(false);
   const [rootLayoutReady, setRootLayoutReady] = useState(false);
   const isCompletingOAuthRedirect = isWebOAuthCallbackPath();
@@ -350,6 +413,17 @@ function ConfiguredApp({
   const handleRootLayout = useCallback(() => {
     setRootLayoutReady(true);
   }, []);
+
+  const handleRecoverAuthBoot = useCallback(() => {
+    setAuthBootRecoveryAttempts((current) => current + 1);
+    setSessionProviderResetKey((current) => current + 1);
+  }, []);
+
+  useEffect(() => {
+    if (isOffline) {
+      setAuthBootRecoveryAttempts(0);
+    }
+  }, [isOffline]);
 
   useEffect(() => {
     void preloadFantasyBootAssets().catch(() => undefined);
@@ -368,7 +442,11 @@ function ConfiguredApp({
   const { redirectUrlComplete } = getWebOAuthRedirectUrls();
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
+    <ClerkProvider
+      key={sessionProviderResetKey}
+      publishableKey={clerkPublishableKey}
+      tokenCache={tokenCache}
+    >
       <ConvexClerkProvider client={convexClient}>
         <SafeAreaProvider>
           <I18nProvider>
@@ -387,7 +465,11 @@ function ConfiguredApp({
                 style={styles.keyboardAvoidingRoot}
               >
                 <AppRuntimeErrorBoundary>
-                  <ClerkSessionGate isOffline={isOffline}>
+                  <ClerkSessionGate
+                    authBootRecoveryAttempts={authBootRecoveryAttempts}
+                    isOffline={isOffline}
+                    onRecoverAuthBoot={handleRecoverAuthBoot}
+                  >
                     <AppContent
                       isOffline={isOffline}
                       isCompletingOAuthRedirect={isCompletingOAuthRedirect}

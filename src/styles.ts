@@ -1551,7 +1551,7 @@ export const styles = StyleSheet.create({
   teamCreateSetupScreen: {
     width: "100%",
     flexGrow: 1,
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingBottom: 0,
   },
   teamCreateSetupHero: {
@@ -1631,10 +1631,6 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.base,
   },
-  teamCreateSetupActions: {
-    marginTop: "auto",
-  },
-
   teamDashboardCard: {
     width: "100%",
     overflow: "hidden",
