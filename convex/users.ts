@@ -6,7 +6,7 @@ import { internalAction, mutation, query } from "./_generated/server";
 import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
 
 const MAX_FEEDBACK_MESSAGE_LENGTH = 4000;
-const SUPPORT_EMAIL = "support@footballfantasy.app";
+const SUPPORT_EMAIL = "support@fantasyfutsal.app";
 const RESEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FEEDBACK_EMAIL_FROM = "Fantasy Futsal <" + SUPPORT_EMAIL + ">";
 
