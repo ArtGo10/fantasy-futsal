@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-10T21:07:54.372Z",
+  "generatedAt": "2026-08-19T11:55:44.226Z",
   "source": {
     "baseUrl": "https://futsal.com.ua",
     "apiBaseUrl": "https://futsal.com.ua/wp-json/sportspress/v2",
@@ -6072,6 +6072,122 @@
       "photoStorageKey": "players/9506.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1994/02/SHCHerytsia-Photoroom.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1994/02/SHCHerytsia-Photoroom-150x150.png"
+    },
+    {
+      "externalId": "4518",
+      "sourceSlug": "ponochovnyy-volodymyr",
+      "sourceUrl": "https://futsal.com.ua/гравці/ponochovnyy-volodymyr/",
+      "displayName": "Володимир Поночовний",
+      "firstName": "Володимир",
+      "lastName": "Поночовний",
+      "position": "universal",
+      "jerseyNumber": 12,
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4518.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4518.png",
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5,
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/4518.png",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1994/06/IMG_9137-removebg-preview.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1994/06/IMG_9137-removebg-preview-200x300.png"
+    },
+    {
+      "externalId": "4756",
+      "sourceSlug": "yuriy-savenko",
+      "sourceUrl": "https://futsal.com.ua/гравці/yuriy-savenko/",
+      "displayName": "Юрій Савенко",
+      "firstName": "Юрій",
+      "lastName": "Савенко",
+      "position": "goalkeeper",
+      "jerseyNumber": 19,
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4756.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4756.png",
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5,
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/4756.png",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2002/08/DRK-309-removebg-preview.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/08/DRK-309-removebg-preview-200x300.png"
+    },
+    {
+      "externalId": "18871",
+      "sourceSlug": "mendes-rodrihes-dos-santos-kayke",
+      "sourceUrl": "https://futsal.com.ua/гравці/mendes-rodrihes-dos-santos-kayke/",
+      "displayName": "Мендес Родрігес Дос Сантос Кайке (Кайке)",
+      "firstName": "Мендес",
+      "lastName": "Родрігес Дос Сантос Кайке (Кайке)",
+      "position": "universal",
+      "jerseyNumber": 47,
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18871.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18871.png",
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5,
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/18871.png",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1999/09/Kayke-2-Photoroom.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/09/Kayke-2-Photoroom-150x150.png"
+    },
+    {
+      "externalId": "21187",
+      "sourceSlug": "habriel-barretto",
+      "sourceUrl": "https://futsal.com.ua/гравці/habriel-barretto/",
+      "displayName": "Габріел Барретто",
+      "firstName": "Габріел",
+      "lastName": "Барретто",
+      "position": "universal",
+      "jerseyNumber": 20,
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/21187.jpg",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/21187.jpg",
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5,
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/21187.jpg",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2026/03/IMG_6113-scaled.jpg",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2026/03/IMG_6113-200x300.jpg"
     }
   ],
   "fixtures": [
@@ -9601,9 +9717,9 @@
   ],
   "summary": {
     "clubs": 10,
-    "players": 172,
+    "players": 176,
     "fixtures": 4,
-    "playersWithPhotos": 160,
+    "playersWithPhotos": 164,
     "playersWithoutPhotos": 12,
     "warnings": 42,
     "warningsByType": {

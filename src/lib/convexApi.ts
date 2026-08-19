@@ -80,6 +80,18 @@ export const api = {
     >("fantasy:upsertFixtureLineup"),
   },
   notifications: {
+    currentUserNotificationSummary: functionRef<
+      GeneratedApi["notifications"]["currentUserNotificationSummary"]
+    >("notifications:currentUserNotificationSummary"),
+    listCurrentUserNotifications: functionRef<
+      GeneratedApi["notifications"]["listCurrentUserNotifications"]
+    >("notifications:listCurrentUserNotifications"),
+    markAllCurrentUserNotificationsRead: functionRef<
+      GeneratedApi["notifications"]["markAllCurrentUserNotificationsRead"]
+    >("notifications:markAllCurrentUserNotificationsRead"),
+    markCurrentUserNotificationRead: functionRef<
+      GeneratedApi["notifications"]["markCurrentUserNotificationRead"]
+    >("notifications:markCurrentUserNotificationRead"),
     sendGameweekResultsReadyPushToAll: functionRef<
       GeneratedApi["notifications"]["sendGameweekResultsReadyPushToAll"]
     >("notifications:sendGameweekResultsReadyPushToAll"),

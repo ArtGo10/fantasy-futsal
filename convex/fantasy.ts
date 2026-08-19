@@ -1,3 +1,4 @@
+import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
@@ -68,6 +69,7 @@ const FANTASY_PRICE_MIN = 5.5;
 const FANTASY_PRICE_MAX = 15.0;
 const FANTASY_PRICE_STEP = 0.5;
 const FANTASY_PRICE_CHANGE_LIMIT = 0.5;
+const GAMEWEEK_LIVE_PUSH_DELAY_MS = 12 * 60 * 60 * 1000;
 const EXTRA_LEAGUE_ACCIDENTAL_DEV_CLUB_NAMES = new Set([
   "Атлетик Футзал",
   "SkyUp Futsal",
@@ -76,6 +78,37 @@ const EXTRA_LEAGUE_REAL_CLUB_NAMES_TO_RESTORE = new Set([
   "Атлетік Футзал",
   "SkyUp",
 ]);
+type PushToAllUsersResult = {
+  created: number;
+  sent: number;
+  skippedDuplicate: boolean;
+  updated: number;
+};
+
+const sendPushToAllUsersInternal = makeFunctionReference<
+  "action",
+  {
+    body: string;
+    gameweekId?: Id<"fantasyGameweeks">;
+    key: string;
+    skipIfGameweekCompleted?: boolean;
+    title: string;
+    type: string;
+  },
+  PushToAllUsersResult
+>("notifications:sendPushToAllUsersInternal") as unknown as FunctionReference<
+  "action",
+  "internal",
+  {
+    body: string;
+    gameweekId?: Id<"fantasyGameweeks">;
+    key: string;
+    skipIfGameweekCompleted?: boolean;
+    title: string;
+    type: string;
+  },
+  PushToAllUsersResult
+>;
 const FANTASY_DEFAULT_SCORING_RULES = {
   version: "futsal-fantasy-v2",
   appearance: 1,
@@ -111,6 +144,20 @@ const FANTASY_DEFAULT_SCORING_RULES = {
   penaltySaved: 0,
 };
 
+async function schedulePushToAllUsers(
+  ctx: MutationCtx,
+  notification: {
+    body: string;
+    gameweekId?: Id<"fantasyGameweeks">;
+    key: string;
+    skipIfGameweekCompleted?: boolean;
+    title: string;
+    type: string;
+  },
+  delayMs = 0,
+) {
+  await ctx.scheduler.runAfter(delayMs, sendPushToAllUsersInternal, notification);
+}
 type FixtureProfileDoubleClub = {
   clubId: Id<"fantasyClubs"> | null;
   matchCount: number;
@@ -1909,6 +1956,18 @@ async function processSeasonDeadlineRollovers(
         status: "live",
         updatedAt: now,
       });
+      await schedulePushToAllUsers(
+        ctx,
+        {
+          gameweekId: freshGameweek._id,
+          key: `deadline-passed:${freshGameweek._id}`,
+          skipIfGameweekCompleted: true,
+          type: "deadline_passed",
+          title: "Тур live",
+          body: `${freshGameweek.name} live. Стежте за оновленнями результатів у застосунку.`,
+        },
+        GAMEWEEK_LIVE_PUSH_DELAY_MS,
+      );
     }
 
     createdSnapshots += snapshotState.createdSnapshots;
@@ -2473,6 +2532,46 @@ async function applyGameweekPriceChanges(
   };
 }
 
+async function completeGameweekIfAllFixturesResolved(
+  ctx: MutationCtx,
+  gameweek: Doc<"fantasyGameweeks">,
+  now: number,
+) {
+  if (gameweek.status === "completed") {
+    return { activeFixtures: 0, completed: false };
+  }
+
+  const fixtures = await ctx.db
+    .query("fantasyFixtures")
+    .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+    .collect();
+  const activeFixtures = fixtures.filter(
+    (fixture) =>
+      fixture.status !== "cancelled" && fixture.status !== "postponed",
+  );
+  const allFixturesCompleted =
+    activeFixtures.length > 0 &&
+    activeFixtures.every((fixture) => fixture.status === "completed");
+
+  if (!allFixturesCompleted) {
+    return { activeFixtures: activeFixtures.length, completed: false };
+  }
+
+  await ctx.db.patch(gameweek._id, {
+    completedAt: gameweek.completedAt ?? now,
+    status: "completed",
+    updatedAt: now,
+  });
+  await schedulePushToAllUsers(ctx, {
+    key: `gameweek-results-ready:${gameweek._id}`,
+    type: "gameweek_results_ready",
+    title: "Підсумки туру готові",
+    body: `${gameweek.name} завершено. Очки вже підраховані, можна перевірити результати.`,
+  });
+
+  return { activeFixtures: activeFixtures.length, completed: true };
+}
+
 async function refreshGameweekAfterFixtureChange(
   ctx: MutationCtx,
   fixture: Doc<"fantasyFixtures">,
@@ -2504,7 +2603,13 @@ async function refreshGameweekAfterFixtureChange(
     now,
   );
 
-  return { priceChanges, scoring };
+  const completion = await completeGameweekIfAllFixturesResolved(
+    ctx,
+    freshGameweek,
+    now,
+  );
+
+  return { completion, priceChanges, scoring };
 }
 
 export const fixtureDetails = query({
@@ -4892,6 +4997,12 @@ export const completeGameweekAndGrantTransfers = mutation({
       freeTransfersGrantedAt: freshGameweek.freeTransfersGrantedAt ?? now,
       status: "completed",
       updatedAt: now,
+    });
+    await schedulePushToAllUsers(ctx, {
+      key: `gameweek-results-ready:${gameweek._id}`,
+      type: "gameweek_results_ready",
+      title: "Підсумки туру готові",
+      body: `${gameweek.name} завершено. Очки вже підраховані, можна перевірити результати.`,
     });
 
     const gameweeks = await ctx.db

@@ -2,9 +2,16 @@ import { cronJobs, makeFunctionReference, type FunctionReference } from "convex/
 
 const crons = cronJobs();
 
-const sendDeadlineRemindersInternal = makeFunctionReference<"action", Record<string, never>, { reminders: number; sent: number }>(
-  "notifications:sendDeadlineRemindersInternal",
-) as unknown as FunctionReference<"action", "internal", Record<string, never>, { reminders: number; sent: number }>;
+const sendDeadlineRemindersInternal = makeFunctionReference<
+  "action",
+  Record<string, never>,
+  { created: number; reminders: number; sent: number; updated: number }
+>("notifications:sendDeadlineRemindersInternal") as unknown as FunctionReference<
+  "action",
+  "internal",
+  Record<string, never>,
+  { created: number; reminders: number; sent: number; updated: number }
+>;
 const processPassedGameweekDeadlinesInternal = makeFunctionReference<
   "mutation",
   Record<string, never>,
@@ -18,7 +25,15 @@ const processPassedGameweekDeadlinesInternal = makeFunctionReference<
   { createdSnapshots: number; grantedTeams: number; processedGameweeks: number }
 >;
 
-crons.interval("send deadline push reminders", { hours: 1 }, sendDeadlineRemindersInternal);
-crons.interval("process fantasy gameweek deadlines", { minutes: 1 }, processPassedGameweekDeadlinesInternal);
+crons.interval(
+  "send deadline push reminders",
+  { minutes: 5 },
+  sendDeadlineRemindersInternal,
+);
+crons.interval(
+  "process fantasy gameweek deadlines",
+  { minutes: 1 },
+  processPassedGameweekDeadlinesInternal,
+);
 
 export default crons;

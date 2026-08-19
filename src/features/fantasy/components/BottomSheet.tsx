@@ -18,11 +18,15 @@ import {
   Pressable,
   ScrollView,
   type StyleProp,
+  useWindowDimensions,
   type ViewStyle,
   View,
 } from "react-native";
+import { X } from "lucide-react-native";
 
+import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { styles } from "../../../styles";
+import { colors } from "../../../theme/tokens";
 
 type BottomSheetProps = {
   children: ReactNode;
@@ -47,6 +51,9 @@ export function BottomSheet({
   keyboardAvoidingEnabled = false,
   visible,
 }: BottomSheetProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const shouldUseDesktopModal =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const onCloseRef = useRef(onClose);
   const onCloseEndRef = useRef(onCloseEnd);
   const onOpenEndRef = useRef(onOpenEnd);
@@ -202,9 +209,32 @@ export function BottomSheet({
   if (!isMounted) return null;
 
   const sheetChildren = visible ? children : renderedChildrenRef.current;
+  const desktopModalScale = backdropOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.97, 1],
+  });
+  const sheetContent = contentScrollEnabled ? (
+    <ScrollView
+      bounces={false}
+      contentContainerStyle={styles.bottomSheetScrollContent}
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="always"
+      showsVerticalScrollIndicator={false}
+      style={styles.bottomSheetScroll}
+    >
+      {sheetChildren}
+    </ScrollView>
+  ) : (
+    sheetChildren
+  );
 
   const modalContent = (
-    <View style={styles.modalBackdrop}>
+    <View
+      style={[
+        styles.modalBackdrop,
+        shouldUseDesktopModal ? styles.modalBackdropDesktop : null,
+      ]}
+    >
       <Animated.View
         style={[styles.modalBackdropDim, { opacity: backdropOpacity }]}
       />
@@ -213,34 +243,45 @@ export function BottomSheet({
         onPress={requestClose}
         style={styles.modalBackdropPressTarget}
       />
-      <Animated.View
-        style={[
-          styles.bottomSheet,
-          sheetStyle,
-          { transform: [{ translateY }] },
-        ]}
-      >
-        <View
-          {...panResponder.panHandlers}
-          style={styles.bottomSheetDragHandleArea}
+      {shouldUseDesktopModal ? (
+        <Animated.View
+          style={[
+            styles.desktopModalDialog,
+            sheetStyle,
+            styles.desktopModalSurfaceOverride,
+            {
+              opacity: backdropOpacity,
+              transform: [{ scale: desktopModalScale }],
+            },
+          ]}
         >
-          <View style={styles.bottomSheetDragHandle} />
-        </View>
-        {contentScrollEnabled ? (
-          <ScrollView
-            bounces={false}
-            contentContainerStyle={styles.bottomSheetScrollContent}
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="always"
-            showsVerticalScrollIndicator={false}
-            style={styles.bottomSheetScroll}
+          <Pressable
+            accessibilityLabel="Close"
+            accessibilityRole="button"
+            onPress={requestClose}
+            style={styles.desktopModalCloseButton}
           >
-            {sheetChildren}
-          </ScrollView>
-        ) : (
-          sheetChildren
-        )}
-      </Animated.View>
+            <X color={colors.text.secondary} size={20} strokeWidth={2.5} />
+          </Pressable>
+          {sheetContent}
+        </Animated.View>
+      ) : (
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            sheetStyle,
+            { transform: [{ translateY }] },
+          ]}
+        >
+          <View
+            {...panResponder.panHandlers}
+            style={styles.bottomSheetDragHandleArea}
+          >
+            <View style={styles.bottomSheetDragHandle} />
+          </View>
+          {sheetContent}
+        </Animated.View>
+      )}
     </View>
   );
 

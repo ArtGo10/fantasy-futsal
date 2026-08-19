@@ -1,6 +1,9 @@
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 import { colors, radii, shadows, spacing, typography } from "./theme/tokens";
+
+const WEB_APP_MAX_WIDTH = 920;
+const isWeb = Platform.OS === "web";
 
 export const styles = StyleSheet.create({
   container: {
@@ -39,11 +42,27 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.xl,
   },
+  authOverlayIntro: {
+    justifyContent: "center",
+  },
   authIntroFooter: {
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
-    paddingBottom: spacing.md,
+    paddingBottom: 0,
+  },
+  authIntroScroll: {
+    flex: 1,
+    width: "100%",
+  },
+  authIntroScrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.lg,
+  },
+  authIntroScrollContentCompact: {
+    paddingVertical: spacing.xs,
   },
   authFormScroll: {
     flex: 1,
@@ -55,6 +74,13 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.md,
   },
+  authFormScrollContentDesktop: {
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
+  },
   authBackButton: {
     minHeight: 42,
     alignSelf: "flex-start",
@@ -63,6 +89,12 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
+  },
+  authBackButtonDesktop: {
+    position: "absolute",
+    top: spacing.xl,
+    left: 56,
+    zIndex: 1,
   },
   authBackButtonText: {
     color: colors.app.primary,
@@ -74,12 +106,17 @@ export const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   authHeroGroup: {
-    flex: 1,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  authHeroGroupCompact: {
+    gap: spacing.xs,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   authLogo: {
     width: 260,
@@ -88,11 +125,17 @@ export const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     transform: [{ translateY: -8 }],
   },
+  authLogoCompact: {
+    width: 150,
+    height: 150,
+    borderRadius: radii.md,
+    marginBottom: 0,
+    transform: [{ translateY: 0 }],
+  },
   authLanguageSwitcher: {
     width: "100%",
     maxWidth: 430,
     alignItems: "center",
-    marginTop: spacing.sm,
   },
   authEyebrow: {
     color: colors.app.primary,
@@ -126,6 +169,9 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     ...shadows.card,
+  },
+  authPanelDarkDesktop: {
+    marginTop: 0,
   },
   authSegment: {
     minHeight: 46,
@@ -461,6 +507,12 @@ export const styles = StyleSheet.create({
     width: "100%",
     position: "relative",
     backgroundColor: colors.background,
+    ...(isWeb
+      ? {
+          maxWidth: WEB_APP_MAX_WIDTH,
+          alignSelf: "center" as const,
+        }
+      : {}),
   },
   fantasyHeader: {
     width: "100%",
@@ -475,6 +527,13 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: 18,
     ...shadows.card,
+    ...(isWeb
+      ? {
+          maxWidth: 920,
+          alignSelf: "center" as const,
+          alignContent: "center" as const,
+        }
+      : {}),
   },
   fantasyHeaderTitleGroup: {
     flex: 1,
@@ -496,6 +555,46 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  fantasyHeaderLanguageSwitcher: {
+    flexShrink: 0,
+    alignItems: "flex-end",
+  },
+  fantasyHeaderWebNav: {
+    ...(isWeb
+      ? {
+          flex: 2,
+          minWidth: 360,
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          flexWrap: "nowrap" as const,
+          gap: spacing.xs,
+        }
+      : {}),
+  },
+  fantasyHeaderWebNavButton: {
+    minHeight: 36,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  fantasyHeaderWebNavButtonActive: {
+    backgroundColor: colors.brand.blueSoft,
+  },
+  fantasyHeaderWebNavText: {
+    color: colors.text.secondary,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.sm,
+  },
+  fantasyHeaderWebNavTextActive: {
+    color: colors.brand.blueDark,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.black,
+    lineHeight: typography.lineHeight.sm,
+  },
   fantasyHeaderIconButton: {
     width: 38,
     height: 38,
@@ -505,6 +604,26 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.brand.blueSoft,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fantasyHeaderNotificationBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: colors.state.danger,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  fantasyHeaderNotificationBadgeText: {
+    color: colors.text.inverse,
+    fontSize: 9,
+    fontWeight: typography.weight.black,
+    lineHeight: 11,
   },
   fantasyHeaderIconText: {
     color: colors.brand.blueDark,
@@ -1049,7 +1168,20 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingBottom: spacing.xs,
   },
+  playerDetailTopStack: {
+    width: "100%",
+    gap: spacing.sm,
+  },
+  playerDetailTopGridDesktop: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  playerDetailTopPaneDesktop: {
+    flex: 1,
+    minWidth: 0,
+  },
   playerDetailHero: {
+    width: "100%",
     overflow: "hidden",
     position: "relative",
     borderRadius: radii.lg,
@@ -1106,9 +1238,9 @@ export const styles = StyleSheet.create({
     position: "absolute",
     top: spacing.sm,
     right: spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "rgba(255, 255, 255, 0.18)",
     alignItems: "center",
     justifyContent: "center",
@@ -1127,6 +1259,11 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     flexDirection: "row",
     overflow: "hidden",
+  },
+  playerDetailQuickStatsDesktop: {
+    flex: 1,
+    width: "50%",
+    minWidth: 0,
   },
   playerDetailQuickStat: {
     flex: 1,
@@ -1548,11 +1685,21 @@ export const styles = StyleSheet.create({
   teamCreateSetupFrameContent: {
     paddingBottom: spacing.sm,
   },
+  teamCreateSetupFrameContentDesktop: {
+    maxWidth: 1180,
+    justifyContent: "center",
+  },
   teamCreateSetupScreen: {
     width: "100%",
     flexGrow: 1,
     gap: spacing.md,
     paddingBottom: 0,
+  },
+  teamCreateSetupScreenDesktop: {
+    flexGrow: 0,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: spacing.xl,
   },
   teamCreateSetupHero: {
     width: "auto",
@@ -1564,10 +1711,28 @@ export const styles = StyleSheet.create({
     marginHorizontal: -spacing.lg,
     marginTop: -spacing.lg,
   },
+  teamCreateSetupHeroDesktop: {
+    flex: 1.25,
+    minWidth: 0,
+    minHeight: 620,
+    borderRadius: 28,
+    marginHorizontal: 0,
+    marginTop: 0,
+  },
   teamCreateSetupHeroImage: {
     position: "absolute",
     width: "100%",
     height: "100%",
+  },
+  teamCreateSetupControls: {
+    width: "100%",
+    gap: spacing.md,
+  },
+  teamCreateSetupControlsDesktop: {
+    flex: 1,
+    minWidth: 360,
+    maxWidth: 460,
+    alignSelf: "center",
   },
   teamCreateSetupPanel: {
     width: "100%",
@@ -1576,6 +1741,16 @@ export const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
     ...shadows.card,
+  },
+  teamCreateSetupPanelDesktop: {
+    position: "relative",
+    zIndex: 50,
+    elevation: 50,
+  },
+  teamCreateSetupFooterActionsDesktop: {
+    position: "relative",
+    zIndex: 1,
+    elevation: 1,
   },
   teamCreateSetupFieldGroup: {
     width: "100%",
@@ -1602,6 +1777,9 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
     lineHeight: typography.lineHeight.sm,
+  },
+  teamCreateSetupClubSelect: {
+    width: "100%",
   },
   teamCreateSetupClubButton: {
     minHeight: 58,
@@ -1639,6 +1817,13 @@ export const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.lg,
     ...shadows.card,
+    ...(isWeb
+      ? {
+          borderRadius: 20,
+          padding: spacing.lg,
+          gap: spacing.md,
+        }
+      : {}),
   },
   teamDashboardCardBackground: {
     position: "absolute",
@@ -1756,6 +1941,11 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
     alignItems: "flex-end",
     gap: spacing.xxs,
+    ...(isWeb
+      ? {
+          width: 178,
+        }
+      : {}),
   },
   teamDashboardGameweekTitle: {
     color: colors.text.inverse,
@@ -1788,6 +1978,12 @@ export const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: typography.weight.heavy,
     lineHeight: 38,
+    ...(isWeb
+      ? {
+          fontSize: 28,
+          lineHeight: 32,
+        }
+      : {}),
   },
   teamDashboardStatLabelRow: {
     maxWidth: "100%",
@@ -1832,6 +2028,13 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
+    ...(isWeb
+      ? {
+          minHeight: 48,
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.lg,
+        }
+      : {}),
   },
   teamDashboardActionText: {
     color: colors.text.inverse,
@@ -1854,6 +2057,25 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.xs,
     textTransform: "uppercase",
+  },
+  teamOverviewStack: {
+    width: "100%",
+    gap: spacing.md,
+  },
+  teamOverviewWebGrid: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  teamOverviewWebCardPane: {
+    flex: 0.82,
+    minWidth: 340,
+    maxWidth: 430,
+  },
+  teamOverviewWebListPane: {
+    flex: 1.18,
+    minWidth: 0,
   },
   teamOverviewBlock: {
     width: "100%",
@@ -2291,6 +2513,11 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
+  teamChipTokenCardDisabled: {
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.border.strong,
+    opacity: 0.64,
+  },
   teamChipTokenTitle: {
     alignSelf: "stretch",
     color: colors.text.primary,
@@ -2300,12 +2527,18 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 1,
     textAlign: "center",
   },
+  teamChipTokenTitleDisabled: {
+    color: colors.text.muted,
+  },
   teamChipTokenStatus: {
     color: colors.text.muted,
     fontSize: 10,
     fontWeight: typography.weight.bold,
     lineHeight: 12,
     textAlign: "center",
+  },
+  teamChipTokenStatusDisabled: {
+    color: colors.text.muted,
   },
   teamTransferSummaryBar: {
     width: "100%",
@@ -2807,6 +3040,21 @@ export const styles = StyleSheet.create({
     lineHeight: 11,
     textAlign: "center",
   },
+  teamBuilderDesktopDraftLayout: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+  },
+  teamBuilderDesktopFieldPane: {
+    flex: 1,
+    minWidth: 0,
+  },
+  teamBuilderDesktopSidePane: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.md,
+  },
   teamBuilderFooterActions: {
     width: "100%",
     borderRadius: 28,
@@ -2841,7 +3089,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   teamBuilderFooterButtonDisabled: {
-    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border.strong,
+    backgroundColor: "#E2E8F0",
+    opacity: 0.78,
   },
   teamBuilderFooterSecondaryText: {
     width: "100%",
@@ -2860,7 +3111,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   teamBuilderFooterTextDisabled: {
-    color: colors.text.muted,
+    color: colors.text.secondary,
   },
   clubPickerSheet: {
     maxHeight: "76%",
@@ -3059,7 +3310,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 4,
-    paddingHorizontal: 3,
+    paddingHorizontal: 0,
     paddingBottom: 0,
     ...shadows.card,
   },
@@ -3101,22 +3352,25 @@ export const styles = StyleSheet.create({
   },
   futsalSquadSlotName: {
     alignSelf: "stretch",
+    width: "100%",
     marginTop: "auto",
-    marginHorizontal: -3,
+    marginHorizontal: 0,
     marginBottom: -1,
     overflow: "hidden",
     borderRadius: radii.sm,
     backgroundColor: colors.surface,
     color: colors.text.primary,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: typography.weight.black,
-    lineHeight: 14,
-    paddingHorizontal: 2,
+    lineHeight: 12,
+    paddingHorizontal: 1,
     textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   futsalSquadSlotNamePriced: {
     marginTop: 0,
-    lineHeight: 13,
+    lineHeight: 12,
   },
   futsalSquadSlotNameWarning: {
     backgroundColor: colors.state.danger,
@@ -3336,11 +3590,17 @@ export const styles = StyleSheet.create({
   squadListHorizontalScroll: {
     width: "100%",
   },
+  squadListHorizontalScrollContent: {
+    width: "100%",
+    minWidth: "100%",
+    flexGrow: 1,
+  },
   squadListTable: {
     width: "100%",
     backgroundColor: colors.surface,
   },
   squadListStatsTable: {
+    width: "100%",
     minWidth: 660,
     backgroundColor: colors.surface,
   },
@@ -3417,9 +3677,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   squadListPlayerStatsRowWrap: {
+    width: "100%",
     overflow: "hidden",
     borderRadius: radii.sm,
-    marginHorizontal: spacing.sm,
   },
   squadListRow: {
     width: "100%",
@@ -3465,6 +3725,7 @@ export const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   squadListStatsRow: {
+    width: "100%",
     flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
@@ -3611,6 +3872,13 @@ export const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingTop: spacing.xxl,
   },
+  modalBackdropDesktop: {
+    justifyContent: "center",
+    paddingTop: spacing.xxl,
+    paddingRight: spacing.xl,
+    paddingBottom: spacing.xxl,
+    paddingLeft: spacing.xl,
+  },
   modalBackdropDim: {
     position: "absolute",
     top: 0,
@@ -3641,6 +3909,42 @@ export const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.md,
     ...shadows.card,
+  },
+  desktopModalDialog: {
+    position: "relative",
+    width: "100%",
+    maxWidth: 720,
+    maxHeight: "86%",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: spacing.xs,
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
+    gap: spacing.md,
+    overflow: "hidden",
+    ...shadows.card,
+  },
+  desktopModalSurfaceOverride: {
+    borderRadius: spacing.xs,
+    borderTopLeftRadius: spacing.xs,
+    borderTopRightRadius: spacing.xs,
+    borderBottomRightRadius: spacing.xs,
+    borderBottomLeftRadius: spacing.xs,
+    padding: spacing.xxl,
+    paddingTop: spacing.xxl,
+    paddingRight: spacing.xxl,
+    paddingBottom: spacing.xxl,
+    paddingLeft: spacing.xxl,
+  },
+  desktopModalCloseButton: {
+    position: "absolute",
+    top: spacing.xs,
+    right: spacing.xs,
+    zIndex: 3,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   bottomSheetDragHandleArea: {
     width: 96,
@@ -3744,7 +4048,29 @@ export const styles = StyleSheet.create({
     borderRadius: radii.md,
     fontSize: typography.size.base,
   },
+  playerPickerSearchInputContainerDesktop: {
+    flex: 1,
+    minWidth: 320,
+  },
+  playerPickerSearchInputDesktop: {
+    minHeight: 48,
+  },
+  playerPickerControlStack: {
+    gap: spacing.md,
+  },
+  playerPickerDesktopToolbar: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: spacing.sm,
+    position: "relative",
+    zIndex: 140,
+    elevation: 140,
+  },
   playerPickerFilters: {
+    position: "relative",
+    zIndex: 120,
+    elevation: 120,
     gap: spacing.sm,
   },
   playerPickerFilterGroup: {
@@ -3787,10 +4113,25 @@ export const styles = StyleSheet.create({
     color: colors.brand.blueDark,
     fontWeight: typography.weight.black,
   },
+  playerPickerDesktopFilters: {
+    flex: 0,
+    flexBasis: 460,
+    minWidth: 360,
+    maxWidth: 520,
+  },
   playerPickerSelectRow: {
     width: "100%",
     flexDirection: "row",
     gap: spacing.sm,
+  },
+  desktopSelectCompact: {
+    minWidth: 180,
+    maxWidth: 280,
+  },
+  playerPickerDesktopSelect: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
   },
   playerPickerSelectButton: {
     flex: 1,
@@ -3901,7 +4242,13 @@ export const styles = StyleSheet.create({
     minHeight: 0,
     width: "100%",
   },
+  playerPickerHorizontalScrollContent: {
+    width: "100%",
+    minWidth: "100%",
+    flexGrow: 1,
+  },
   playerPickerStatsTable: {
+    width: "100%",
     flex: 1,
     minWidth: 660,
     backgroundColor: "transparent",
@@ -3951,6 +4298,9 @@ export const styles = StyleSheet.create({
     opacity: 0.42,
   },
   leagueToolbar: {
+    position: "relative",
+    zIndex: 120,
+    elevation: 120,
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
@@ -4097,6 +4447,9 @@ export const styles = StyleSheet.create({
     gap: 0,
   },
   marketListHeaderWrap: {
+    position: "relative",
+    zIndex: 120,
+    elevation: 120,
     marginBottom: spacing.md,
   },
   marketListSeparator: {
@@ -4106,6 +4459,14 @@ export const styles = StyleSheet.create({
     width: "100%",
     gap: spacing.md,
   },
+  marketListHeaderDesktop: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    zIndex: 121,
+    elevation: 121,
+  },
   marketSearchInput: {
     minHeight: 58,
     borderRadius: radii.md,
@@ -4113,10 +4474,23 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text.primary,
   },
+  marketSearchInputContainerDesktop: {
+    flex: 1,
+    minWidth: 260,
+  },
+  marketSearchInputDesktop: {
+    minHeight: 48,
+  },
   marketFilterRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
+  },
+  marketFilterRowDesktop: {
+    flexWrap: "nowrap",
+    flexGrow: 0,
+    flexShrink: 0,
+    alignItems: "center",
   },
   marketFilterButton: {
     flexBasis: "48%",
@@ -4132,6 +4506,18 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
+  },
+  marketFilterButtonDesktop: {
+    flexBasis: "auto",
+    flexGrow: 0,
+    flexShrink: 0,
+    minWidth: 140,
+    paddingHorizontal: spacing.lg,
+  },
+  marketTeamSelectDesktop: {
+    width: 190,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   marketFilterButtonActive: {
     borderColor: colors.brand.blue,
@@ -4186,6 +4572,7 @@ export const styles = StyleSheet.create({
     height: 0,
   },
   playerPickerStatsHeaderRow: {
+    width: "100%",
     height: 34,
     borderTopWidth: 1,
     borderBottomWidth: 1,
@@ -4206,6 +4593,8 @@ export const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   playerPickerStatsPlayerRow: {
+    width: "100%",
+    alignSelf: "stretch",
     height: 64,
     borderBottomWidth: 1,
     borderColor: colors.border.default,
@@ -4290,6 +4679,8 @@ export const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   playerPickerStatsMetrics: {
+    flex: 1,
+    minWidth: 0,
     minHeight: "100%",
     flexDirection: "row",
     alignItems: "center",
@@ -4297,7 +4688,8 @@ export const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   playerPickerStatsMetric: {
-    width: 46,
+    flex: 1,
+    minWidth: 46,
     minHeight: "100%",
     borderLeftWidth: 1,
     borderColor: colors.border.default,
@@ -4309,7 +4701,7 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 0,
   },
   playerPickerStatsMetricWide: {
-    width: 74,
+    minWidth: 74,
   },
   playerPickerStatsMetricHeaderCell: {
     backgroundColor: colors.surface,
@@ -4636,6 +5028,107 @@ export const styles = StyleSheet.create({
     width: 42,
     height: 42,
   },
+  notificationsHeaderAction: {
+    width: 42,
+    height: 42,
+    borderWidth: 1,
+    borderColor: colors.border.focus,
+    borderRadius: 21,
+    backgroundColor: colors.brand.blueSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationsLoadingState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xxxl,
+    gap: spacing.md,
+  },
+  notificationsListContent: {
+    padding: spacing.lg,
+    gap: spacing.md,
+    paddingBottom: spacing.xxxl,
+  },
+  notificationCard: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  notificationCardUnread: {
+    borderColor: colors.border.focus,
+    backgroundColor: colors.brand.blueSoft,
+  },
+  notificationIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border.focus,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  notificationIconWrapUnread: {
+    backgroundColor: colors.brand.blue,
+    borderColor: colors.brand.blue,
+  },
+  notificationCardTextGroup: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+  },
+  notificationCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  notificationCardTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text.primary,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.base,
+  },
+  notificationCardTitleUnread: {
+    color: colors.brand.blueDark,
+    fontWeight: typography.weight.black,
+  },
+  notificationCardBody: {
+    color: colors.text.secondary,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    lineHeight: typography.lineHeight.md,
+  },
+  notificationCardTime: {
+    color: colors.text.muted,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.xs,
+  },
+  notificationUnreadPill: {
+    borderRadius: radii.pill,
+    backgroundColor: colors.brand.blue,
+    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+    flexShrink: 0,
+  },
+  notificationUnreadPillText: {
+    color: colors.text.inverse,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.black,
+    lineHeight: typography.lineHeight.xs,
+  },
   notificationsEmptyState: {
     flex: 1,
     alignItems: "center",
@@ -4712,6 +5205,9 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
   },
   seasonControlRow: {
+    position: "relative",
+    zIndex: 120,
+    elevation: 120,
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
@@ -4989,6 +5485,19 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.xxl,
     textAlign: "center",
   },
+  matchDetailsContentGrid: {
+    width: "100%",
+    gap: spacing.md,
+  },
+  matchDetailsContentGridDesktop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.lg,
+  },
+  matchDetailsContentPaneDesktop: {
+    flex: 1,
+    minWidth: 0,
+  },
   matchDetailsSection: {
     gap: spacing.sm,
   },
@@ -5200,9 +5709,16 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     ...shadows.card,
   },
+  seasonTableHorizontalContentDesktop: {
+    flexGrow: 1,
+    minWidth: "100%",
+  },
   seasonTableFullWidth: {
     minWidth: 456,
     paddingHorizontal: spacing.md,
+  },
+  seasonTableFullWidthDesktop: {
+    width: "100%",
   },
   seasonTableRowHeader: {
     minHeight: 42,
@@ -5239,6 +5755,9 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  seasonTableTeamHeaderCell: {
+    textAlign: "left",
   },
   seasonTableCell: {
     width: 34,
@@ -5429,6 +5948,7 @@ export const styles = StyleSheet.create({
     textAlign: "right",
   },
   seasonStatsLeaderboardTable: {
+    width: "100%",
     minWidth: 820,
     paddingBottom: spacing.sm,
   },
@@ -5751,6 +6271,33 @@ export const styles = StyleSheet.create({
     color: colors.brand.blueDark,
     fontSize: 14,
     fontWeight: typography.weight.bold,
+  },
+  profileDesktopGrid: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.lg,
+  },
+  profileDesktopColumn: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.md,
+  },
+  profileSupportEmailButton: {
+    alignSelf: "flex-start",
+    gap: 2,
+  },
+  profileSupportEmailLabel: {
+    color: colors.text.muted,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    lineHeight: typography.lineHeight.sm,
+  },
+  profileSupportEmailText: {
+    color: colors.brand.blueDark,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.md,
   },
   profileFeedbackTextArea: {
     minHeight: 140,

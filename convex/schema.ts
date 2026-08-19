@@ -52,6 +52,23 @@ export default defineSchema({
     .index("by_key", ["key"])
     .index("by_type_sent_at", ["type", "sentAt"]),
 
+  userNotifications: defineTable({
+    userId: v.id("users"),
+    type: v.string(),
+    title: v.string(),
+    body: v.string(),
+    data: v.optional(v.any()),
+    pushEventKey: v.optional(v.string()),
+    readAt: v.union(v.number(), v.null()),
+    sentAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_sent_at", ["userId", "sentAt"])
+    .index("by_user_read_at", ["userId", "readAt"])
+    .index("by_user_push_event_key", ["userId", "pushEventKey"]),
+
   userFeedback: defineTable({
     userId: v.optional(v.id("users")),
     email: v.optional(v.string()),

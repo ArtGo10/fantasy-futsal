@@ -1,16 +1,26 @@
 import { FlashList } from "@shopify/flash-list";
 import { Check, ChevronDown, Star } from "lucide-react-native";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { Keyboard, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
+import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { TranslationKey } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { BottomSheet } from "../components/BottomSheet";
+import { DesktopSelect } from "../components/DesktopSelect";
 import {
   FANTASY_PLAYER_LIST_ITEM_HEIGHT,
   FantasyClubLogo,
@@ -86,6 +96,8 @@ type MarketScreenProps = {
   players: FantasyPlayer[] | undefined;
 };
 
+const MARKET_ALL_CLUBS_VALUE = "__all_clubs__";
+
 const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
   goalkeeper: "players.position.goalkeeper",
   universal: "players.position.universal",
@@ -102,6 +114,9 @@ export function MarketScreen({
   players,
 }: MarketScreenProps) {
   const { t } = useI18n();
+  const { width: windowWidth } = useWindowDimensions();
+  const isDesktopWeb =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [isClubPickerOpen, setClubPickerOpen] = useState(false);
   const [selectedClubId, setSelectedClubId] =
@@ -205,27 +220,56 @@ export function MarketScreen({
   const teamFilterLabel = selectedClub
     ? (selectedClub.shortName ?? selectedClub.name)
     : t("market.teamFilter");
+  const clubFilterOptions = useMemo(
+    () => [
+      { label: t("market.allTeams"), value: MARKET_ALL_CLUBS_VALUE },
+      ...activeClubs.map((club) => ({
+        label: club.shortName ?? club.name,
+        leading: <FantasyClubLogo club={club} size="sm" />,
+        value: club.id,
+      })),
+    ],
+    [activeClubs, t],
+  );
 
   const listHeader = useMemo(
     () => (
-      <View style={styles.marketListHeader}>
+      <View
+        style={[
+          styles.marketListHeader,
+          isDesktopWeb ? styles.marketListHeaderDesktop : null,
+        ]}
+      >
         <ClearableTextInput
           autoCapitalize="none"
           autoCorrect={false}
           clearAccessibilityLabel={t("common.clearInput")}
+          containerStyle={
+            isDesktopWeb ? styles.marketSearchInputContainerDesktop : null
+          }
           onChangeText={setSearchQuery}
           placeholder={t("market.searchPlaceholder")}
           placeholderTextColor="#7F8495"
-          style={[styles.input, styles.marketSearchInput]}
+          style={[
+            styles.input,
+            styles.marketSearchInput,
+            isDesktopWeb ? styles.marketSearchInputDesktop : null,
+          ]}
           value={searchQuery}
         />
 
-        <View style={styles.marketFilterRow}>
+        <View
+          style={[
+            styles.marketFilterRow,
+            isDesktopWeb ? styles.marketFilterRowDesktop : null,
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             onPress={handleToggleFavoritesOnly}
             style={[
               styles.marketFilterButton,
+              isDesktopWeb ? styles.marketFilterButtonDesktop : null,
               favoritesOnly ? styles.marketFilterButtonActive : null,
             ]}
           >
@@ -248,38 +292,59 @@ export function MarketScreen({
             </Text>
           </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setClubPickerOpen(true)}
-            style={[
-              styles.marketFilterButton,
-              selectedClub ? styles.marketFilterButtonActive : null,
-            ]}
-          >
-            <Text
-              numberOfLines={1}
-              style={
-                selectedClub
-                  ? styles.marketFilterTextActive
-                  : styles.marketFilterText
-              }
-            >
-              {teamFilterLabel}
-            </Text>
-            <ChevronDown
-              color={selectedClub ? colors.text.inverse : colors.text.secondary}
-              size={18}
-              strokeWidth={2.4}
+          {isDesktopWeb ? (
+            <DesktopSelect
+              accessibilityLabel={t("market.teamFilter")}
+              onValueChange={(value) => {
+                setSelectedClubId(
+                  value === MARKET_ALL_CLUBS_VALUE
+                    ? null
+                    : (value as Id<"fantasyClubs">),
+                );
+              }}
+              options={clubFilterOptions}
+              style={styles.marketTeamSelectDesktop}
+              value={selectedClubId ?? MARKET_ALL_CLUBS_VALUE}
             />
-          </Pressable>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setClubPickerOpen(true)}
+              style={[
+                styles.marketFilterButton,
+                selectedClub ? styles.marketFilterButtonActive : null,
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={
+                  selectedClub
+                    ? styles.marketFilterTextActive
+                    : styles.marketFilterText
+                }
+              >
+                {teamFilterLabel}
+              </Text>
+              <ChevronDown
+                color={
+                  selectedClub ? colors.text.inverse : colors.text.secondary
+                }
+                size={18}
+                strokeWidth={2.4}
+              />
+            </Pressable>
+          )}
         </View>
       </View>
     ),
     [
+      clubFilterOptions,
       favoritesOnly,
       handleToggleFavoritesOnly,
+      isDesktopWeb,
       searchQuery,
       selectedClub,
+      selectedClubId,
       t,
       teamFilterLabel,
     ],
@@ -324,91 +389,96 @@ export function MarketScreen({
         renderItem={renderMarketPlayer}
       />
 
-      <BottomSheet
-        contentScrollEnabled={false}
-        onClose={() => setClubPickerOpen(false)}
-        visible={isClubPickerOpen}
-      >
-        <View style={styles.seasonPickerSheetContent}>
-          <ScrollView
-            style={styles.seasonPickerScroll}
-            contentContainerStyle={styles.seasonPickerOptions}
-          >
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setSelectedClubId(null);
-                setClubPickerOpen(false);
-              }}
-              style={[
-                styles.seasonPickerOption,
-                selectedClubId === null
-                  ? styles.seasonPickerOptionSelected
-                  : null,
-              ]}
+      {!isDesktopWeb ? (
+        <BottomSheet
+          contentScrollEnabled={false}
+          onClose={() => setClubPickerOpen(false)}
+          visible={isClubPickerOpen}
+        >
+          <View style={styles.seasonPickerSheetContent}>
+            <ScrollView
+              style={styles.seasonPickerScroll}
+              contentContainerStyle={styles.seasonPickerOptions}
             >
-              <View style={styles.seasonPickerOptionBody}>
-                <View style={styles.seasonPickerOptionTextGroup}>
-                  <Text numberOfLines={1} style={styles.seasonPickerOptionText}>
-                    {t("market.allTeams")}
-                  </Text>
-                </View>
-              </View>
-              <View
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setSelectedClubId(null);
+                  setClubPickerOpen(false);
+                }}
                 style={[
-                  styles.seasonPickerOptionRadio,
+                  styles.seasonPickerOption,
                   selectedClubId === null
-                    ? styles.seasonPickerOptionRadioSelected
+                    ? styles.seasonPickerOptionSelected
                     : null,
                 ]}
               >
-                {selectedClubId === null ? (
-                  <View style={styles.seasonPickerOptionRadioDot} />
-                ) : null}
-              </View>
-            </Pressable>
-
-            {activeClubs.map((club) => {
-              const isSelected = club.id === selectedClubId;
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={club.id}
-                  onPress={() => {
-                    setSelectedClubId(club.id);
-                    setClubPickerOpen(false);
-                  }}
+                <View style={styles.seasonPickerOptionBody}>
+                  <View style={styles.seasonPickerOptionTextGroup}>
+                    <Text
+                      numberOfLines={1}
+                      style={styles.seasonPickerOptionText}
+                    >
+                      {t("market.allTeams")}
+                    </Text>
+                  </View>
+                </View>
+                <View
                   style={[
-                    styles.seasonPickerOption,
-                    isSelected ? styles.seasonPickerOptionSelected : null,
+                    styles.seasonPickerOptionRadio,
+                    selectedClubId === null
+                      ? styles.seasonPickerOptionRadioSelected
+                      : null,
                   ]}
                 >
-                  <View style={styles.seasonPickerOptionBody}>
-                    <FantasyClubLogo club={club} />
-                    <View style={styles.seasonPickerOptionTextGroup}>
-                      <Text
-                        numberOfLines={1}
-                        style={styles.seasonPickerOptionText}
-                      >
-                        {club.name}
-                      </Text>
+                  {selectedClubId === null ? (
+                    <View style={styles.seasonPickerOptionRadioDot} />
+                  ) : null}
+                </View>
+              </Pressable>
+
+              {activeClubs.map((club) => {
+                const isSelected = club.id === selectedClubId;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={club.id}
+                    onPress={() => {
+                      setSelectedClubId(club.id);
+                      setClubPickerOpen(false);
+                    }}
+                    style={[
+                      styles.seasonPickerOption,
+                      isSelected ? styles.seasonPickerOptionSelected : null,
+                    ]}
+                  >
+                    <View style={styles.seasonPickerOptionBody}>
+                      <FantasyClubLogo club={club} />
+                      <View style={styles.seasonPickerOptionTextGroup}>
+                        <Text
+                          numberOfLines={1}
+                          style={styles.seasonPickerOptionText}
+                        >
+                          {club.name}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  {isSelected ? (
-                    <Check
-                      color={colors.brand.blue}
-                      size={22}
-                      strokeWidth={2.8}
-                    />
-                  ) : (
-                    <View style={styles.seasonPickerOptionRadio} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </BottomSheet>
+                    {isSelected ? (
+                      <Check
+                        color={colors.brand.blue}
+                        size={22}
+                        strokeWidth={2.8}
+                      />
+                    ) : (
+                      <View style={styles.seasonPickerOptionRadio} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </BottomSheet>
+      ) : null}
 
       <PlayerDetailSheet
         isFavorite={selectedPlayerIsFavorite}

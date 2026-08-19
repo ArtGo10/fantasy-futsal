@@ -93,6 +93,27 @@ const AUTH_ERROR_MESSAGES: Record<
   },
 };
 
+export function getWebAppRedirectUrl() {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.location?.origin
+  ) {
+    return WEB_APP_PATH;
+  }
+
+  return `${window.location.origin}${WEB_APP_PATH}`;
+}
+
+export function keepBrowserOnWebAppPath() {
+  if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+  const targetPath = WEB_APP_PATH;
+  if (window.location.pathname !== targetPath) {
+    window.history.replaceState(null, "", targetPath);
+  }
+}
+
 export function getWebOAuthRedirectUrls() {
   const fallbackUrls = {
     redirectUrl: WEB_OAUTH_CALLBACK_PATH,
@@ -107,11 +128,9 @@ export function getWebOAuthRedirectUrls() {
     return fallbackUrls;
   }
 
-  const origin = window.location.origin;
-
   return {
-    redirectUrl: `${origin}${WEB_OAUTH_CALLBACK_PATH}`,
-    redirectUrlComplete: `${origin}${WEB_APP_PATH}`,
+    redirectUrl: `${window.location.origin}${WEB_OAUTH_CALLBACK_PATH}`,
+    redirectUrlComplete: getWebAppRedirectUrl(),
   };
 }
 

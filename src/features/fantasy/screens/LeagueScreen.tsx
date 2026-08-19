@@ -1,13 +1,22 @@
 import { ChevronDown } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
+import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import type { TranslationKey } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { BottomSheet } from "../components/BottomSheet";
+import { DesktopSelect } from "../components/DesktopSelect";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 
 type LeagueMode = "total" | "average" | "record" | "lastWeek";
@@ -66,6 +75,9 @@ export function LeagueScreen({
   teams: FantasyLeagueTeam[] | undefined;
 }) {
   const { language, t } = useI18n();
+  const { width: windowWidth } = useWindowDimensions();
+  const isDesktopWeb =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const [leagueMode, setLeagueMode] = useState<LeagueMode>("total");
   const [isModePickerOpen, setModePickerOpen] = useState(false);
 
@@ -73,6 +85,14 @@ export function LeagueScreen({
   const isLoading = teams === undefined;
   const selectedMode =
     LEAGUE_MODES.find((mode) => mode.id === leagueMode) ?? LEAGUE_MODES[0];
+  const leagueModeOptions = useMemo(
+    () =>
+      LEAGUE_MODES.map((mode) => ({
+        label: t(mode.labelKey),
+        value: mode.id,
+      })),
+    [t],
+  );
   const sortedTeams = useMemo(
     () =>
       [...(teams ?? [])].sort(
@@ -103,20 +123,30 @@ export function LeagueScreen({
       {!isLoading && teams.length > 0 ? (
         <>
           <View style={styles.leagueToolbar}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setModePickerOpen(true)}
-              style={styles.leagueModeButton}
-            >
-              <Text numberOfLines={1} style={styles.leagueModeButtonText}>
-                {t(selectedMode.labelKey)}
-              </Text>
-              <ChevronDown
-                color={colors.text.secondary}
-                size={18}
-                strokeWidth={2.3}
+            {isDesktopWeb ? (
+              <DesktopSelect
+                accessibilityLabel={t("league.title")}
+                onValueChange={(value) => setLeagueMode(value as LeagueMode)}
+                options={leagueModeOptions}
+                style={styles.desktopSelectCompact}
+                value={leagueMode}
               />
-            </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setModePickerOpen(true)}
+                style={styles.leagueModeButton}
+              >
+                <Text numberOfLines={1} style={styles.leagueModeButtonText}>
+                  {t(selectedMode.labelKey)}
+                </Text>
+                <ChevronDown
+                  color={colors.text.secondary}
+                  size={18}
+                  strokeWidth={2.3}
+                />
+              </Pressable>
+            )}
           </View>
 
           <View style={styles.leagueList}>
@@ -146,11 +176,12 @@ export function LeagueScreen({
         </>
       ) : null}
 
-      <BottomSheet
-        contentScrollEnabled={false}
-        onClose={() => setModePickerOpen(false)}
-        visible={isModePickerOpen}
-      >
+      {!isDesktopWeb ? (
+        <BottomSheet
+          contentScrollEnabled={false}
+          onClose={() => setModePickerOpen(false)}
+          visible={isModePickerOpen}
+        >
         <View style={styles.leaguePickerContent}>
           <ScrollView
             style={styles.leaguePickerScroll}
@@ -198,7 +229,8 @@ export function LeagueScreen({
             })}
           </ScrollView>
         </View>
-      </BottomSheet>
+        </BottomSheet>
+      ) : null}
     </FantasyScreenFrame>
   );
 }
