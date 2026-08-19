@@ -22,6 +22,8 @@ const en = {
   "auth.showPassword": "Show password",
   "auth.socialCanceled": "Sign in was cancelled.",
   "auth.socialUnavailable": "Social sign in is not ready yet.",
+  "auth.socialFailed":
+    "Social sign in could not be completed. Check Google or Apple settings and try again.",
   "auth.namePlaceholder": "Name",
   "auth.newCodeSent": "A new code has been sent.",
   "auth.newPasswordPlaceholder": "New password",
@@ -626,6 +628,8 @@ const uk: Record<TranslationKey, string> = {
   "auth.showPassword": "Показати пароль",
   "auth.socialCanceled": "Вхід було скасовано.",
   "auth.socialUnavailable": "Вхід через зовнішній сервіс поки не готовий.",
+  "auth.socialFailed":
+    "Не вдалося завершити вхід через зовнішній сервіс. Перевірте налаштування Google або Apple і спробуйте ще раз.",
   "auth.namePlaceholder": "Ім'я",
   "auth.newCodeSent": "Новий код надіслано.",
   "auth.newPasswordPlaceholder": "Новий пароль",

@@ -2,6 +2,10 @@ import { useClerk } from "@clerk/expo";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
 
+import {
+  getWebOAuthErrorRedirectUrl,
+  rememberWebOAuthCallbackError,
+} from "../../utils/auth";
 
 type OAuthRedirectCallbackProps = {
   redirectUrlComplete: string;
@@ -49,7 +53,8 @@ export function OAuthRedirectCallback({
       )
       .catch((error) => {
         console.warn("[oauth-redirect-callback]", error);
-        navigateTo(redirectUrlComplete);
+        rememberWebOAuthCallbackError(error);
+        navigateTo(getWebOAuthErrorRedirectUrl(redirectUrlComplete));
       });
   }, [clerk, clerk.loaded, redirectUrlComplete]);
 

@@ -10,6 +10,14 @@ import {
 import { DEFAULT_LANGUAGE, type LanguageCode } from "../i18n/translations";
 import type { ClerkSignInAttempt } from "../types";
 
+const WEB_OAUTH_ERROR_SEARCH_PARAM = "oauth_error";
+const WEB_OAUTH_ERROR_STORAGE_KEY = "fantasyFutsal.oauthCallbackError";
+
+type WebOAuthCallbackError = {
+  code?: string;
+  message?: string;
+};
+
 const AUTH_ERROR_MESSAGES: Record<
   LanguageCode,
   {
@@ -134,6 +142,20 @@ export function getWebOAuthRedirectUrls() {
   };
 }
 
+export function getWebOAuthErrorRedirectUrl(redirectUrlComplete: string) {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.location?.origin
+  ) {
+    return redirectUrlComplete;
+  }
+
+  const targetUrl = new URL(redirectUrlComplete, window.location.origin);
+  targetUrl.searchParams.set(WEB_OAUTH_ERROR_SEARCH_PARAM, "1");
+  return targetUrl.toString();
+}
+
 export function isWebOAuthCallbackPath() {
   return (
     Platform.OS === "web" &&
@@ -177,6 +199,68 @@ function getClerkRecordMessage(record: ClerkErrorRecord | undefined) {
 
 function getClerkRecordParam(record: ClerkErrorRecord | undefined) {
   return record?.meta?.paramName ?? record?.meta?.param_name ?? null;
+}
+
+export function rememberWebOAuthCallbackError(error: unknown) {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.sessionStorage
+  ) {
+    return;
+  }
+
+  const records = getClerkErrorRecords(error);
+  const firstRecord = records[0];
+  const fallbackError = error instanceof Error ? error : null;
+  const payload: WebOAuthCallbackError = {
+    code: firstRecord?.code ?? fallbackError?.name,
+    message: getClerkRecordMessage(firstRecord) ?? fallbackError?.message,
+  };
+
+  try {
+    window.sessionStorage.setItem(
+      WEB_OAUTH_ERROR_STORAGE_KEY,
+      JSON.stringify(payload),
+    );
+  } catch {
+    // Browser storage can be unavailable in private modes.
+  }
+}
+
+export function consumeWebOAuthCallbackError(): WebOAuthCallbackError | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+
+  const currentUrl = new URL(window.location.href);
+  const hasErrorParam = currentUrl.searchParams.has(
+    WEB_OAUTH_ERROR_SEARCH_PARAM,
+  );
+  let storedPayload: WebOAuthCallbackError | null = null;
+
+  try {
+    const rawPayload = window.sessionStorage?.getItem(
+      WEB_OAUTH_ERROR_STORAGE_KEY,
+    );
+    if (rawPayload) {
+      storedPayload = JSON.parse(rawPayload) as WebOAuthCallbackError;
+      window.sessionStorage.removeItem(WEB_OAUTH_ERROR_STORAGE_KEY);
+    }
+  } catch {
+    storedPayload = null;
+  }
+
+  if (hasErrorParam) {
+    currentUrl.searchParams.delete(WEB_OAUTH_ERROR_SEARCH_PARAM);
+    window.history.replaceState(
+      null,
+      "",
+      `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+    );
+  }
+
+  if (!hasErrorParam && !storedPayload) return null;
+
+  return storedPayload ?? {};
 }
 
 export function logAuthError(context: string, error: unknown) {
