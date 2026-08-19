@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Keyboard, Pressable, Text, View } from "react-native";
 import { Bell, Check } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthScreen } from "../../components/auth/AuthScreen";
 import { TOKEN_FETCH_TIMEOUT_MS } from "../../constants";
@@ -24,7 +25,7 @@ import { useExpoPushTokenRegistration } from "../../hooks/usePushNotifications";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../lib/convexApi";
 import { styles } from "../../styles";
-import { colors } from "../../theme/tokens";
+import { colors, spacing } from "../../theme/tokens";
 import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
 import { formatPersonName } from "../../utils/names";
 import { FantasyBottomTabs } from "./FantasyBottomTabs";
@@ -65,6 +66,7 @@ type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
 
 const CONVEX_AUTH_PROBLEM_GRACE_MS = 30000;
 const PRIVATE_LOADING_OVERLAY_TIMEOUT_MS = 15000;
+const CONNECTION_TOAST_DURATION_MS = 3500;
 const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
@@ -176,6 +178,7 @@ export function FantasyHome({
   onTopEdgeToEdgeChange?: (isEnabled: boolean) => void;
 } = {}) {
   const { language, t } = useI18n();
+  const insets = useSafeAreaInsets();
   const {
     getToken,
     isLoaded: authIsLoaded,
@@ -184,9 +187,12 @@ export function FantasyHome({
   } = useAuth();
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
+  const wasOfflineRef = useRef(isOffline);
   const preferredLanguageSyncKeyRef = useRef<string | null>(null);
   const previousPrivateLoadingOverlayDebugRef = useRef<string | null>(null);
   const [privateLoadingTimedOut, setPrivateLoadingTimedOut] = useState(false);
+  const [isConnectionToastVisible, setIsConnectionToastVisible] =
+    useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
   const convexAuth = useConvexAuth();
@@ -421,6 +427,17 @@ export function FantasyHome({
   }, [authIsLoaded, isSignedIn]);
 
   useEffect(() => {
+    if (wasOfflineRef.current && !isOffline) {
+      setCanShowAuthProblem(false);
+      setConvexTokenStatus("idle");
+      setPrivateLoadingTimedOut(false);
+      setForegroundRefreshNonce((current) => current + 1);
+    }
+
+    wasOfflineRef.current = isOffline;
+  }, [isOffline]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
@@ -631,6 +648,20 @@ export function FantasyHome({
       setIsSigningOut(false);
     }
   }, [authIsLoaded, isSigningOut, userIsSignedIn]);
+
+  useEffect(() => {
+    if (!isOffline) {
+      setIsConnectionToastVisible(false);
+      return undefined;
+    }
+
+    setIsConnectionToastVisible(true);
+    const timeoutId = setTimeout(() => {
+      setIsConnectionToastVisible(false);
+    }, CONNECTION_TOAST_DURATION_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [isOffline]);
 
   useEffect(() => {
     if (
@@ -858,23 +889,8 @@ export function FantasyHome({
   );
 
   const privateLoadingOverlayReason =
-    hasEnteredPrivateApp && userIsSignedIn
-      ? isSigningOut
-        ? "signingOut"
-        : !isOffline && convexAuth.isLoading
-          ? "convexAuthLoading"
-          : !isOffline && !convexAuth.isAuthenticated && !canShowAuthProblem
-            ? "convexAuthNotAuthenticated"
-            : !isOffline &&
-                convexAuth.isAuthenticated &&
-                !convexTokenReady &&
-                !canShowAuthProblem
-              ? "convexTokenNotReady"
-              : !isOffline && shouldWaitForCurrentUserProfile
-                ? "currentUserProfileLoading"
-                : !isOffline && userCanUsePrivateFeatures && !profileReady
-                  ? "profileBootstrap"
-                  : null
+    hasEnteredPrivateApp && userIsSignedIn && isSigningOut
+      ? "signingOut"
       : null;
   const privateLoadingOverlayTitle =
     privateLoadingOverlayReason === "signingOut"
@@ -1095,18 +1111,17 @@ export function FantasyHome({
   const authProblemText =
     hasRawAuthProblem && canShowAuthProblem ? t("session.authProblem") : null;
   const sessionRestoreProblemText =
-    privateLoadingTimedOut && privateLoadingOverlayReason
+    privateLoadingTimedOut &&
+    privateLoadingOverlayReason &&
+    privateLoadingOverlayReason !== "signingOut"
       ? t("session.restoreProblem")
       : null;
-  const connectionProblemText = isOffline
-    ? t("network.offlineDescription")
-    : null;
+  const connectionToastText =
+    isOffline && isConnectionToastVisible
+      ? t("network.offlineDescription")
+      : null;
   const inlineMessageText =
-    errorText ??
-    authProblemText ??
-    sessionRestoreProblemText ??
-    connectionProblemText ??
-    deadlineNoticeText;
+    errorText ?? authProblemText ?? sessionRestoreProblemText ?? deadlineNoticeText;
   const inlineMessageStyle =
     deadlineNoticeText && inlineMessageText === deadlineNoticeText
       ? [styles.fantasyInlineMessage, styles.fantasyInlineMessageInfo]
@@ -1160,6 +1175,22 @@ export function FantasyHome({
         />
       )}
       <HeaderActionOverlay config={headerActionOverlay} />
+
+      {connectionToastText ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.fantasyConnectionToast,
+            isShellHeaderHidden
+              ? { top: insets.top + spacing.md }
+              : null,
+          ]}
+        >
+          <Text style={styles.fantasyConnectionToastText}>
+            {connectionToastText}
+          </Text>
+        </View>
+      ) : null}
 
       {inlineMessageText ? (
         <View style={inlineMessageStyle}>

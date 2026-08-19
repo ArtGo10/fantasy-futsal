@@ -858,9 +858,12 @@ function TeamCreateSetup({
         </View>
       </View>
 
-      <View style={styles.teamCreateSetupFooterSpacer} />
-
-      <View style={styles.teamBuilderFooterActions}>
+      <View
+        style={[
+          styles.teamBuilderFooterActions,
+          styles.teamCreateSetupActions,
+        ]}
+      >
         <Pressable
           accessibilityRole="button"
           onPress={onCancel}
@@ -1300,7 +1303,7 @@ function TeamPointsDetailsScreen({
             {t("team.pointsBreakdownEmpty")}
           </Text>
           <Text style={styles.mutedText}>
-            {t("team.pointsBreakdownDescription")}
+            {t("team.pointsBreakdownEmptyDescription")}
           </Text>
         </View>
       ) : (
@@ -4543,7 +4546,15 @@ export function MyTeamScreen({
 
   return (
     <View style={styles.fantasyScreenFrameRoot}>
-      <FantasyScreenFrame kicker={t("team.kicker")} title={t("team.title")}>
+      <FantasyScreenFrame
+        contentContainerStyle={
+          teamWorkspaceMode === "setup"
+            ? styles.teamCreateSetupFrameContent
+            : undefined
+        }
+        kicker={t("team.kicker")}
+        title={t("team.title")}
+      >
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"

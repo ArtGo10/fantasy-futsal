@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { styles } from "../../styles";
 
 export function FantasyScreenFrame({
   children,
+  contentContainerStyle,
   footer,
 }: {
   children: ReactNode;
+  contentContainerStyle?: StyleProp<ViewStyle>;
   footer?: ReactNode;
   kicker: string;
   title: string;
@@ -19,7 +21,7 @@ export function FantasyScreenFrame({
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.fantasyScreenScroll}
-        contentContainerStyle={styles.fantasyScreen}
+        contentContainerStyle={[styles.fantasyScreen, contentContainerStyle]}
       >
         {children}
       </ScrollView>

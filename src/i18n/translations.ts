@@ -455,8 +455,10 @@ const en = {
   "team.liveGameweekNotice": "Gameweek {number} live",
   "team.pointsBreakdownButton": "Points details",
   "team.pointsBreakdownTitle": "Points details",
-  "team.pointsBreakdownDescription": "See who scored for your team and why.",
+  "team.pointsBreakdownDescription": "Review your players’ points, bonuses, and deductions.",
   "team.pointsBreakdownEmpty": "No completed gameweek points yet.",
+  "team.pointsBreakdownEmptyDescription":
+    "Detailed point lines will appear here after a gameweek is calculated.",
   "team.pointsBreakdownTotal": "Gameweek total",
   "team.pointsBreakdownBase": "Base points",
   "team.pointsBreakdownCaptain": "Captain bonus",
@@ -1048,8 +1050,10 @@ const uk: Record<TranslationKey, string> = {
   "team.pointsBreakdownButton": "Деталі очок",
   "team.pointsBreakdownTitle": "Деталі очок",
   "team.pointsBreakdownDescription":
-    "Подивіться, хто приніс очки вашій команді й за що.",
+    "Перегляньте очки, бонуси й штрафи кожного гравця.",
   "team.pointsBreakdownEmpty": "Очок завершеного туру ще немає.",
+  "team.pointsBreakdownEmptyDescription":
+    "Деталізація зʼявиться тут після підрахунку туру.",
   "team.pointsBreakdownTotal": "Очки за тур",
   "team.pointsBreakdownBase": "Базові очки",
   "team.pointsBreakdownCaptain": "Бонус капітана",

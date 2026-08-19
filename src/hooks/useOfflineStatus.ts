@@ -2,6 +2,9 @@ import NetInfo, { useNetInfo } from "@react-native-community/netinfo";
 import { useEffect, useState } from "react";
 
 const OFFLINE_CONFIRMATION_DELAY_MS = 3000;
+const OFFLINE_RECHECK_DELAY_MS = 1000;
+const wait = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
 
 function isConnectionStateOffline(state: {
   isConnected: boolean | null;
@@ -23,17 +26,27 @@ export function useOfflineStatus() {
 
     let isCancelled = false;
     const timeoutId = setTimeout(() => {
-      void NetInfo.fetch()
-        .then((latestState) => {
-          if (!isCancelled) {
-            setIsOffline(isConnectionStateOffline(latestState));
+      const confirmOffline = async () => {
+        try {
+          const latestState = await NetInfo.fetch();
+          if (!isConnectionStateOffline(latestState)) {
+            if (!isCancelled) setIsOffline(false);
+            return;
           }
-        })
-        .catch(() => {
+
+          await wait(OFFLINE_RECHECK_DELAY_MS);
+          const recheckedState = await NetInfo.fetch();
+          if (!isCancelled) {
+            setIsOffline(isConnectionStateOffline(recheckedState));
+          }
+        } catch {
           if (!isCancelled) {
             setIsOffline(true);
           }
-        });
+        }
+      };
+
+      void confirmOffline();
     }, OFFLINE_CONFIRMATION_DELAY_MS);
 
     return () => {

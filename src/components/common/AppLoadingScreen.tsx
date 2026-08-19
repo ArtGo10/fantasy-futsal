@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { Text, View } from "react-native";
+import { Dimensions, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { styles } from "../../styles";
@@ -14,17 +14,28 @@ export function AppLoadingScreen({
   title?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const windowSize = useWindowDimensions();
+  const screenSize = Dimensions.get("screen");
+  const shellHeight = Math.max(
+    windowSize.height + insets.top + insets.bottom,
+    screenSize.height,
+  );
+  const shellWidth = Math.max(
+    windowSize.width + insets.left + insets.right,
+    screenSize.width,
+  );
 
   return (
     <View
       style={[
         styles.appLoadingShell,
         {
-          position: "absolute",
-          top: -insets.top,
-          right: -insets.right,
-          bottom: -insets.bottom,
-          left: -insets.left,
+          minHeight: shellHeight,
+          width: shellWidth,
+          marginTop: -insets.top,
+          marginRight: -insets.right,
+          marginBottom: -insets.bottom,
+          marginLeft: -insets.left,
         },
       ]}
     >

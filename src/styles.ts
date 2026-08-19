@@ -633,6 +633,28 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.xxl,
   },
+  fantasyConnectionToast: {
+    position: "absolute",
+    top: 80,
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 120,
+    borderWidth: 1,
+    borderColor: colors.state.dangerBorder,
+    borderRadius: radii.md,
+    backgroundColor: colors.state.dangerSoft,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    ...shadows.card,
+    elevation: 120,
+  },
+  fantasyConnectionToastText: {
+    color: colors.state.danger,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.sm,
+    textAlign: "center",
+  },
   fantasyInlineMessage: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -1523,11 +1545,14 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.base,
   },
+  teamCreateSetupFrameContent: {
+    paddingBottom: spacing.sm,
+  },
   teamCreateSetupScreen: {
     width: "100%",
     flexGrow: 1,
     gap: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: 0,
   },
   teamCreateSetupHero: {
     width: "auto",
@@ -1606,10 +1631,10 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.base,
   },
-  teamCreateSetupFooterSpacer: {
-    flexGrow: 1,
-    minHeight: 0,
+  teamCreateSetupActions: {
+    marginTop: "auto",
   },
+
   teamDashboardCard: {
     width: "100%",
     overflow: "hidden",
@@ -3133,6 +3158,7 @@ export const styles = StyleSheet.create({
     height: 14,
     alignItems: "center",
     justifyContent: "center",
+    transform: [{ translateX: 7 }, { translateY: -7 }],
   },
   futsalSquadStatusTriangle: {
     position: "absolute",
