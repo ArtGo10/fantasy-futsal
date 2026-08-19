@@ -1,6 +1,14 @@
 import { Star } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
+import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import type { TranslationKey } from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { styles } from "../../../styles";
@@ -82,17 +90,21 @@ function formatPlayerDetailNumber(value: number | null | undefined) {
     : normalized.toFixed(1);
 }
 
-const STATUS_LABEL_KEYS: Record<"active" | "doubtful" | "unavailable", TranslationKey> = {
+const STATUS_LABEL_KEYS: Record<
+  "active" | "doubtful" | "unavailable",
+  TranslationKey
+> = {
   active: "players.playerStatus.active",
   doubtful: "players.playerStatus.doubtful",
   unavailable: "players.playerStatus.unavailable",
 };
 
-const STATUS_REASON_LABEL_KEYS: Partial<Record<PlayerStatus, TranslationKey>> = {
-  injured: "players.playerStatus.injured",
-  left: "players.playerStatus.left",
-  suspended: "players.playerStatus.suspended",
-};
+const STATUS_REASON_LABEL_KEYS: Partial<Record<PlayerStatus, TranslationKey>> =
+  {
+    injured: "players.playerStatus.injured",
+    left: "players.playerStatus.left",
+    suspended: "players.playerStatus.suspended",
+  };
 
 function getPublicPlayerStatus(status: PlayerStatus) {
   if (status === "active" || status === "doubtful") return status;
@@ -177,6 +189,9 @@ export function PlayerDetailSheet({
   visible,
 }: PlayerDetailSheetProps) {
   const { t } = useI18n();
+  const { width: windowWidth } = useWindowDimensions();
+  const isDesktopWeb =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
 
   if (!player) return null;
 
@@ -219,58 +234,77 @@ export function PlayerDetailSheet({
         showsVerticalScrollIndicator={false}
         style={styles.playerDetailScroll}
       >
-        <PlayerDetailHero
-          isFavorite={isFavorite}
-          onToggleFavorite={mode === "market" ? onToggleFavorite : undefined}
-          player={player}
-          t={t}
-        />
+        <View
+          style={[
+            styles.playerDetailTopStack,
+            isDesktopWeb ? styles.playerDetailTopGridDesktop : null,
+          ]}
+        >
+          <View style={isDesktopWeb ? styles.playerDetailTopPaneDesktop : null}>
+            <PlayerDetailHero
+              isFavorite={isFavorite}
+              onToggleFavorite={
+                mode === "market" ? onToggleFavorite : undefined
+              }
+              player={player}
+              t={t}
+            />
+          </View>
 
-        <View style={styles.playerDetailQuickStats}>
-          <View style={styles.playerDetailQuickStat}>
-            <Text style={styles.playerDetailQuickLabel}>
-              {t("players.priceLabel")}
-            </Text>
-            <Text
-              style={[
-                styles.playerDetailQuickValue,
-                hasPriceTrend && priceDelta > 0
-                  ? styles.playerDetailQuickValueUp
-                  : null,
-                hasPriceTrend && priceDelta < 0
-                  ? styles.playerDetailQuickValueDown
-                  : null,
-              ]}
-            >
-              {formatFantasyMoney(player.price)}
-            </Text>
-            {hasPriceTrend ? (
-              <Text
-                style={
-                  priceDelta > 0
-                    ? styles.playerDetailPriceDeltaUp
-                    : styles.playerDetailPriceDeltaDown
-                }
-              >
-                {formattedPriceDelta}
+          <View
+            style={[
+              styles.playerDetailQuickStats,
+              isDesktopWeb ? styles.playerDetailQuickStatsDesktop : null,
+            ]}
+          >
+            <View style={styles.playerDetailQuickStat}>
+              <Text style={styles.playerDetailQuickLabel}>
+                {t("players.priceLabel")}
               </Text>
-            ) : null}
-          </View>
-          <View style={styles.playerDetailQuickStat}>
-            <Text style={styles.playerDetailQuickLabel}>
-              {t("playerDetails.selectedPercent")}
-            </Text>
-            <Text style={styles.playerDetailQuickValue}>
-              {selectedPercent}%
-            </Text>
-          </View>
-          <View style={styles.playerDetailQuickStat}>
-            <Text style={styles.playerDetailQuickLabel}>
-              {t("players.statusLabel")}
-            </Text>
-            <Text numberOfLines={1} style={styles.playerDetailQuickValueSmall}>
-              {statusLabel}
-            </Text>
+              <Text
+                style={[
+                  styles.playerDetailQuickValue,
+                  hasPriceTrend && priceDelta > 0
+                    ? styles.playerDetailQuickValueUp
+                    : null,
+                  hasPriceTrend && priceDelta < 0
+                    ? styles.playerDetailQuickValueDown
+                    : null,
+                ]}
+              >
+                {formatFantasyMoney(player.price)}
+              </Text>
+              {hasPriceTrend ? (
+                <Text
+                  style={
+                    priceDelta > 0
+                      ? styles.playerDetailPriceDeltaUp
+                      : styles.playerDetailPriceDeltaDown
+                  }
+                >
+                  {formattedPriceDelta}
+                </Text>
+              ) : null}
+            </View>
+            <View style={styles.playerDetailQuickStat}>
+              <Text style={styles.playerDetailQuickLabel}>
+                {t("playerDetails.selectedPercent")}
+              </Text>
+              <Text style={styles.playerDetailQuickValue}>
+                {selectedPercent}%
+              </Text>
+            </View>
+            <View style={styles.playerDetailQuickStat}>
+              <Text style={styles.playerDetailQuickLabel}>
+                {t("players.statusLabel")}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={styles.playerDetailQuickValueSmall}
+              >
+                {statusLabel}
+              </Text>
+            </View>
           </View>
         </View>
 

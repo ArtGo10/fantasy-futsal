@@ -1,10 +1,14 @@
-import { WEB_APP_PATH, WEB_OAUTH_CALLBACK_PATH } from "../constants";
+import {
+  SUPPORT_EMAIL,
+  WEB_APP_PATH,
+  WEB_OAUTH_CALLBACK_PATH,
+} from "../constants";
 
 export const PUBLIC_SITE_NAME = "Fantasy Futsal";
 export const PUBLIC_SITE_DOMAIN =
   process.env.EXPO_PUBLIC_PUBLIC_SITE_URL ?? "https://fantasyfutsal.app";
 export const PUBLIC_SITE_SUPPORT_EMAIL =
-  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? "support@fantasyfutsal.app";
+  process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? SUPPORT_EMAIL;
 
 export const PUBLIC_WEB_PATHS = [
   "/",
@@ -50,6 +54,16 @@ export function isReservedWebAppPath(pathname = getCurrentWebPathname()) {
     normalizedPathname === WEB_OAUTH_CALLBACK_PATH ||
     normalizedPathname === WEB_APP_PATH ||
     normalizedPathname.startsWith(`${WEB_APP_PATH}/`)
+  );
+}
+
+export function isWebAppPath(pathname = getCurrentWebPathname()) {
+  const normalizedPathname = normalizePathname(pathname);
+
+  return (
+    normalizedPathname === WEB_APP_PATH ||
+    normalizedPathname.startsWith(`${WEB_APP_PATH}/`) ||
+    normalizedPathname === WEB_OAUTH_CALLBACK_PATH
   );
 }
 

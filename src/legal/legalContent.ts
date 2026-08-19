@@ -90,7 +90,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Contact",
           body: [
-            "For privacy or account questions, contact support@fantasyfutsal.app or use the public support page.",
+            "For privacy or account questions, contact support@footballfantasy.app or use the public support page.",
           ],
         },
       ],
@@ -248,7 +248,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Контакт",
           body: [
-            "З питань приватності або акаунта пишіть на support@fantasyfutsal.app або використовуйте публічну сторінку підтримки.",
+            "З питань приватності або акаунта пишіть на support@footballfantasy.app або використовуйте публічну сторінку підтримки.",
           ],
         },
       ],

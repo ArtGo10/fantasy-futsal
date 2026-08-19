@@ -12,6 +12,7 @@ import {
 
 import appIcon from "../../assets/fantasy-futsal-big-icon.png";
 import splashImage from "../../assets/fantasy-futsal-splash.png";
+import { WEB_APP_PATH } from "../constants";
 import { LanguageSwitcher } from "../components/common/LanguageSwitcher";
 import { useI18n } from "../i18n/I18nProvider";
 import type { LanguageCode } from "../i18n/translations";
@@ -21,7 +22,6 @@ import {
   getCurrentWebPathname,
   getPublicWebRoute,
   NOT_FOUND_PUBLIC_WEB_PATH,
-  PUBLIC_SITE_DOMAIN,
   PUBLIC_SITE_NAME,
   PUBLIC_SITE_SUPPORT_EMAIL,
   type PublicWebPath,
@@ -34,6 +34,7 @@ type PublicCopy = {
     eyebrow: string;
     title: string;
     description: string;
+    appCta: string;
     primaryCta: string;
     secondaryCta: string;
     statusLabel: string;
@@ -88,6 +89,7 @@ const COPY: Record<LanguageCode, PublicCopy> = {
       title: "Fantasy Futsal",
       description:
         "Build a futsal fantasy squad, follow supported leagues, and compete through real match events.",
+      appCta: "Open app",
       primaryCta: "Read the rules",
       secondaryCta: "Contact support",
       statusLabel: "Current league",
@@ -202,6 +204,7 @@ const COPY: Record<LanguageCode, PublicCopy> = {
       title: "Fantasy Futsal",
       description:
         "Збирайте fantasy-склад із футзалістів, стежте за підтримуваними лігами та змагайтесь за очки з реальних матчів.",
+      appCta: "Відкрити застосунок",
       primaryCta: "Правила гри",
       secondaryCta: "Підтримка",
       statusLabel: "Поточна ліга",
@@ -361,6 +364,15 @@ export function PublicWebSite() {
     void Linking.openURL(`mailto:${PUBLIC_SITE_SUPPORT_EMAIL}`);
   };
 
+  const openApp = () => {
+    if (typeof window !== "undefined") {
+      window.location.assign(WEB_APP_PATH);
+      return;
+    }
+
+    void Linking.openURL(WEB_APP_PATH);
+  };
+
   return (
     <ScrollView
       contentContainerStyle={webStyles.pageContent}
@@ -373,10 +385,7 @@ export function PublicWebSite() {
           style={webStyles.brand}
         >
           <Image source={appIcon} style={webStyles.brandIcon} />
-          <View>
-            <Text style={webStyles.brandTitle}>{PUBLIC_SITE_NAME}</Text>
-            <Text style={webStyles.brandSubtitle}>fantasyfutsal.app</Text>
-          </View>
+          <Text style={webStyles.brandTitle}>{PUBLIC_SITE_NAME}</Text>
         </Pressable>
 
         <View style={webStyles.headerActions}>
@@ -406,7 +415,7 @@ export function PublicWebSite() {
       </View>
 
       {route === "/" ? (
-        <LandingPage copy={copy} navigate={navigate} />
+        <LandingPage copy={copy} navigate={navigate} openApp={openApp} />
       ) : route === "/privacy" ? (
         <LegalPage copy={copy} kind="privacy" language={language} />
       ) : route === "/terms" ? (
@@ -429,9 +438,11 @@ export function PublicWebSite() {
 function LandingPage({
   copy,
   navigate,
+  openApp,
 }: {
   copy: PublicCopy;
   navigate: (path: PublicWebPath) => void;
+  openApp: () => void;
 }) {
   return (
     <View style={webStyles.main}>
@@ -446,10 +457,19 @@ function LandingPage({
           <View style={webStyles.ctaRow}>
             <Pressable
               accessibilityRole="link"
-              onPress={() => navigate("/rules")}
+              onPress={openApp}
               style={webStyles.primaryButton}
             >
               <Text style={webStyles.primaryButtonText}>
+                {copy.landing.appCta}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => navigate("/rules")}
+              style={webStyles.secondaryButton}
+            >
+              <Text style={webStyles.secondaryButtonText}>
                 {copy.landing.primaryCta}
               </Text>
             </Pressable>
@@ -691,7 +711,6 @@ function Footer({
   return (
     <View style={webStyles.footer}>
       <Text style={webStyles.footerText}>{copy.footer}</Text>
-      <Text style={webStyles.footerText}>{PUBLIC_SITE_DOMAIN}</Text>
       <View style={webStyles.footerLinks}>
         {(
           [
@@ -751,12 +770,6 @@ const webStyles = StyleSheet.create({
     fontSize: typography.size.lg,
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.lg,
-  },
-  brandSubtitle: {
-    color: colors.text.muted,
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.sm,
   },
   headerActions: {
     flexDirection: "row",

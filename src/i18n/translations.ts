@@ -256,7 +256,13 @@ const en = {
   "playerDetails.viceCaptain": "Vice captain",
   "playerDetails.addFavorite": "Add to favourites",
   "playerDetails.removeFavorite": "Remove from favourites",
+  "profile.adminActionsButton": "Admin actions",
+  "profile.adminActionsDescription":
+    "Open service tools for feedback, scoring, fixtures, and push notifications.",
+  "profile.adminActionsSubtitle": "Service tools",
+  "profile.adminActionsTitle": "Admin actions",
   "profile.adminBadge": "Admin",
+  "profile.adminUnavailable": "Admin tools are not available for this account.",
   "profile.adminClubsShort": "clubs",
   "profile.adminDescription":
     "Service tools for scoring rules and push notifications.",
@@ -339,6 +345,7 @@ const en = {
   "profile.feedbackTitle": "Feedback & support",
   "profile.feedbackDescription":
     "Send a question, bug report, or idea to the league admin.",
+  "profile.supportEmailLabel": "Support email",
   "profile.feedbackButton": "Send feedback",
   "profile.feedbackSheetTitle": "Feedback & support",
   "profile.feedbackPlaceholder": "Write your message",
@@ -364,6 +371,9 @@ const en = {
   "session.startupProblem":
     "We could not load your app session. Check your connection and restart the app if this repeats.",
   "notifications.title": "Notifications",
+  "notifications.loading": "Loading notifications...",
+  "notifications.markAllRead": "Mark all as read",
+  "notifications.unread": "New",
   "notifications.emptyTitle": "No notifications yet",
   "notifications.emptyDescription":
     "Deadlines, gameweek summaries, and important league messages will appear here.",
@@ -457,7 +467,8 @@ const en = {
   "team.liveGameweekNotice": "Gameweek {number} live",
   "team.pointsBreakdownButton": "Points details",
   "team.pointsBreakdownTitle": "Points details",
-  "team.pointsBreakdownDescription": "Review your players’ points, bonuses, and deductions.",
+  "team.pointsBreakdownDescription":
+    "Review your players’ points, bonuses, and deductions.",
   "team.pointsBreakdownEmpty": "No completed gameweek points yet.",
   "team.pointsBreakdownEmptyDescription":
     "Detailed point lines will appear here after a gameweek is calculated.",
@@ -851,7 +862,13 @@ const uk: Record<TranslationKey, string> = {
   "playerDetails.viceCaptain": "Віце-капітан",
   "playerDetails.addFavorite": "Додати в обране",
   "playerDetails.removeFavorite": "Прибрати з обраного",
+  "profile.adminActionsButton": "Адмін-дії",
+  "profile.adminActionsDescription":
+    "Відкрити службові інструменти для фідбеку, очок, матчів і push-сповіщень.",
+  "profile.adminActionsSubtitle": "Службові інструменти",
+  "profile.adminActionsTitle": "Адмін-дії",
   "profile.adminBadge": "Адмін",
+  "profile.adminUnavailable": "Адмін-інструменти недоступні для цього акаунта.",
   "profile.adminClubsShort": "клубів",
   "profile.adminDescription":
     "Службові інструменти для правил очок і push-сповіщень.",
@@ -934,6 +951,7 @@ const uk: Record<TranslationKey, string> = {
   "profile.feedbackTitle": "Зворотний звʼязок і підтримка",
   "profile.feedbackDescription":
     "Надішліть питання, помилку або ідею адміну ліги.",
+  "profile.supportEmailLabel": "Email підтримки",
   "profile.feedbackButton": "Надіслати відгук",
   "profile.feedbackSheetTitle": "Зворотний звʼязок і підтримка",
   "profile.feedbackPlaceholder": "Напишіть повідомлення",
@@ -959,6 +977,9 @@ const uk: Record<TranslationKey, string> = {
   "session.startupProblem":
     "Не вдалося завантажити сесію застосунку. Перевірте підключення й перезапустіть застосунок, якщо це повториться.",
   "notifications.title": "Сповіщення",
+  "notifications.loading": "Завантажуємо сповіщення...",
+  "notifications.markAllRead": "Позначити все прочитаним",
+  "notifications.unread": "Нове",
   "notifications.emptyTitle": "Сповіщень поки немає",
   "notifications.emptyDescription":
     "Тут будуть дедлайни, підсумки турів і важливі повідомлення ліги.",

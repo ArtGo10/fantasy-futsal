@@ -10,11 +10,13 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { useI18n } from "../../i18n/I18nProvider";
+import { WEB_DESKTOP_MIN_WIDTH } from "../../constants";
 import { useDismissKeyboardOnChange } from "../../hooks/useDismissKeyboardOnChange";
 import { storeLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { LegalConsentText } from "../legal/LegalConsentText";
@@ -83,6 +85,27 @@ function AuthAppleIcon() {
       />
     </Svg>
   );
+}
+
+type NavigatorWithUserAgentData = Navigator & {
+  userAgentData?: {
+    platform?: string;
+  };
+};
+
+function isAppleWebPlatform() {
+  if (Platform.OS !== "web" || typeof navigator === "undefined") return false;
+
+  const webNavigator = navigator as NavigatorWithUserAgentData;
+  const platform = [
+    webNavigator.userAgentData?.platform,
+    webNavigator.platform,
+    webNavigator.userAgent,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return /Mac|iPhone|iPad|iPod/i.test(platform);
 }
 
 type AuthPasswordInputProps = {
@@ -163,6 +186,18 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+
+  const isDesktopWeb =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
+  const isCompactLandscapeWeb =
+    Platform.OS === "web" &&
+    windowWidth > windowHeight &&
+    windowHeight < 620;
+  const shouldShowAppleAuth =
+    Platform.OS === "ios" ||
+    Platform.OS === "macos" ||
+    isAppleWebPlatform();
 
   const [mode, setMode] = useState<AuthMode>("sign_in");
   const [authStep, setAuthStep] = useState<AuthStep>("intro");
@@ -640,10 +675,30 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
       if (Platform.OS === "web") {
         const { redirectUrl, redirectUrlComplete } = getWebOAuthRedirectUrls();
+        const oauthCallbackParams = {
+          transferable: true,
+          signInForceRedirectUrl: redirectUrlComplete,
+          signInFallbackRedirectUrl: redirectUrlComplete,
+          signUpForceRedirectUrl: redirectUrlComplete,
+          signUpFallbackRedirectUrl: redirectUrlComplete,
+          signInUrl: redirectUrlComplete,
+          signUpUrl: redirectUrlComplete,
+          firstFactorUrl: redirectUrlComplete,
+          secondFactorUrl: redirectUrlComplete,
+          resetPasswordUrl: redirectUrlComplete,
+          continueSignUpUrl: redirectUrlComplete,
+          verifyEmailAddressUrl: redirectUrlComplete,
+          verifyPhoneNumberUrl: redirectUrlComplete,
+          signInProtectCheckUrl: redirectUrlComplete,
+          signUpProtectCheckUrl: redirectUrlComplete,
+        };
         const oauthParams = {
           strategy,
           redirectUrl,
           redirectUrlComplete,
+          continueSignIn: true,
+          continueSignUp: true,
+          __internal_callbackParams: oauthCallbackParams,
         };
 
         if (mode === "sign_up" && signUp) {
@@ -696,17 +751,39 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         style={styles.authBackground}
         imageStyle={styles.authBackgroundImage}
       >
-        <View style={styles.authOverlay}>
+        <View
+          style={[
+            styles.authOverlay,
+            authStep === "intro" ? styles.authOverlayIntro : null,
+          ]}
+        >
           {authStep === "intro" ? (
-            <>
-              <View style={styles.authHeroGroup}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.authIntroScroll}
+              contentContainerStyle={[
+                styles.authIntroScrollContent,
+                isCompactLandscapeWeb
+                  ? styles.authIntroScrollContentCompact
+                  : null,
+              ]}
+            >
+              <View
+                style={[
+                  styles.authHeroGroup,
+                  isCompactLandscapeWeb ? styles.authHeroGroupCompact : null,
+                ]}
+              >
                 <ExpoImage
                   accessibilityIgnoresInvertColors
                   cachePolicy="memory-disk"
                   contentFit="contain"
                   priority="high"
                   source={fantasyFutsalAppIcon}
-                  style={styles.authLogo}
+                  style={[
+                    styles.authLogo,
+                    isCompactLandscapeWeb ? styles.authLogoCompact : null,
+                  ]}
                   transition={0}
                 />
                 <Text style={styles.authEyebrow}>{title}</Text>
@@ -715,34 +792,39 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
                 <View style={styles.authLanguageSwitcher}>
                   <LanguageSwitcher variant="app" />
                 </View>
+                <View style={styles.authIntroFooter}>
+                  <Pressable
+                    style={styles.authPrimaryButton}
+                    onPress={() => {
+                      resetTransientState();
+                      setAuthStep("form");
+                    }}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {t("auth.continue")}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
-
-              <View style={styles.authIntroFooter}>
-                <Pressable
-                  style={styles.authPrimaryButton}
-                  onPress={() => {
-                    resetTransientState();
-                    setAuthStep("form");
-                  }}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {t("auth.continue")}
-                  </Text>
-                </Pressable>
-              </View>
-            </>
+            </ScrollView>
           ) : (
             <ScrollView
               keyboardDismissMode="interactive"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               style={styles.authFormScroll}
-              contentContainerStyle={styles.authFormScrollContent}
+              contentContainerStyle={[
+                styles.authFormScrollContent,
+                isDesktopWeb ? styles.authFormScrollContentDesktop : null,
+              ]}
             >
               <Pressable
                 accessibilityRole="button"
                 onPress={handleAuthBackPress}
-                style={styles.authBackButton}
+                style={[
+                  styles.authBackButton,
+                  isDesktopWeb ? styles.authBackButtonDesktop : null,
+                ]}
               >
                 <ArrowLeft
                   color={colors.brand.blueDark}
@@ -752,7 +834,12 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
                 <Text style={styles.authBackButtonText}>{t("auth.back")}</Text>
               </Pressable>
 
-              <View style={styles.authPanelDark}>
+              <View
+                style={[
+                  styles.authPanelDark,
+                  isDesktopWeb ? styles.authPanelDarkDesktop : null,
+                ]}
+              >
                 {isResettingPassword ? (
                   <View style={styles.authResetHeader}>
                     <Text style={styles.authResetTitle}>
@@ -1083,7 +1170,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
                 {!isAwaitingCode &&
                 !isResettingPassword &&
-                Platform.OS !== "android" ? (
+                shouldShowAppleAuth ? (
                   <Pressable
                     style={[
                       styles.authSocialButton,

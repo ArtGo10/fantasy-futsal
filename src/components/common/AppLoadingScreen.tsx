@@ -1,6 +1,12 @@
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
-import { Dimensions, Text, useWindowDimensions, View } from "react-native";
+import {
+  Dimensions,
+  Platform,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { styles } from "../../styles";
@@ -15,30 +21,30 @@ export function AppLoadingScreen({
 }) {
   const insets = useSafeAreaInsets();
   const windowSize = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
   const screenSize = Dimensions.get("screen");
-  const shellHeight = Math.max(
-    windowSize.height + insets.top + insets.bottom,
-    screenSize.height,
-  );
-  const shellWidth = Math.max(
-    windowSize.width + insets.left + insets.right,
-    screenSize.width,
-  );
+  const shellStyle = isWeb
+    ? {
+        minHeight: windowSize.height,
+        width: "100%" as const,
+      }
+    : {
+        minHeight: Math.max(
+          windowSize.height + insets.top + insets.bottom,
+          screenSize.height,
+        ),
+        width: Math.max(
+          windowSize.width + insets.left + insets.right,
+          screenSize.width,
+        ),
+        marginTop: -insets.top,
+        marginRight: -insets.right,
+        marginBottom: -insets.bottom,
+        marginLeft: -insets.left,
+      };
 
   return (
-    <View
-      style={[
-        styles.appLoadingShell,
-        {
-          minHeight: shellHeight,
-          width: shellWidth,
-          marginTop: -insets.top,
-          marginRight: -insets.right,
-          marginBottom: -insets.bottom,
-          marginLeft: -insets.left,
-        },
-      ]}
-    >
+    <View style={[styles.appLoadingShell, shellStyle]}>
       <StatusBar style="light" />
       <Image
         accessibilityIgnoresInvertColors

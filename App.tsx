@@ -40,7 +40,7 @@ import {
 } from "./src/features/fantasy/assets/fantasyAssets";
 import { I18nProvider, useI18n } from "./src/i18n/I18nProvider";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
-import { isPublicWebPath } from "./src/web/publicSiteConfig";
+import { isPublicWebPath, isWebAppPath } from "./src/web/publicSiteConfig";
 import { styles } from "./src/styles";
 import {
   clearStoredCrashReport,
@@ -63,6 +63,7 @@ const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
 const AUTH_BOOT_TIMEOUT_MS = 15000;
 const AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT = 1;
+const WEB_SCROLLBAR_STYLE_ID = "fantasy-futsal-scrollbar-styles";
 
 const DEFAULT_SAFE_AREA_EDGES = ["top", "right", "bottom", "left"] as const;
 const TOP_EDGE_TO_EDGE_SAFE_AREA_EDGES = ["right", "bottom", "left"] as const;
@@ -89,6 +90,65 @@ function NativeSplashAutoHide() {
   return null;
 }
 
+function useWebScrollbarStyles() {
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const existingStyleElement = document.getElementById(
+      WEB_SCROLLBAR_STYLE_ID,
+    ) as HTMLStyleElement | null;
+    const styleElement =
+      existingStyleElement ?? document.createElement("style");
+    styleElement.id = WEB_SCROLLBAR_STYLE_ID;
+    styleElement.textContent = `
+      * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+      }
+
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar,
+      #root::-webkit-scrollbar,
+      #root *::-webkit-scrollbar,
+      *::-webkit-scrollbar {
+        width: 0 !important;
+        height: 0 !important;
+        display: none !important;
+        background: transparent !important;
+      }
+
+      html::-webkit-scrollbar-track,
+      body::-webkit-scrollbar-track,
+      #root::-webkit-scrollbar-track,
+      #root *::-webkit-scrollbar-track,
+      *::-webkit-scrollbar-track,
+      html::-webkit-scrollbar-thumb,
+      body::-webkit-scrollbar-thumb,
+      #root::-webkit-scrollbar-thumb,
+      #root *::-webkit-scrollbar-thumb,
+      *::-webkit-scrollbar-thumb,
+      html::-webkit-scrollbar-corner,
+      body::-webkit-scrollbar-corner,
+      #root::-webkit-scrollbar-corner,
+      #root *::-webkit-scrollbar-corner,
+      *::-webkit-scrollbar-corner {
+        background: transparent !important;
+        border: 0 !important;
+      }
+    `;
+    if (!existingStyleElement) {
+      document.head.appendChild(styleElement);
+    }
+
+    return () => {
+      if (!existingStyleElement) {
+        styleElement.remove();
+      }
+    };
+  }, []);
+}
 function useStoredCrashReportNotice() {
   const [storedCrashReport, setStoredCrashReport] =
     useState<StoredCrashReport | null>(null);
@@ -345,7 +405,13 @@ function ClerkSessionGate({
       setHasBootTimedOut(false);
       onRecoverAuthBoot();
     }
-  }, [authBootRecoveryAttempts, hasLoadedOnce, isLoaded, isOffline, onRecoverAuthBoot]);
+  }, [
+    authBootRecoveryAttempts,
+    hasLoadedOnce,
+    isLoaded,
+    isOffline,
+    onRecoverAuthBoot,
+  ]);
 
   useEffect(() => {
     if (isOffline || isLoaded || hasLoadedOnce) {
@@ -368,7 +434,13 @@ function ClerkSessionGate({
     }, AUTH_BOOT_TIMEOUT_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [authBootRecoveryAttempts, hasLoadedOnce, isLoaded, isOffline, onRecoverAuthBoot]);
+  }, [
+    authBootRecoveryAttempts,
+    hasLoadedOnce,
+    isLoaded,
+    isOffline,
+    onRecoverAuthBoot,
+  ]);
 
   if (!isLoaded && !hasLoadedOnce) {
     if (isOffline) {
@@ -440,7 +512,6 @@ function ConfiguredApp({
   }, []);
 
   const { redirectUrlComplete } = getWebOAuthRedirectUrls();
-
   return (
     <ClerkProvider
       key={sessionProviderResetKey}
@@ -465,18 +536,27 @@ function ConfiguredApp({
                 style={styles.keyboardAvoidingRoot}
               >
                 <AppRuntimeErrorBoundary>
-                  <ClerkSessionGate
-                    authBootRecoveryAttempts={authBootRecoveryAttempts}
-                    isOffline={isOffline}
-                    onRecoverAuthBoot={handleRecoverAuthBoot}
-                  >
+                  {isCompletingOAuthRedirect ? (
                     <AppContent
                       isOffline={isOffline}
                       isCompletingOAuthRedirect={isCompletingOAuthRedirect}
                       onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
                       redirectUrlComplete={redirectUrlComplete}
                     />
-                  </ClerkSessionGate>
+                  ) : (
+                    <ClerkSessionGate
+                      authBootRecoveryAttempts={authBootRecoveryAttempts}
+                      isOffline={isOffline}
+                      onRecoverAuthBoot={handleRecoverAuthBoot}
+                    >
+                      <AppContent
+                        isOffline={isOffline}
+                        isCompletingOAuthRedirect={isCompletingOAuthRedirect}
+                        onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
+                        redirectUrlComplete={redirectUrlComplete}
+                      />
+                    </ClerkSessionGate>
+                  )}
                 </AppRuntimeErrorBoundary>
               </KeyboardAvoidingView>
 
@@ -490,6 +570,8 @@ function ConfiguredApp({
 }
 
 export default function App() {
+  useWebScrollbarStyles();
+
   const appResumeResetKey = useAppResumeResetKey();
   const { clearCrashReport, storedCrashReport } = useStoredCrashReportNotice();
 
@@ -502,7 +584,7 @@ export default function App() {
     );
   }
 
-  if (Platform.OS === "web" && isPublicWebPath()) {
+  if (Platform.OS === "web" && !isWebAppPath() && isPublicWebPath()) {
     return (
       <I18nProvider>
         <PublicWebSite />

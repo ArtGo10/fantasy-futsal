@@ -1,12 +1,120 @@
-import { mutation, query } from "./_generated/server";
-import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
+import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { v } from "convex/values";
 
+import type { Id } from "./_generated/dataModel";
+import { internalAction, mutation, query } from "./_generated/server";
+import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
+
 const MAX_FEEDBACK_MESSAGE_LENGTH = 4000;
+const SUPPORT_EMAIL = "support@footballfantasy.app";
+const RESEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
+const DEFAULT_FEEDBACK_EMAIL_FROM = "Fantasy Futsal <" + SUPPORT_EMAIL + ">";
+
+type SendFeedbackEmailArgs = {
+  createdAt: number;
+  email?: string;
+  feedbackId: Id<"userFeedback">;
+  message: string;
+  name?: string;
+  source?: string;
+};
+
+type SendFeedbackEmailResult = {
+  sent: boolean;
+  skipped: boolean;
+};
+
+const sendFeedbackEmailInternalRef = makeFunctionReference<
+  "action",
+  SendFeedbackEmailArgs,
+  SendFeedbackEmailResult
+>("users:sendFeedbackEmailInternal") as unknown as FunctionReference<
+  "action",
+  "internal",
+  SendFeedbackEmailArgs,
+  SendFeedbackEmailResult
+>;
 
 function normalizeOptional(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatFeedbackEmailText(args: {
+  createdAt: number;
+  email?: string;
+  feedbackId: string;
+  message: string;
+  name?: string;
+  source?: string;
+}) {
+  const submittedAt = new Date(args.createdAt).toISOString();
+
+  return [
+    "New Fantasy Futsal feedback",
+    "",
+    "Feedback ID: " + args.feedbackId,
+    "Submitted at: " + submittedAt,
+    "Name: " + (args.name ?? "Unknown"),
+    "Email: " + (args.email ?? "Not provided"),
+    "Source: " + (args.source ?? "Not provided"),
+    "",
+    "Message:",
+    args.message,
+  ].join("\n");
+}
+
+function formatFeedbackEmailHtml(args: {
+  createdAt: number;
+  email?: string;
+  feedbackId: string;
+  message: string;
+  name?: string;
+  source?: string;
+}) {
+  const submittedAt = new Date(args.createdAt).toISOString();
+  const rows = [
+    ["Feedback ID", args.feedbackId],
+    ["Submitted at", submittedAt],
+    ["Name", args.name ?? "Unknown"],
+    ["Email", args.email ?? "Not provided"],
+    ["Source", args.source ?? "Not provided"],
+  ];
+  const tableRows = rows
+    .map(
+      ([label, value]) =>
+        '<tr>' +
+        '<td style="padding: 4px 16px 4px 0; color: #6B7280; font-weight: 700;">' +
+        escapeHtml(label) +
+        '</td>' +
+        '<td style="padding: 4px 0;">' +
+        escapeHtml(value) +
+        '</td>' +
+        '</tr>',
+    )
+    .join("");
+
+  return (
+    '<div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">' +
+    '<h1 style="font-size: 20px; margin: 0 0 16px;">New Fantasy Futsal feedback</h1>' +
+    '<table style="border-collapse: collapse; margin-bottom: 18px;">' +
+    tableRows +
+    '</table>' +
+    '<div style="font-weight: 700; margin-bottom: 8px;">Message</div>' +
+    '<div style="white-space: pre-wrap; border: 1px solid #D7DFEA; border-radius: 8px; padding: 12px; background: #F8FAFC;">' +
+    escapeHtml(args.message) +
+    '</div>' +
+    '</div>'
+  );
 }
 
 function capitalizeNamePart(value: string) {
@@ -209,6 +317,56 @@ export const me = query({
   },
 });
 
+export const sendFeedbackEmailInternal = internalAction({
+  args: {
+    createdAt: v.number(),
+    email: v.optional(v.string()),
+    feedbackId: v.id("userFeedback"),
+    message: v.string(),
+    name: v.optional(v.string()),
+    source: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = normalizeOptional(process.env.RESEND_API_KEY);
+    if (!apiKey) {
+      console.warn("RESEND_API_KEY is not set. Feedback email was not sent.");
+      return { sent: false, skipped: true };
+    }
+
+    const to = normalizeOptional(process.env.FEEDBACK_EMAIL_TO) ?? SUPPORT_EMAIL;
+    const from =
+      normalizeOptional(process.env.FEEDBACK_EMAIL_FROM) ??
+      DEFAULT_FEEDBACK_EMAIL_FROM;
+    const author = args.name ?? args.email ?? "user";
+    const payload = {
+      from,
+      to: [to],
+      subject: "New Fantasy Futsal feedback from " + author,
+      text: formatFeedbackEmailText(args),
+      html: formatFeedbackEmailHtml(args),
+      ...(args.email ? { reply_to: args.email } : {}),
+    };
+
+    const response = await fetch(RESEND_EMAIL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(
+        ("Could not send feedback email: " + response.status + " " + errorText).trim(),
+      );
+    }
+
+    return { sent: true, skipped: false };
+  },
+});
+
 export const submitFeedback = mutation({
   args: {
     message: v.string(),
@@ -229,15 +387,25 @@ export const submitFeedback = mutation({
     }
 
     const now = Date.now();
+    const source = normalizeOptional(args.source);
     const feedbackId = await ctx.db.insert("userFeedback", {
       userId: user._id,
       email: user.email,
       name: user.name,
       message,
-      source: normalizeOptional(args.source),
+      source,
       status: "new",
       createdAt: now,
       updatedAt: now,
+    });
+
+    await ctx.scheduler.runAfter(0, sendFeedbackEmailInternalRef, {
+      feedbackId,
+      email: user.email,
+      name: user.name,
+      message,
+      source,
+      createdAt: now,
     });
 
     return { feedbackId };
@@ -283,6 +451,7 @@ export const deleteCurrentUserData = mutation({
         feedback: 0,
         gameweekSquadPicks: 0,
         pushTokens: 0,
+        notifications: 0,
         squadPicks: 0,
         pointDeductions: 0,
         teamScores: 0,
@@ -364,6 +533,14 @@ export const deleteCurrentUserData = mutation({
       await ctx.db.delete(pushToken._id);
     }
 
+    const notifications = await ctx.db
+      .query("userNotifications")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     const feedbackItems = await ctx.db
       .query("userFeedback")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -403,6 +580,7 @@ export const deleteCurrentUserData = mutation({
       gameweekSquadPicks: deletedGameweekSquadPicks,
       pointDeductions: deletedPointDeductions,
       pushTokens: pushTokens.length,
+      notifications: notifications.length,
       squadPicks: deletedSquadPicks,
       teamScores: deletedTeamScores,
       teams: fantasyTeams.length,

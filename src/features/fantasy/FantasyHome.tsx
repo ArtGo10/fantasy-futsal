@@ -3,15 +3,28 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Keyboard, Pressable, Text, View } from "react-native";
+import {
+  AppState,
+  Keyboard,
+  Platform,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Bell, Check } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthScreen } from "../../components/auth/AuthScreen";
-import { TOKEN_FETCH_TIMEOUT_MS } from "../../constants";
+import {
+  TOKEN_FETCH_TIMEOUT_MS,
+  WEB_APP_PATH,
+  WEB_DESKTOP_MIN_WIDTH,
+} from "../../constants";
 import { AppConnectionProblemScreen } from "../../components/common/AppConnectionProblemScreen";
 import { AppLoadingOverlay } from "../../components/common/AppLoadingOverlay";
 import { AppLoadingScreen } from "../../components/common/AppLoadingScreen";
+import { LanguageSwitcher } from "../../components/common/LanguageSwitcher";
 import { LegalConsentText } from "../../components/legal/LegalConsentText";
 import {
   LegalTextSheet,
@@ -23,10 +36,16 @@ import { LEGAL_VERSION } from "../../legal/legalContent";
 import { clearStoredLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { useExpoPushTokenRegistration } from "../../hooks/usePushNotifications";
 import { useI18n } from "../../i18n/I18nProvider";
+import type { TranslationKey } from "../../i18n/translations";
 import { api } from "../../lib/convexApi";
 import { styles } from "../../styles";
 import { colors, spacing } from "../../theme/tokens";
-import { getErrorMessage, getMetadataDisplayName } from "../../utils/auth";
+import {
+  getErrorMessage,
+  getMetadataDisplayName,
+  getWebAppRedirectUrl,
+  keepBrowserOnWebAppPath,
+} from "../../utils/auth";
 import { formatPersonName } from "../../utils/names";
 import { FantasyBottomTabs } from "./FantasyBottomTabs";
 import {
@@ -61,6 +80,60 @@ const FANTASY_TABS: FantasyTab[] = [
   { id: "season" },
   { id: "profile" },
 ];
+
+const FANTASY_TAB_LABEL_KEYS: Record<FantasyTabId, TranslationKey> = {
+  season: "tabs.season",
+  league: "tabs.league",
+  market: "tabs.market",
+  profile: "tabs.profile",
+  team: "tabs.team",
+};
+
+const FANTASY_TAB_WEB_PATHS: Record<FantasyTabId, string> = {
+  team: `${WEB_APP_PATH}/team`,
+  league: `${WEB_APP_PATH}/league`,
+  market: `${WEB_APP_PATH}/market`,
+  season: `${WEB_APP_PATH}/season`,
+  profile: `${WEB_APP_PATH}/profile`,
+};
+
+const FANTASY_WEB_TAB_IDS = new Set<FantasyTabId>(
+  FANTASY_TABS.map((tab) => tab.id),
+);
+
+function normalizeFantasyWebPathname(pathname: string) {
+  const cleanPathname = pathname.split("?")[0]?.split("#")[0] ?? WEB_APP_PATH;
+  if (!cleanPathname || cleanPathname === "/") return "/";
+
+  return cleanPathname.replace(/\/+$/, "") || "/";
+}
+
+function getFantasyTabFromWebPathname(pathname: string): FantasyTabId | null {
+  const normalizedPathname = normalizeFantasyWebPathname(pathname);
+  if (normalizedPathname === WEB_APP_PATH) return "team";
+
+  const appPrefix = `${WEB_APP_PATH}/`;
+  if (!normalizedPathname.startsWith(appPrefix)) return null;
+
+  const tabSegment = normalizedPathname.slice(appPrefix.length).split("/")[0];
+  return FANTASY_WEB_TAB_IDS.has(tabSegment as FantasyTabId)
+    ? (tabSegment as FantasyTabId)
+    : null;
+}
+
+function isUnknownFantasyWebTabPathname(pathname: string) {
+  const normalizedPathname = normalizeFantasyWebPathname(pathname);
+  return (
+    normalizedPathname.startsWith(`${WEB_APP_PATH}/`) &&
+    getFantasyTabFromWebPathname(normalizedPathname) === null
+  );
+}
+
+function getInitialFantasyTab() {
+  if (Platform.OS !== "web" || typeof window === "undefined") return "team";
+
+  return getFantasyTabFromWebPathname(window.location.pathname) ?? "team";
+}
 
 type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
 
@@ -138,11 +211,28 @@ function FantasyStaticImagePreloader() {
 }
 
 function FantasyShellHeader({
+  activeTab,
   onNotificationsPress,
+  onTabChange,
+  showLanguageSwitcher = false,
+  showWebNav = true,
+  tabs,
+  unreadNotificationsCount = 0,
 }: {
+  activeTab: FantasyTabId;
   onNotificationsPress: () => void;
+  onTabChange: (tab: FantasyTabId) => void;
+  showLanguageSwitcher?: boolean;
+  showWebNav?: boolean;
+  tabs: FantasyTab[];
+  unreadNotificationsCount?: number;
 }) {
   const { t } = useI18n();
+  const shouldShowLanguageSwitcher =
+    Platform.OS === "web" && showLanguageSwitcher;
+  const shouldShowWebNav = Platform.OS === "web" && showWebNav;
+  const notificationBadgeText =
+    unreadNotificationsCount > 99 ? "99+" : String(unreadNotificationsCount);
 
   return (
     <View style={styles.fantasyHeader}>
@@ -159,14 +249,61 @@ function FantasyShellHeader({
           </Text>
         </View>
       </View>
-      <Pressable
-        accessibilityLabel={t("notifications.title")}
-        accessibilityRole="button"
-        onPress={onNotificationsPress}
-        style={styles.fantasyHeaderIconButton}
-      >
-        <Bell color={colors.brand.blue} size={21} strokeWidth={2.4} />
-      </Pressable>
+
+      {shouldShowWebNav ? (
+        <View style={styles.fantasyHeaderWebNav}>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const label = t(FANTASY_TAB_LABEL_KEYS[tab.id]);
+
+            return (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityState={{ selected: isActive }}
+                key={tab.id}
+                onPress={() => onTabChange(tab.id)}
+                style={[
+                  styles.fantasyHeaderWebNavButton,
+                  isActive ? styles.fantasyHeaderWebNavButtonActive : null,
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={
+                    isActive
+                      ? styles.fantasyHeaderWebNavTextActive
+                      : styles.fantasyHeaderWebNavText
+                  }
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {shouldShowLanguageSwitcher ? (
+        <View style={styles.fantasyHeaderLanguageSwitcher}>
+          <LanguageSwitcher />
+        </View>
+      ) : (
+        <Pressable
+          accessibilityLabel={t("notifications.title")}
+          accessibilityRole="button"
+          onPress={onNotificationsPress}
+          style={styles.fantasyHeaderIconButton}
+        >
+          <Bell color={colors.brand.blue} size={21} strokeWidth={2.4} />
+          {unreadNotificationsCount > 0 ? (
+            <View style={styles.fantasyHeaderNotificationBadge}>
+              <Text style={styles.fantasyHeaderNotificationBadgeText}>
+                {notificationBadgeText}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -197,6 +334,10 @@ export function FantasyHome({
     useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
+  const { width: windowWidth } = useWindowDimensions();
+  const shouldUseDesktopWebLayout =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
+  const initialActiveTab = useMemo(() => getInitialFantasyTab(), []);
   const convexAuth = useConvexAuth();
   const upsertCurrentUser = useMutation(api.users.upsertCurrentUser);
   const acceptCurrentUserTerms = useMutation(api.users.acceptCurrentUserTerms);
@@ -206,10 +347,10 @@ export function FantasyHome({
     api.notifications.upsertExpoPushToken,
   );
 
-  const [activeTab, setActiveTab] = useState<FantasyTabId>("team");
+  const [activeTab, setActiveTab] = useState<FantasyTabId>(initialActiveTab);
   const [hasEnteredPrivateApp, setHasEnteredPrivateApp] = useState(false);
   const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<FantasyTabId>>(
-    () => new Set(["team", "market"]),
+    () => new Set(["team", "market", initialActiveTab]),
   );
   const [errorText, setErrorText] = useState<string | null>(null);
   const [convexTokenStatus, setConvexTokenStatus] =
@@ -217,6 +358,7 @@ export function FantasyHome({
   const [foregroundRefreshNonce, setForegroundRefreshNonce] = useState(0);
   const [canShowAuthProblem, setCanShowAuthProblem] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isAdminActionsOpen, setIsAdminActionsOpen] = useState(false);
   const [headerActionOverlay, setHeaderActionOverlay] =
     useState<HeaderActionOverlayConfig | null>(null);
   const [isShellHeaderHidden, setIsShellHeaderHidden] = useState(false);
@@ -305,6 +447,10 @@ export function FantasyHome({
     api.users.me,
     shouldQueryPrivateData ? {} : "skip",
   );
+  const notificationSummaryQuery = useQuery(
+    api.notifications.currentUserNotificationSummary,
+    shouldQueryPrivateData ? {} : "skip",
+  );
   const fantasyOverview = useLastDefinedValue(
     fantasyOverviewQuery,
     privateDataCacheKey,
@@ -351,6 +497,10 @@ export function FantasyHome({
   );
   const currentUserProfile = useLastDefinedValue(
     currentUserProfileQuery,
+    privateDataCacheKey,
+  );
+  const notificationSummary = useLastDefinedValue(
+    notificationSummaryQuery,
     privateDataCacheKey,
   );
   const currentBackendUser = currentUserProfile?.user ?? null;
@@ -473,8 +623,9 @@ export function FantasyHome({
     if (previousAuthUserIdRef.current === currentAuthUserId) return;
 
     previousAuthUserIdRef.current = currentAuthUserId;
-    setActiveTab("team");
-    setVisitedTabs(new Set(["team", "market"]));
+    const nextActiveTab = getInitialFantasyTab();
+    setActiveTab(nextActiveTab);
+    setVisitedTabs(new Set(["team", "market", nextActiveTab]));
     setIsNotificationsOpen(false);
     setHeaderActionOverlay(null);
     setIsShellHeaderHidden(false);
@@ -484,6 +635,46 @@ export function FantasyHome({
     setRequiredLegalErrorText(null);
     setRequiredLegalSheetKind(null);
   }, [authIsLoaded, currentAuthUserId]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const syncActiveTabFromUrl = () => {
+      const nextTab = getFantasyTabFromWebPathname(window.location.pathname);
+      if (nextTab) {
+        setActiveTab(nextTab);
+        setVisitedTabs((current) => {
+          if (current.has(nextTab)) return current;
+
+          const next = new Set(current);
+          next.add(nextTab);
+          return next;
+        });
+        return;
+      }
+
+      if (isUnknownFantasyWebTabPathname(window.location.pathname)) {
+        window.history.replaceState(null, "", FANTASY_TAB_WEB_PATHS.team);
+        setActiveTab("team");
+        setVisitedTabs((current) => {
+          if (current.has("team")) return current;
+
+          const next = new Set(current);
+          next.add("team");
+          return next;
+        });
+      }
+    };
+
+    syncActiveTabFromUrl();
+    window.addEventListener("popstate", syncActiveTabFromUrl);
+
+    return () => {
+      window.removeEventListener("popstate", syncActiveTabFromUrl);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab !== "team") {
@@ -594,6 +785,7 @@ export function FantasyHome({
   useDismissKeyboardOnChange([
     activeTab,
     isNotificationsOpen,
+    isAdminActionsOpen,
     requiredLegalSheetKind,
     isShellHeaderHidden,
     areBottomTabsHidden,
@@ -606,6 +798,15 @@ export function FantasyHome({
   );
   const handleTabChange = useCallback((nextTab: FantasyTabId) => {
     Keyboard.dismiss();
+    setIsAdminActionsOpen(false);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const nextPathname = FANTASY_TAB_WEB_PATHS[nextTab];
+      if (
+        normalizeFantasyWebPathname(window.location.pathname) !== nextPathname
+      ) {
+        window.history.pushState(null, "", nextPathname);
+      }
+    }
     setVisitedTabs((current) => {
       if (current.has(nextTab)) return current;
 
@@ -615,6 +816,17 @@ export function FantasyHome({
     });
     setActiveTab(nextTab);
   }, []);
+
+  const handleOpenAdminActions = useCallback(() => {
+    Keyboard.dismiss();
+    setIsAdminActionsOpen(true);
+  }, []);
+
+  const handleCloseAdminActions = useCallback(() => {
+    Keyboard.dismiss();
+    setIsAdminActionsOpen(false);
+  }, []);
+
   const profileReady = useCurrentUserBootstrap({
     onError: setAsyncError,
     onStart: clearError,
@@ -785,7 +997,16 @@ export function FantasyHome({
       setIsSigningOut(true);
       await waitForNextPaint();
       await clearStoredLegalAcceptance();
-      await signOut();
+      if (Platform.OS === "web") {
+        await (
+          signOut as (options?: { redirectUrl?: string }) => Promise<void>
+        )({
+          redirectUrl: getWebAppRedirectUrl(),
+        });
+        keepBrowserOnWebAppPath();
+      } else {
+        await signOut();
+      }
     } catch (error) {
       setIsSigningOut(false);
       setAsyncError(getErrorMessage(error, language));
@@ -801,7 +1022,14 @@ export function FantasyHome({
     await deleteCurrentUserData({});
     await clearStoredLegalAcceptance();
     await clerkUser.delete();
-    await signOut();
+    if (Platform.OS === "web") {
+      await (signOut as (options?: { redirectUrl?: string }) => Promise<void>)({
+        redirectUrl: getWebAppRedirectUrl(),
+      });
+      keepBrowserOnWebAppPath();
+    } else {
+      await signOut();
+    }
   }, [deleteCurrentUserData, signOut, t, user]);
 
   const handlePointsDetailsVisibleChange = useCallback((isVisible: boolean) => {
@@ -893,6 +1121,7 @@ export function FantasyHome({
         isAdmin={Boolean(currentUserProfile?.isAdmin)}
         name={profileName}
         onDeleteAccount={handleDeleteAccount}
+        onOpenAdminActions={handleOpenAdminActions}
         onSignOut={handleSignOut}
         players={localizedFantasyPlayers}
       />
@@ -902,6 +1131,7 @@ export function FantasyHome({
       shouldQueryPrivateData,
       localizedFantasyGameweeks,
       handleDeleteAccount,
+      handleOpenAdminActions,
       handleSignOut,
       localizedFantasyFixtures,
       localizedFantasyPlayers,
@@ -1015,7 +1245,12 @@ export function FantasyHome({
       <View style={styles.fantasyShell}>
         <FantasyStaticImagePreloader />
         <FantasyShellHeader
+          activeTab={activeTab}
           onNotificationsPress={() => setIsNotificationsOpen(true)}
+          onTabChange={handleTabChange}
+          showLanguageSwitcher={shouldUseDesktopWebLayout}
+          showWebNav={false}
+          tabs={FANTASY_TABS}
         />
         <View style={styles.fantasyScreen}>
           <View style={styles.panel}>
@@ -1145,7 +1380,10 @@ export function FantasyHome({
       ? t("network.offlineDescription")
       : null;
   const inlineMessageText =
-    errorText ?? authProblemText ?? sessionRestoreProblemText ?? deadlineNoticeText;
+    errorText ??
+    authProblemText ??
+    sessionRestoreProblemText ??
+    deadlineNoticeText;
   const inlineMessageStyle =
     deadlineNoticeText && inlineMessageText === deadlineNoticeText
       ? [styles.fantasyInlineMessage, styles.fantasyInlineMessageInfo]
@@ -1159,7 +1397,12 @@ export function FantasyHome({
     return (
       <View style={styles.fantasyShell}>
         <FantasyShellHeader
+          activeTab={activeTab}
           onNotificationsPress={() => setIsNotificationsOpen(true)}
+          onTabChange={handleTabChange}
+          showLanguageSwitcher={shouldUseDesktopWebLayout}
+          showWebNav={false}
+          tabs={FANTASY_TABS}
         />
 
         <View style={styles.fantasyInlineMessage}>
@@ -1190,12 +1433,37 @@ export function FantasyHome({
     return <NotificationsScreen onBack={() => setIsNotificationsOpen(false)} />;
   }
 
+  if (isAdminActionsOpen) {
+    return (
+      <ProfileScreen
+        canQueryPrivateData={shouldQueryPrivateData}
+        email={profileEmail}
+        fixtures={localizedFantasyFixtures}
+        gameweeks={localizedFantasyGameweeks}
+        isAdmin={Boolean(currentUserProfile?.isAdmin)}
+        mode="adminActions"
+        name={profileName}
+        onAdminActionsBack={handleCloseAdminActions}
+        onDeleteAccount={handleDeleteAccount}
+        onOpenAdminActions={handleOpenAdminActions}
+        onSignOut={handleSignOut}
+        players={localizedFantasyPlayers}
+      />
+    );
+  }
+
   return (
     <View style={styles.fantasyShell}>
       <FantasyStaticImagePreloader />
       {isShellHeaderHidden ? null : (
         <FantasyShellHeader
+          activeTab={activeTab}
           onNotificationsPress={() => setIsNotificationsOpen(true)}
+          onTabChange={handleTabChange}
+          showLanguageSwitcher={shouldUseDesktopWebLayout}
+          showWebNav={shouldUseDesktopWebLayout}
+          tabs={FANTASY_TABS}
+          unreadNotificationsCount={notificationSummary?.unreadCount ?? 0}
         />
       )}
       <HeaderActionOverlay config={headerActionOverlay} />
@@ -1205,9 +1473,7 @@ export function FantasyHome({
           pointerEvents="none"
           style={[
             styles.fantasyConnectionToast,
-            isShellHeaderHidden
-              ? { top: insets.top + spacing.md }
-              : null,
+            isShellHeaderHidden ? { top: insets.top + spacing.md } : null,
           ]}
         >
           <Text style={styles.fantasyConnectionToastText}>
@@ -1270,7 +1536,7 @@ export function FantasyHome({
         </View>
       </View>
 
-      {areBottomTabsHidden ? null : (
+      {areBottomTabsHidden || shouldUseDesktopWebLayout ? null : (
         <FantasyBottomTabs
           activeTab={activeTab}
           onChange={handleTabChange}
