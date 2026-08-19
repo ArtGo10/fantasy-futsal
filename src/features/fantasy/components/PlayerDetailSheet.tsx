@@ -82,14 +82,29 @@ function formatPlayerDetailNumber(value: number | null | undefined) {
     : normalized.toFixed(1);
 }
 
-const STATUS_LABEL_KEYS: Record<PlayerStatus, TranslationKey> = {
+const STATUS_LABEL_KEYS: Record<"active" | "doubtful" | "unavailable", TranslationKey> = {
   active: "players.playerStatus.active",
   doubtful: "players.playerStatus.doubtful",
+  unavailable: "players.playerStatus.unavailable",
+};
+
+const STATUS_REASON_LABEL_KEYS: Partial<Record<PlayerStatus, TranslationKey>> = {
   injured: "players.playerStatus.injured",
   left: "players.playerStatus.left",
   suspended: "players.playerStatus.suspended",
-  unavailable: "players.playerStatus.unavailable",
 };
+
+function getPublicPlayerStatus(status: PlayerStatus) {
+  if (status === "active" || status === "doubtful") return status;
+  return "unavailable";
+}
+
+function normalizeStatusText(value: string | null | undefined) {
+  return (value ?? "")
+    .replace(/[\s.!?:;]+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+}
 
 type PlayerDetailHeroProps = {
   isFavorite?: boolean;
@@ -174,21 +189,21 @@ export function PlayerDetailSheet({
   const hasPriceTrend = Math.abs(priceDelta) >= 0.1;
   const formattedPriceDelta = formatFantasyMoneyDelta(priceDelta);
   const cardCount = (player.yellowCards ?? 0) + (player.redCards ?? 0);
-  const statusLabel = t(STATUS_LABEL_KEYS[player.status]);
-  const statusMessage = player.status !== "active" ? player.statusMessage : null;
-  const normalizedStatusLabel = statusLabel
-    .replace(/[\s.!?:;]+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
-  const normalizedStatusMessage = (statusMessage ?? "")
-    .replace(/[\s.!?:;]+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
+  const publicStatus = getPublicPlayerStatus(player.status);
+  const statusLabel = t(STATUS_LABEL_KEYS[publicStatus]);
+  const statusMessage =
+    player.status !== "active" ? player.statusMessage?.trim() : null;
+  const fallbackStatusReasonKey = STATUS_REASON_LABEL_KEYS[player.status];
+  const fallbackStatusReason = fallbackStatusReasonKey
+    ? t(fallbackStatusReasonKey)
+    : null;
+  const normalizedStatusLabel = normalizeStatusText(statusLabel);
+  const normalizedStatusMessage = normalizeStatusText(statusMessage);
   const statusNoticeMessage =
     statusMessage && normalizedStatusMessage !== normalizedStatusLabel
       ? statusMessage
-      : null;
-  const isDoubtful = player.status === "doubtful";
+      : fallbackStatusReason;
+  const isDoubtful = publicStatus === "doubtful";
 
   return (
     <BottomSheet

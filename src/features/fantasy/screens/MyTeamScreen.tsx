@@ -2875,8 +2875,9 @@ export function MyTeamScreen({
         String(liveGameweek.number),
       )
     : null;
-  const deadlineAt =
-    currentGameweek?.deadlineAt ?? fantasyOverview?.nextDeadlineAt ?? null;
+  const deadlineAt = currentGameweek
+    ? currentGameweek.deadlineAt
+    : (fantasyOverview?.nextDeadlineAt ?? null);
   const selectedPlayers = useMemo(
     () => getDraftPlayers(draftPicks),
     [draftPicks],
