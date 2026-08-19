@@ -49,7 +49,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/import-futsal-source.mjs [options]\n\nOptions:\n  --apply                 Write data to Convex. Default is dry-run.\n  --dry-run               Preview changes without writing.\n  --keep-missing          Do not mark missing clubs inactive or missing players left.\n  --file <path>           Source JSON path. Default: ${DEFAULT_SOURCE_FILE}\n  --admin-subject <id>    Clerk user id used as Convex identity subject.\n  --admin-email <email>   Email used in Convex identity.\n  --prod                  Run against production deployment.\n  --deployment <name>     Run against a specific Convex deployment.\n  --no-push               Do not push local Convex functions before running.\n\nEnvironment fallback:\n  IMPORT_ADMIN_SUBJECT, IMPORT_ADMIN_EMAIL\n`);
+  console.log(`Usage: node scripts/import-futsal-source.mjs [options]\n\nOptions:\n  --apply                 Write data to Convex. Default is dry-run.\n  --dry-run               Preview changes without writing.\n  --keep-missing          Do not mark missing clubs inactive or missing players left.\n  --file <path>           Source JSON path. Default: ${DEFAULT_SOURCE_FILE}\n  --admin-subject <id>    Clerk user id used as Convex identity subject.\n  --admin-email <email>   Email used in Convex identity.\n  --prod                  Run against production deployment. Implies --no-push.\n  --deployment <name>     Run against a specific Convex deployment.\n  --no-push               Do not push local Convex functions before running.\n\nEnvironment fallback:\n  IMPORT_ADMIN_SUBJECT, IMPORT_ADMIN_EMAIL\n`);
 }
 
 function loadDotEnvFile(filePath) {
@@ -136,11 +136,15 @@ function main() {
     JSON.stringify(identity),
   ];
 
-  if (options.push) convexArgs.push("--push");
+  const shouldPushFunctions = options.push && !options.prod;
+  if (shouldPushFunctions) convexArgs.push("--push");
   if (options.prod) convexArgs.push("--prod");
   if (options.deployment) convexArgs.push("--deployment", options.deployment);
 
   console.log(options.apply ? "Importing futsal source data..." : "Previewing futsal source import...");
+  if (options.prod && options.push) {
+    console.log("Skipping --push for prod. Run `npx convex deploy` before importing production data.");
+  }
   console.log(`Source: ${resolve(options.file)}`);
   console.log(`Identity subject: ${adminSubject}`);
   if (adminEmail) console.log(`Identity email: ${adminEmail}`);
