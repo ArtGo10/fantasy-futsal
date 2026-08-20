@@ -903,15 +903,18 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
           __internal_callbackParams: oauthCallbackParams,
         };
 
-        if (mode === "sign_up" && signUp) {
+        if (signUp) {
           shouldKeepHandoffScreen = true;
           markWebOAuthAttemptStarted();
+          const trimmedDisplayName = displayName.trim();
           await signUp.authenticateWithRedirect({
             ...oauthParams,
             legalAccepted: true,
-            unsafeMetadata: {
-              displayName: displayName.trim(),
-            },
+            unsafeMetadata: trimmedDisplayName
+              ? {
+                  displayName: trimmedDisplayName,
+                }
+              : undefined,
           });
           return;
         }
