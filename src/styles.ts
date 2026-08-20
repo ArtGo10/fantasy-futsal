@@ -388,6 +388,58 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.app.primaryDark,
     padding: spacing.xl,
   },
+  appLoadingWebShell: {
+    flex: 1,
+    width: "100%",
+    position: isWeb ? ("fixed" as unknown as "absolute") : "relative",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    ...(isWeb
+      ? {
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 1000,
+        }
+      : {}),
+  },
+  appLoadingWebPanel: {
+    width: "100%",
+    maxWidth: 320,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  appLoadingWebLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+    marginBottom: spacing.xs,
+  },
+  appLoadingWebLogoDesktop: {
+    width: 104,
+    height: 104,
+    borderRadius: radii.lg,
+    marginBottom: spacing.sm,
+  },
+  appLoadingWebTitle: {
+    color: colors.text.primary,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.black,
+    lineHeight: typography.lineHeight.base,
+    textAlign: "center",
+  },
+  appLoadingWebDescription: {
+    color: colors.text.muted,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    lineHeight: typography.lineHeight.sm,
+    textAlign: "center",
+  },
   appLoadingBackgroundImage: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.72,
@@ -455,6 +507,9 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  appLoadingOverlayWeb: {
+    backgroundColor: "rgba(17, 24, 39, 0.46)",
+  },
   appLoadingOverlayCard: {
     minWidth: 156,
     maxWidth: 260,
@@ -472,6 +527,16 @@ export const styles = StyleSheet.create({
   appLoadingOverlayLogo: {
     width: 96,
     height: 96,
+    borderRadius: radii.lg,
+  },
+  appLoadingOverlayLogoWeb: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+  },
+  appLoadingOverlayLogoDesktop: {
+    width: 104,
+    height: 104,
     borderRadius: radii.lg,
   },
   appLoadingOverlayTitle: {
@@ -1180,6 +1245,11 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  playerDetailSidePaneDesktop: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.sm,
+  },
   playerDetailHero: {
     width: "100%",
     overflow: "hidden",
@@ -1191,11 +1261,27 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.sm,
   },
+  playerDetailHeroDesktop: {
+    flex: 1,
+    minHeight: 184,
+    alignItems: "stretch",
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  playerDetailHeroAvatarDesktop: {
+    width: 128,
+    height: "100%",
+    minHeight: 152,
+    borderRadius: radii.lg,
+  },
   playerDetailHeroText: {
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
     paddingRight: 42,
+  },
+  playerDetailHeroTextDesktop: {
+    gap: spacing.sm,
   },
   playerDetailPosition: {
     alignSelf: "flex-start",
@@ -1262,8 +1348,9 @@ export const styles = StyleSheet.create({
   },
   playerDetailQuickStatsDesktop: {
     flex: 1,
-    width: "50%",
+    width: "100%",
     minWidth: 0,
+    minHeight: 112,
   },
   playerDetailQuickStat: {
     flex: 1,
@@ -1365,6 +1452,9 @@ export const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.xs,
   },
+  playerDetailStatsGridDesktop: {
+    alignItems: "stretch",
+  },
   playerDetailStatCell: {
     flexGrow: 1,
     flexBasis: "46%",
@@ -1376,6 +1466,10 @@ export const styles = StyleSheet.create({
     gap: spacing.xxs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
+  },
+  playerDetailStatCellDesktop: {
+    flexBasis: "23%",
+    minWidth: 0,
   },
   playerDetailStatValue: {
     color: colors.brand.blueDark,
@@ -1399,6 +1493,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
     padding: spacing.sm,
+  },
+  playerDetailLeadershipPanelDesktop: {
+    flexShrink: 0,
+    minHeight: 64,
   },
   playerDetailLeadershipOption: {
     flex: 1,

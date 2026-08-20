@@ -561,9 +561,11 @@ function SeasonStatsCard({
 function SeasonStatsRow({
   index,
   player,
+  t,
 }: {
   index: number;
   player: SeasonPlayerStat;
+  t: (key: TranslationKey) => string;
 }) {
   return (
     <View style={styles.seasonStatsRow}>
@@ -579,7 +581,7 @@ function SeasonStatsRow({
           {player.displayName}
         </Text>
         <Text numberOfLines={1} style={styles.seasonStatsPlayerClub}>
-          {player.clubName ?? "-"}
+          {player.clubName ?? t("players.noClub")}
         </Text>
       </View>
       <Text style={styles.seasonStatsPoints}>
@@ -592,9 +594,11 @@ function SeasonStatsRow({
 function SeasonStatsLeaderboardRow({
   index,
   player,
+  t,
 }: {
   index: number;
   player: SeasonPlayerStat;
+  t: (key: TranslationKey) => string;
 }) {
   return (
     <View style={styles.seasonStatsLeaderboardRow}>
@@ -611,7 +615,7 @@ function SeasonStatsLeaderboardRow({
             {player.displayName}
           </Text>
           <Text numberOfLines={1} style={styles.seasonStatsLeaderboardClub}>
-            {player.clubName ?? "-"}
+            {player.clubName ?? t("players.noClub")}
           </Text>
         </View>
       </View>
@@ -741,7 +745,7 @@ function SeasonStats({
           {t("season.stats.topPerformers")}
         </Text>
         {topPerformers.slice(0, 5).map((player, index) => (
-          <SeasonStatsRow key={player.id} index={index} player={player} />
+          <SeasonStatsRow key={player.id} index={index} player={player} t={t} />
         ))}
       </View>
 
@@ -794,6 +798,7 @@ function SeasonStats({
                 key={player.id}
                 index={index}
                 player={player}
+                t={t}
               />
             ))}
           </View>

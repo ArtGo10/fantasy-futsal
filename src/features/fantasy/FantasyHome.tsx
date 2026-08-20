@@ -854,6 +854,7 @@ export function FantasyHome({
   useEffect(() => {
     if (userCanUsePrivateFeatures && profileReady) {
       setHasEnteredPrivateApp(true);
+      setShouldLoadPointsBreakdowns(true);
     }
   }, [profileReady, userCanUsePrivateFeatures]);
 
@@ -1547,7 +1548,14 @@ export function FantasyHome({
       )}
 
       {privateLoadingOverlayTitle && !privateLoadingTimedOut ? (
-        <AppLoadingOverlay title={privateLoadingOverlayTitle} />
+        Platform.OS === "web" ? (
+          <AppLoadingScreen
+            title={privateLoadingOverlayTitle}
+            description={t("loading.syncingAccount")}
+          />
+        ) : (
+          <AppLoadingOverlay title={privateLoadingOverlayTitle} />
+        )
       ) : null}
     </View>
   );

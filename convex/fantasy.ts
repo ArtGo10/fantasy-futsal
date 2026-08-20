@@ -9,6 +9,7 @@ import type {
   FantasyFixtureEventType,
   FantasyFixtureSide,
   FantasyPlayerPosition,
+  FantasyPlayerStatus,
   FantasySquadRole,
 } from "./validators";
 import {
@@ -344,6 +345,12 @@ function toFantasyPlayerStatusDetailsView(
     messageUk: player.statusDetails.messageUk ?? null,
     updatedAt: player.statusDetails.updatedAt ?? null,
   };
+}
+
+function getEffectiveFantasyPlayerStatus(
+  player: Pick<Doc<"fantasyPlayers">, "clubId" | "status">,
+): FantasyPlayerStatus {
+  return player.clubId ? player.status : "unavailable";
 }
 
 function getSquadRoleForRosterSlot(rosterSlot: number): FantasySquadRole {
@@ -1368,7 +1375,7 @@ export const listPlayers = query({
               : null,
           priceChangedAt: latestPriceHistory?.createdAt ?? null,
           priceDelta,
-          status: player.status,
+          status: getEffectiveFantasyPlayerStatus(player),
           statusDetails: toFantasyPlayerStatusDetailsView(player),
           jerseyNumber: player.jerseyNumber ?? null,
           photoUrl: player.photoUrl ?? null,
@@ -3260,7 +3267,7 @@ export const seasonPlayerStatistics = query({
             : null,
         priceChangedAt: latestPriceHistory?.createdAt ?? null,
         priceDelta,
-        status: player.status,
+        status: getEffectiveFantasyPlayerStatus(player),
         statusDetails: toFantasyPlayerStatusDetailsView(player),
         appearances: stats.appearances,
         assists: stats.assists,
@@ -3727,7 +3734,7 @@ export const myTeam = query({
                   photoSourceUrl: player.photoSourceUrl ?? null,
                   photoSourceThumbnailUrl:
                     player.photoSourceThumbnailUrl ?? null,
-                  status: player.status,
+                  status: getEffectiveFantasyPlayerStatus(player),
                   statusDetails: toFantasyPlayerStatusDetailsView(player),
                 }
               : null,
@@ -5283,7 +5290,7 @@ export const applyPlayerRosterCorrections = mutation({
         playerId: v.optional(v.id("fantasyPlayers")),
         playerName: v.optional(v.string()),
         expectedClubName: v.optional(v.string()),
-        clubName: v.optional(v.string()),
+        clubName: v.optional(v.union(v.string(), v.null())),
         status: v.optional(fantasyPlayerStatusValidator),
         statusDetails: v.optional(
           v.union(fantasyPlayerStatusDetailsValidator, v.null()),
@@ -5375,14 +5382,20 @@ export const applyPlayerRosterCorrections = mutation({
       const previousClub = player.clubId ? clubsById.get(player.clubId) : null;
       const patch: Partial<Doc<"fantasyPlayers">> = { updatedAt: now };
 
-      if (update.clubName !== undefined) {
-        const targetClub = clubsByName.get(
-          normalizeText(update.clubName).toLowerCase(),
-        );
-        if (!targetClub) {
-          throw new Error(`Клуб ${update.clubName} не найден.`);
+      const targetClubName = update.clubName;
+      const shouldUpdateClub = targetClubName !== undefined;
+      if (shouldUpdateClub) {
+        if (targetClubName === null) {
+          patch.clubId = undefined;
+        } else {
+          const targetClub = clubsByName.get(
+            normalizeText(targetClubName).toLowerCase(),
+          );
+          if (!targetClub) {
+            throw new Error(`Клуб ${targetClubName} не найден.`);
+          }
+          patch.clubId = targetClub._id;
         }
-        patch.clubId = targetClub._id;
       }
 
       if (update.status !== undefined) {
@@ -5396,7 +5409,11 @@ export const applyPlayerRosterCorrections = mutation({
       }
 
       await ctx.db.patch(player._id, patch);
-      const targetClub = patch.clubId ? clubsById.get(patch.clubId) : previousClub;
+      const targetClub = shouldUpdateClub
+        ? patch.clubId
+          ? clubsById.get(patch.clubId)
+          : null
+        : previousClub;
       results.push({
         id: player._id,
         displayName: player.displayName,

@@ -9,8 +9,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { WEB_DESKTOP_MIN_WIDTH } from "../../constants";
 import { styles } from "../../styles";
 import { APP_SPLASH_IMAGE } from "../../features/fantasy/assets/fantasyAssets";
+import { LoadingLogo } from "./LoadingLogo";
 
 export function AppLoadingScreen({
   description,
@@ -22,6 +24,7 @@ export function AppLoadingScreen({
   const insets = useSafeAreaInsets();
   const windowSize = useWindowDimensions();
   const isWeb = Platform.OS === "web";
+  const isDesktopWeb = isWeb && windowSize.width >= WEB_DESKTOP_MIN_WIDTH;
   const screenSize = Dimensions.get("screen");
   const shellStyle = isWeb
     ? {
@@ -42,6 +45,26 @@ export function AppLoadingScreen({
         marginBottom: -insets.bottom,
         marginLeft: -insets.left,
       };
+
+  if (isWeb) {
+    return (
+      <View style={[styles.appLoadingWebShell, shellStyle]}>
+        <StatusBar style="dark" />
+        <View style={styles.appLoadingWebPanel}>
+          <LoadingLogo
+            style={[
+              styles.appLoadingWebLogo,
+              isDesktopWeb ? styles.appLoadingWebLogoDesktop : null,
+            ]}
+          />
+          {title ? <Text style={styles.appLoadingWebTitle}>{title}</Text> : null}
+          {description ? (
+            <Text style={styles.appLoadingWebDescription}>{description}</Text>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.appLoadingShell, shellStyle]}>

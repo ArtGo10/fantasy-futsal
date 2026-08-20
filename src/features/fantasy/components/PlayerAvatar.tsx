@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { Image } from "expo-image";
 import { UserRound } from "lucide-react-native";
-import { View } from "react-native";
+import { type StyleProp, View, type ViewStyle } from "react-native";
 
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
@@ -11,9 +11,11 @@ type PlayerAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 type PlayerAvatarProps = {
   displayName: string;
   imagePriority?: "low" | "normal" | "high";
+  iconSize?: number;
   isMuted?: boolean;
   photoUrl?: string | null;
   size?: PlayerAvatarSize;
+  style?: StyleProp<ViewStyle>;
 };
 
 const AVATAR_SIZE_STYLES = {
@@ -34,10 +36,12 @@ const AVATAR_ICON_SIZES: Record<PlayerAvatarSize, number> = {
 
 export const PlayerAvatar = memo(function PlayerAvatar({
   displayName,
+  iconSize,
   imagePriority = "normal",
   isMuted = false,
   photoUrl,
   size = "md",
+  style,
 }: PlayerAvatarProps) {
   const [hasImageError, setHasImageError] = useState(false);
   const resolvedPhotoUrl = photoUrl && !hasImageError ? photoUrl : null;
@@ -52,6 +56,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
       style={[
         styles.playerAvatarBase,
         AVATAR_SIZE_STYLES[size],
+        style,
         isMuted ? styles.playerAvatarMuted : null,
       ]}
     >
@@ -70,7 +75,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
       ) : (
         <UserRound
           color={isMuted ? colors.text.muted : colors.brand.blueDark}
-          size={AVATAR_ICON_SIZES[size]}
+          size={iconSize ?? AVATAR_ICON_SIZES[size]}
           strokeWidth={2.2}
         />
       )}

@@ -1,4 +1,4 @@
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useMutation } from "convex/react";
 import {
@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   BackHandler,
   Keyboard,
   Platform,
@@ -98,6 +99,11 @@ type PlayerPickerSortMode =
   | "club";
 const FAVORITE_CLUB_NONE_VALUE = "__no_favorite__";
 const PLAYER_PICKER_ALL_CLUBS_VALUE = "__all_clubs__";
+const PLAYER_PICKER_FREE_AGENTS_VALUE = "__free_agents__";
+type PlayerPickerClubFilterValue =
+  | Id<"fantasyClubs">
+  | typeof PLAYER_PICKER_FREE_AGENTS_VALUE
+  | null;
 
 const PLAYER_PICKER_SORT_OPTIONS: Array<{
   id: PlayerPickerSortMode;
@@ -1397,8 +1403,8 @@ function TeamPointsDetailsScreen({
       </View>
 
       {breakdown === undefined ? (
-        <View style={styles.teamBuilderPanel}>
-          <LoadingLogo style={styles.inlineLoadingLogo} />
+        <View style={[styles.teamBuilderPanel, styles.centerBlock]}>
+          <ActivityIndicator color={colors.brand.blue} />
           <Text style={styles.mutedText}>{t("common.loading")}</Text>
         </View>
       ) : !breakdown || !hasContent ? (
@@ -1674,9 +1680,11 @@ function TransferSummaryBar({
 
 function TransferMiniPlayer({
   player,
+  t,
   tone,
 }: {
   player: FantasyPlayer;
+  t: (key: TranslationKey) => string;
   tone?: "incoming" | "outgoing";
 }) {
   return (
@@ -1692,7 +1700,7 @@ function TransferMiniPlayer({
           {player.displayName}
         </Text>
         <Text numberOfLines={1} style={styles.transferMiniPlayerMeta}>
-          {player.clubName ?? ""}
+          {player.clubName ?? t("players.noClub")}
         </Text>
       </View>
       <Text
@@ -1857,10 +1865,12 @@ function TransferReviewScreen({
             <View key={change.slot.rosterSlot} style={styles.transferReviewRow}>
               <TransferMiniPlayer
                 player={change.outgoingPlayer}
+                t={t}
                 tone="outgoing"
               />
               <TransferMiniPlayer
                 player={change.incomingPlayer}
+                t={t}
                 tone="incoming"
               />
             </View>
@@ -2720,7 +2730,7 @@ function CompactSquadCard({
         {player?.displayName ?? title}
       </Text>
       <Text numberOfLines={1} style={styles.compactSquadMeta}>
-        {player ? (player.clubName ?? positionLabel) : positionLabel}
+        {player ? (player.clubName ?? t("players.noClub")) : positionLabel}
       </Text>
     </Pressable>
   );
@@ -2846,6 +2856,12 @@ export function MyTeamScreen({
   const pointsBreakdown = gameweekPointsBreakdown;
   const cancelDraftChangesRef = useRef<() => void>(() => undefined);
   const saveTeamRef = useRef<() => void>(() => undefined);
+  const playerPickerListRef = useRef<FlashListRef<FantasyPlayer> | null>(null);
+  const playerPickerHorizontalScrollRef = useRef<ScrollView | null>(null);
+  const playerPickerScrollResetFrameRef = useRef<number | null>(null);
+  const playerPickerScrollResetTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const [initialDraftState] = useState(() =>
     createDraftStateFromFantasyTeam(fantasyTeam),
   );
@@ -2910,13 +2926,46 @@ export function MyTeamScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [playerSearchQuery, setPlayerSearchQuery] = useState("");
   const [playerPickerClubId, setPlayerPickerClubId] =
-    useState<Id<"fantasyClubs"> | null>(null);
+    useState<PlayerPickerClubFilterValue>(null);
   const [playerPickerSortMode, setPlayerPickerSortMode] =
     useState<PlayerPickerSortMode>("default");
   const [playerPickerDropdown, setPlayerPickerDropdown] =
     useState<PlayerPickerDropdown>(null);
   const [showSaveHint, setShowSaveHint] = useState(false);
   const [teamName, setTeamName] = useState(() => initialDraftState.teamName);
+
+  const resetPlayerPickerScroll = useCallback(() => {
+    const scrollToStart = () => {
+      playerPickerHorizontalScrollRef.current?.scrollTo({
+        animated: false,
+        x: 0,
+        y: 0,
+      });
+      playerPickerListRef.current?.scrollToOffset({
+        animated: false,
+        offset: 0,
+      });
+    };
+
+    if (playerPickerScrollResetFrameRef.current !== null) {
+      cancelAnimationFrame(playerPickerScrollResetFrameRef.current);
+      playerPickerScrollResetFrameRef.current = null;
+    }
+    if (playerPickerScrollResetTimeoutRef.current !== null) {
+      clearTimeout(playerPickerScrollResetTimeoutRef.current);
+      playerPickerScrollResetTimeoutRef.current = null;
+    }
+
+    scrollToStart();
+    playerPickerScrollResetFrameRef.current = requestAnimationFrame(() => {
+      playerPickerScrollResetFrameRef.current = null;
+      scrollToStart();
+    });
+    playerPickerScrollResetTimeoutRef.current = setTimeout(() => {
+      playerPickerScrollResetTimeoutRef.current = null;
+      scrollToStart();
+    }, 80);
+  }, []);
 
   useDismissKeyboardOnChange([
     teamWorkspaceMode,
@@ -2986,8 +3035,21 @@ export function MyTeamScreen({
   }, [fantasyPlayers, fantasyPlayersById]);
 
   useEffect(() => {
-    return () => {};
+    return () => {
+      if (playerPickerScrollResetFrameRef.current !== null) {
+        cancelAnimationFrame(playerPickerScrollResetFrameRef.current);
+      }
+      if (playerPickerScrollResetTimeoutRef.current !== null) {
+        clearTimeout(playerPickerScrollResetTimeoutRef.current);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isPlayerPickerOpen) return;
+
+    resetPlayerPickerScroll();
+  }, [isPlayerPickerOpen, resetPlayerPickerScroll]);
 
   const isOverviewLoading = fantasyOverview === undefined;
   const season = fantasyOverview?.season ?? null;
@@ -3146,12 +3208,17 @@ export function MyTeamScreen({
   const favoriteClub = favoriteClubId
     ? (clubsById.get(favoriteClubId) ?? null)
     : null;
-  const playerPickerClub = playerPickerClubId
-    ? (clubsById.get(playerPickerClubId) ?? null)
-    : null;
-  const playerPickerClubLabel = playerPickerClub
-    ? (playerPickerClub.shortName ?? playerPickerClub.name)
-    : t("team.playerPicker.allClubs");
+  const playerPickerClubIsFreeAgents =
+    playerPickerClubId === PLAYER_PICKER_FREE_AGENTS_VALUE;
+  const playerPickerClub =
+    playerPickerClubId && playerPickerClubId !== PLAYER_PICKER_FREE_AGENTS_VALUE
+      ? (clubsById.get(playerPickerClubId) ?? null)
+      : null;
+  const playerPickerClubLabel = playerPickerClubIsFreeAgents
+    ? t("players.freeAgents")
+    : playerPickerClub
+      ? (playerPickerClub.shortName ?? playerPickerClub.name)
+      : t("team.playerPicker.allClubs");
   const playerPickerSortOptionLabel = t(
     PLAYER_PICKER_SORT_OPTIONS.find(
       (option) => option.id === playerPickerSortMode,
@@ -3166,6 +3233,10 @@ export function MyTeamScreen({
       {
         label: t("team.playerPicker.allClubs"),
         value: PLAYER_PICKER_ALL_CLUBS_VALUE,
+      },
+      {
+        label: t("players.freeAgents"),
+        value: PLAYER_PICKER_FREE_AGENTS_VALUE,
       },
       ...activeClubs.map((club) => ({
         label: club.shortName ?? club.name,
@@ -3295,15 +3366,18 @@ export function MyTeamScreen({
           : [];
 
     const filteredPlayers = sourcePlayers
-      .filter((player) =>
-        playerPickerClubId ? player.clubId === playerPickerClubId : true,
-      )
+      .filter((player) => {
+        if (playerPickerClubId === PLAYER_PICKER_FREE_AGENTS_VALUE) {
+          return player.clubId === null;
+        }
+        return playerPickerClubId ? player.clubId === playerPickerClubId : true;
+      })
       .filter((player) => {
         if (!normalizedPlayerSearchQuery) return true;
 
         const searchableValue = [
           player.displayName,
-          player.clubName,
+          player.clubName ?? t("players.noClub"),
           t(POSITION_LABEL_KEYS[player.position]),
           formatPlayerCurrentSeasonPoints(player, t),
           player.price.toFixed(1),
@@ -3624,6 +3698,7 @@ export function MyTeamScreen({
     setPlayerPickerSortMode("default");
     setPlayerPickerDropdown(null);
     setIsPlayerPickerOpen(true);
+    resetPlayerPickerScroll();
   }
 
   function openIncomingTransferPicker() {
@@ -3635,6 +3710,7 @@ export function MyTeamScreen({
     setPlayerPickerSortMode("default");
     setPlayerPickerDropdown(null);
     setIsPlayerPickerOpen(true);
+    resetPlayerPickerScroll();
   }
 
   function closePlayerPicker() {
@@ -4703,7 +4779,9 @@ export function MyTeamScreen({
                   setPlayerPickerClubId(
                     value === PLAYER_PICKER_ALL_CLUBS_VALUE
                       ? null
-                      : (value as Id<"fantasyClubs">),
+                      : value === PLAYER_PICKER_FREE_AGENTS_VALUE
+                        ? PLAYER_PICKER_FREE_AGENTS_VALUE
+                        : (value as Id<"fantasyClubs">),
                   );
                   setPlayerPickerDropdown(null);
                 }}
@@ -4735,13 +4813,13 @@ export function MyTeamScreen({
                 style={[
                   styles.marketFilterButton,
                   styles.playerPickerSelectButton,
-                  playerPickerClubId ? styles.marketFilterButtonActive : null,
+                  playerPickerClubId !== null ? styles.marketFilterButtonActive : null,
                 ]}
               >
                 <Text
                   numberOfLines={1}
                   style={
-                    playerPickerClubId
+                    playerPickerClubId !== null
                       ? styles.marketFilterTextActive
                       : styles.marketFilterText
                   }
@@ -4750,7 +4828,7 @@ export function MyTeamScreen({
                 </Text>
                 <ChevronDown
                   color={
-                    playerPickerClubId
+                    playerPickerClubId !== null
                       ? colors.text.inverse
                       : colors.text.secondary
                   }
@@ -4831,6 +4909,40 @@ export function MyTeamScreen({
                   </View>
                 </View>
                 {playerPickerClubId === null ? (
+                  <Check
+                    color={colors.brand.blue}
+                    size={22}
+                    strokeWidth={2.8}
+                  />
+                ) : (
+                  <View style={styles.seasonPickerOptionRadio} />
+                )}
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setPlayerPickerClubId(PLAYER_PICKER_FREE_AGENTS_VALUE);
+                  setPlayerPickerDropdown(null);
+                }}
+                style={[
+                  styles.seasonPickerOption,
+                  playerPickerClubIsFreeAgents
+                    ? styles.seasonPickerOptionSelected
+                    : null,
+                ]}
+              >
+                <View style={styles.seasonPickerOptionBody}>
+                  <View style={styles.seasonPickerOptionTextGroup}>
+                    <Text
+                      numberOfLines={1}
+                      style={styles.seasonPickerOptionText}
+                    >
+                      {t("players.freeAgents")}
+                    </Text>
+                  </View>
+                </View>
+                {playerPickerClubIsFreeAgents ? (
                   <Check
                     color={colors.brand.blue}
                     size={22}
@@ -4948,6 +5060,7 @@ export function MyTeamScreen({
 
           {playerPickerRenderedPlayers.length > 0 ? (
             <ScrollView
+              ref={playerPickerHorizontalScrollRef}
               horizontal
               bounces={false}
               keyboardShouldPersistTaps="handled"
@@ -4959,6 +5072,7 @@ export function MyTeamScreen({
               <View style={styles.playerPickerStatsTable}>
                 <FantasyPlayerPickerStatsHeader t={t} />
                 <FlashList
+                  ref={playerPickerListRef}
                   contentContainerStyle={styles.playerPickerList}
                   data={playerPickerRenderedPlayers}
                   drawDistance={FANTASY_PLAYER_PICKER_STATS_ITEM_HEIGHT * 8}
