@@ -32,11 +32,11 @@ const KIT_SIZE_STYLES = {
 };
 
 const KIT_ICON_SIZES: Record<TeamKitAvatarSize, number> = {
-  xs: 14,
-  sm: 18,
-  md: 21,
-  lg: 25,
-  xl: 34,
+  xs: 21,
+  sm: 29,
+  md: 35,
+  lg: 43,
+  xl: 76,
 };
 
 export const TeamKitAvatar = memo(function TeamKitAvatar({
@@ -75,7 +75,7 @@ export const TeamKitAvatar = memo(function TeamKitAvatar({
       ) : (
         <Shirt
           color={isMuted ? colors.text.muted : colors.brand.blueDark}
-          size={KIT_ICON_SIZES[size]}
+          size={Math.round(KIT_ICON_SIZES[size] * (isSlotVariant ? 1.1 : 1))}
           strokeWidth={2.2}
         />
       )}

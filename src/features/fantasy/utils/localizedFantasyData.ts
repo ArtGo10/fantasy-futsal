@@ -85,6 +85,44 @@ const CITY_LOCALIZATIONS: Record<string, { en: string }> = {
   хмельницький: { en: "Khmelnytskyi" },
 };
 
+const NO_CLUB_STATUS_MESSAGES: Record<LanguageCode, string> = {
+  en: "Without club right now.",
+  uk: "Без клубу зараз.",
+};
+
+const LEGACY_LEFT_CLUB_STATUS_MESSAGES = new Set([
+  "left club",
+  "покинув клуб",
+]);
+
+function normalizePlayerStatusMessage(value: string | null | undefined) {
+  return (value ?? "")
+    .replace(/[\s.!?:;]+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+function getDisplayPlayerStatusMessage(
+  player: LocalizablePlayer,
+  language: LanguageCode,
+) {
+  const statusMessage = getLocalizedPlayerStatusMessage(
+    player.statusDetails ?? null,
+    language,
+  );
+
+  if (
+    !player.clubId &&
+    LEGACY_LEFT_CLUB_STATUS_MESSAGES.has(
+      normalizePlayerStatusMessage(statusMessage),
+    )
+  ) {
+    return NO_CLUB_STATUS_MESSAGES[language];
+  }
+
+  return statusMessage;
+}
+
 const UK_TO_LATIN_CHARS: Record<string, string> = {
   А: "A",
   Б: "B",
@@ -345,10 +383,7 @@ export function localizeFantasyPlayer<
       (player.clubName
         ? getLocalizedClubName(player.clubName, language)
         : player.clubName),
-    statusMessage: getLocalizedPlayerStatusMessage(
-      player.statusDetails ?? null,
-      language,
-    ),
+    statusMessage: getDisplayPlayerStatusMessage(player, language),
   };
 }
 

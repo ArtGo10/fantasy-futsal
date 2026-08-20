@@ -8,6 +8,8 @@ import {
   fantasyFixtureStatusValidator,
   fantasyGameweekStatusValidator,
   fantasyPlayerPositionValidator,
+  fantasyPlayerStatusDetailsValidator,
+  fantasyPlayerStatusValidator,
 } from "./validators";
 
 const DEFAULT_SEASON_SLUG = "ukrainian-extra-league-2026-27";
@@ -61,6 +63,10 @@ const importPlayerValidator = v.object({
   firstName: v.union(v.string(), v.null()),
   lastName: v.string(),
   position: fantasyPlayerPositionValidator,
+  status: v.optional(fantasyPlayerStatusValidator),
+  statusDetails: v.optional(
+    v.union(fantasyPlayerStatusDetailsValidator, v.null()),
+  ),
   jerseyNumber: v.union(v.number(), v.null()),
   clubExternalId: v.union(v.string(), v.null()),
   currentTeamExternalIds: v.array(v.string()),
@@ -179,6 +185,23 @@ function toOptionalNumber(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value)
     ? value
     : undefined;
+}
+
+function normalizeImportPlayerStatusDetails(
+  details: Exclude<ImportPlayer["statusDetails"], null | undefined>,
+  updatedAt: number,
+) {
+  const message = toOptionalText(details.message);
+  const messageEn = toOptionalText(details.messageEn);
+  const messageUk = toOptionalText(details.messageUk);
+  if (!message && !messageEn && !messageUk) return undefined;
+
+  return {
+    ...(message ? { message } : {}),
+    ...(messageEn ? { messageEn } : {}),
+    ...(messageUk ? { messageUk } : {}),
+    updatedAt: details.updatedAt ?? updatedAt,
+  };
 }
 
 function parseSourceTimestamp(generatedAt: string) {
@@ -476,6 +499,17 @@ async function upsertPlayer(
   const clubId = player.clubExternalId
     ? clubIdsByExternalId.get(player.clubExternalId)
     : undefined;
+  const statusDetails =
+    player.statusDetails === undefined
+      ? existing?.statusDetails
+      : player.statusDetails === null
+        ? undefined
+        : normalizeImportPlayerStatusDetails(player.statusDetails, now);
+  const status =
+    player.status ??
+    (clubId === undefined
+      ? ("unavailable" as const)
+      : (existing?.status ?? ("active" as const)));
   const payload = {
     seasonId,
     clubId,
@@ -487,8 +521,8 @@ async function upsertPlayer(
     displayName: normalizeText(player.displayName),
     position: player.position,
     price: player.suggestedPrice,
-    status: existing?.status ?? ("active" as const),
-    statusDetails: existing?.statusDetails,
+    status,
+    statusDetails,
     jerseyNumber: toOptionalNumber(player.jerseyNumber),
     photoUrl: toOptionalText(player.photoUrl),
     photoThumbnailUrl: toOptionalText(player.photoThumbnailUrl),

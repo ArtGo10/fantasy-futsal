@@ -263,13 +263,9 @@
       "lastName": "Ткачук",
       "position": "universal",
       "jerseyNumber": 77,
-      "clubExternalId": "2892",
-      "currentTeamExternalIds": [
-        "2892"
-      ],
-      "listedTeamExternalIds": [
-        "2892"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4752.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4752.jpg",
       "sourceStats": {
@@ -288,7 +284,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4752.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/Tkachuk-A.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/Tkachuk-A-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/Tkachuk-A-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "9514",
@@ -371,13 +372,9 @@
       "lastName": "Родзинський",
       "position": "universal",
       "jerseyNumber": 80,
-      "clubExternalId": "2892",
-      "currentTeamExternalIds": [
-        "2892"
-      ],
-      "listedTeamExternalIds": [
-        "2892"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18938.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18938.jpg",
       "sourceStats": {
@@ -396,7 +393,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/18938.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2006/09/rodzynskyy.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/09/rodzynskyy-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/09/rodzynskyy-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "15222",
@@ -407,12 +409,12 @@
       "lastName": "Гранько",
       "position": "universal",
       "jerseyNumber": 14,
-      "clubExternalId": "2892",
+      "clubExternalId": "3430",
       "currentTeamExternalIds": [
-        "2892"
+        "3430"
       ],
       "listedTeamExternalIds": [
-        "2892"
+        "3430"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/15222.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/15222.jpg",
@@ -432,7 +434,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/15222.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2004/09/hranko.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2004/09/hranko-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2004/09/hranko-150x150.jpg",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "20022",
@@ -443,13 +447,9 @@
       "lastName": "Піряник",
       "position": "universal",
       "jerseyNumber": 13,
-      "clubExternalId": "2892",
-      "currentTeamExternalIds": [
-        "2892"
-      ],
-      "listedTeamExternalIds": [
-        "2892"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": null,
       "photoThumbnailUrl": null,
       "sourceStats": {
@@ -463,7 +463,12 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 8
+      "suggestedPrice": 8,
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "9512",
@@ -881,12 +886,12 @@
       "lastName": "Бабенко",
       "position": "goalkeeper",
       "jerseyNumber": 12,
-      "clubExternalId": "3430",
+      "clubExternalId": "5596",
       "currentTeamExternalIds": [
-        "3430"
+        "5596"
       ],
       "listedTeamExternalIds": [
-        "3430"
+        "5596"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4575.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4575.jpg",
@@ -899,7 +904,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4575.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2002/12/babenko.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/12/babenko-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/12/babenko-150x150.jpg",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4571",
@@ -995,7 +1002,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 9.5,
+      "suggestedPrice": 9,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/9936.jpg",
@@ -1177,12 +1184,12 @@
       "lastName": "Першин",
       "position": "universal",
       "jerseyNumber": 3,
-      "clubExternalId": "3430",
+      "clubExternalId": "5584",
       "currentTeamExternalIds": [
-        "3430"
+        "5584"
       ],
       "listedTeamExternalIds": [
-        "3430"
+        "5584"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/12553.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/12553.jpg",
@@ -1202,7 +1209,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/12553.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2008/07/pershyn.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2008/07/pershyn-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2008/07/pershyn-150x150.jpg",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "15227",
@@ -1442,7 +1451,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 14,
+      "suggestedPrice": 15.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4405.png",
@@ -1494,13 +1503,9 @@
       "lastName": "Моспан",
       "position": "universal",
       "jerseyNumber": 24,
-      "clubExternalId": "3438",
-      "currentTeamExternalIds": [
-        "3438"
-      ],
-      "listedTeamExternalIds": [
-        "3438"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4933.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4933.png",
       "sourceStats": {
@@ -1514,12 +1519,17 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 10.5,
+      "suggestedPrice": 10,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4933.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/04/Mospan-Vlad-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/04/Mospan-Vlad-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/04/Mospan-Vlad-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "4581",
@@ -1551,7 +1561,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 14,
+      "suggestedPrice": 16,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4581.png",
@@ -1681,7 +1691,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 14,
+      "suggestedPrice": 15,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4509.png",
@@ -1717,7 +1727,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 12,
+      "suggestedPrice": 14,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4522.png",
@@ -1753,7 +1763,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 9.5,
+      "suggestedPrice": 10,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4680.png",
@@ -1825,7 +1835,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 13.5,
+      "suggestedPrice": 12,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4517.png",
@@ -1841,13 +1851,9 @@
       "lastName": "Сухов",
       "position": "goalkeeper",
       "jerseyNumber": 77,
-      "clubExternalId": "3438",
-      "currentTeamExternalIds": [
-        "3438"
-      ],
-      "listedTeamExternalIds": [
-        "3438"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4521.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4521.png",
       "sourceStats": {
@@ -1866,7 +1872,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4521.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/06/sukhov-1-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/06/sukhov-1-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/06/sukhov-1-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "4523",
@@ -1913,13 +1924,9 @@
       "lastName": "Сагайдачний",
       "position": "universal",
       "jerseyNumber": 18,
-      "clubExternalId": "3438",
-      "currentTeamExternalIds": [
-        "3438"
-      ],
-      "listedTeamExternalIds": [
-        "3438"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4441.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4441.png",
       "sourceStats": {
@@ -1938,7 +1945,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4441.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1995/05/sahaydachnyy-1-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1995/05/sahaydachnyy-1-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1995/05/sahaydachnyy-1-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "6840",
@@ -1949,13 +1961,9 @@
       "lastName": "Мілінький",
       "position": "universal",
       "jerseyNumber": 5,
-      "clubExternalId": "5584",
-      "currentTeamExternalIds": [
-        "5584"
-      ],
-      "listedTeamExternalIds": [
-        "5584"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6840.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6840.png",
       "sourceStats": {
@@ -1974,7 +1982,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/6840.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/milinkyy-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/milinkyy-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/milinkyy-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "4625",
@@ -1985,12 +1998,12 @@
       "lastName": "Теряєв",
       "position": "universal",
       "jerseyNumber": 17,
-      "clubExternalId": "5584",
+      "clubExternalId": "5599",
       "currentTeamExternalIds": [
-        "5584"
+        "5599"
       ],
       "listedTeamExternalIds": [
-        "5584"
+        "5599"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4625.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4625.png",
@@ -2005,12 +2018,14 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 9.5,
+      "suggestedPrice": 9,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4625.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/03/teriaiev-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/03/teriaiev-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/03/teriaiev-Photoroom-150x150.png",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "11488",
@@ -2309,7 +2324,7 @@
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 6,
+      "suggestedPrice": 7,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4426.png",
@@ -2417,7 +2432,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 10,
+      "suggestedPrice": 9.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4617.png",
@@ -2433,12 +2448,12 @@
       "lastName": "Легендзевич",
       "position": "universal",
       "jerseyNumber": 44,
-      "clubExternalId": "5584",
+      "clubExternalId": "5599",
       "currentTeamExternalIds": [
-        "5584"
+        "5599"
       ],
       "listedTeamExternalIds": [
-        "5584"
+        "5599"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4609.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4609.png",
@@ -2453,12 +2468,14 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 10.5,
+      "suggestedPrice": 9.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4609.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Lehendz.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Lehendz-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Lehendz-150x150.png",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4479",
@@ -2541,13 +2558,9 @@
       "lastName": "Рибак",
       "position": "universal",
       "jerseyNumber": 14,
-      "clubExternalId": "5584",
-      "currentTeamExternalIds": [
-        "5584"
-      ],
-      "listedTeamExternalIds": [
-        "5584"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4439.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4439.png",
       "sourceStats": {
@@ -2566,7 +2579,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4439.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/rybak-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/rybak-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1991/09/rybak-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "18866",
@@ -2974,7 +2992,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 12.5,
+      "suggestedPrice": 11.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4435.jpg",
@@ -3091,25 +3109,26 @@
       "lastName": "Остріков",
       "position": "goalkeeper",
       "jerseyNumber": 77,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8440.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8440.jpg",
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5,
+      "suggestedPrice": 6.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/8440.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1998/03/IMG_3967-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1998/03/IMG_3967-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1998/03/IMG_3967-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "4471",
@@ -3149,13 +3168,9 @@
       "lastName": "Гурєєв",
       "position": "universal",
       "jerseyNumber": 14,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/5784.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/5784.jpg",
       "sourceStats": {
@@ -3174,7 +3189,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/5784.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2001/02/Hurieiev-1-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/02/Hurieiev-1-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/02/Hurieiev-1-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "8430",
@@ -3185,12 +3205,12 @@
       "lastName": "Фаталієв",
       "position": "universal",
       "jerseyNumber": 16,
-      "clubExternalId": "5596",
+      "clubExternalId": "5584",
       "currentTeamExternalIds": [
-        "5596"
+        "5584"
       ],
       "listedTeamExternalIds": [
-        "5596"
+        "5584"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8430.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8430.jpg",
@@ -3210,7 +3230,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/8430.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/Fataliiev-1-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/Fataliiev-1-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/Fataliiev-1-150x150.jpg",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4503",
@@ -3430,13 +3452,9 @@
       "lastName": "Давид",
       "position": "universal",
       "jerseyNumber": 4,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/16452.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/16452.jpg",
       "sourceStats": {
@@ -3448,7 +3466,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/16452.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2007/03/Zaloznyy-2-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2007/03/Zaloznyy-2-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2007/03/Zaloznyy-2-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "18862",
@@ -3561,25 +3584,26 @@
       "lastName": "Войтович",
       "position": "goalkeeper",
       "jerseyNumber": 30,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4593.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4593.jpg",
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5,
+      "suggestedPrice": 6.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4593.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1998/07/Voytovych-2-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1998/07/Voytovych-2-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1998/07/Voytovych-2-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "18861",
@@ -3687,13 +3711,9 @@
       "lastName": "Гураль",
       "position": "universal",
       "jerseyNumber": 8,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4600.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4600.jpg",
       "sourceStats": {
@@ -3712,7 +3732,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4600.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2002/06/Hural-1-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/06/Hural-1-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/06/Hural-1-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "5786",
@@ -3723,13 +3748,9 @@
       "lastName": "Прудкий",
       "position": "universal",
       "jerseyNumber": 10,
-      "clubExternalId": "5596",
-      "currentTeamExternalIds": [
-        "5596"
-      ],
-      "listedTeamExternalIds": [
-        "5596"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/5786.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/5786.jpg",
       "sourceStats": {
@@ -3741,7 +3762,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/5786.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2001/05/Prudkyy-1-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/05/Prudkyy-1-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/05/Prudkyy-1-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "12226",
@@ -3801,7 +3827,7 @@
           "ownGoals": 0
         }
       },
-      "suggestedPrice": 8,
+      "suggestedPrice": 7,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/11844.png",
@@ -3961,13 +3987,9 @@
       "lastName": "Кузіков",
       "position": "goalkeeper",
       "jerseyNumber": 21,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/16419.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/16419.png",
       "sourceStats": {
@@ -3979,7 +4001,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/16419.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2025/01/Kuzikov.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2025/01/Kuzikov-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2025/01/Kuzikov-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "18944",
@@ -3990,13 +4017,9 @@
       "lastName": "Подлюк",
       "position": "universal",
       "jerseyNumber": 7,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18944.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18944.png",
       "sourceStats": {
@@ -4008,7 +4031,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/18944.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2007/09/Podliuk-1-scaled.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2007/09/Podliuk-1-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2007/09/Podliuk-1-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "12234",
@@ -4019,13 +4047,9 @@
       "lastName": "Ведута",
       "position": "universal",
       "jerseyNumber": 29,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/12234.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/12234.jpg",
       "sourceStats": {
@@ -4044,7 +4068,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/12234.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2024/01/YEhor-Veduta.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2024/01/YEhor-Veduta-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2024/01/YEhor-Veduta-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "9450",
@@ -4055,13 +4084,9 @@
       "lastName": "Нечай",
       "position": "universal",
       "jerseyNumber": 20,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/9450.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/9450.png",
       "sourceStats": {
@@ -4080,7 +4105,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/9450.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2003/11/Nechay.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/11/Nechay-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/11/Nechay-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "6506",
@@ -4127,13 +4157,9 @@
       "lastName": "Миронов",
       "position": "universal",
       "jerseyNumber": 10,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11856.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11856.png",
       "sourceStats": {
@@ -4145,7 +4171,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/11856.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1992/01/Myronov.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/01/Myronov-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/01/Myronov-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "19202",
@@ -4156,20 +4187,21 @@
       "lastName": "Корнієнко",
       "position": "universal",
       "jerseyNumber": 25,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": null,
       "photoThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5
+      "suggestedPrice": 5.5,
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "8134",
@@ -4209,13 +4241,9 @@
       "lastName": "Боргун",
       "position": "universal",
       "jerseyNumber": 13,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6665.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6665.png",
       "sourceStats": {
@@ -4234,7 +4262,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/6665.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Borhun.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Borhun-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Borhun-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "11850",
@@ -4245,14 +4278,9 @@
       "lastName": "Концеба",
       "position": "universal",
       "jerseyNumber": 15,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "0",
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11850.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11850.png",
       "sourceStats": {
@@ -4271,7 +4299,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/11850.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1992/03/kontseba.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/03/kontseba-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/03/kontseba-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "11854",
@@ -4318,13 +4351,9 @@
       "lastName": "Коваленко",
       "position": "goalkeeper",
       "jerseyNumber": 77,
-      "clubExternalId": "5599",
-      "currentTeamExternalIds": [
-        "5599"
-      ],
-      "listedTeamExternalIds": [
-        "5599"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11846.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11846.png",
       "sourceStats": {
@@ -4336,7 +4365,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/11846.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1989/03/Kovalenko.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1989/03/Kovalenko-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1989/03/Kovalenko-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "11870",
@@ -4412,13 +4446,9 @@
       "lastName": "Денчук",
       "position": "goalkeeper",
       "jerseyNumber": 1,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6781.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/6781.jpg",
       "sourceStats": {
@@ -4430,7 +4460,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/6781.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1999/12/denchuk.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/12/denchuk-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/12/denchuk-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "19240",
@@ -4496,13 +4531,9 @@
       "lastName": "Токар",
       "position": "universal",
       "jerseyNumber": 20,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": null,
       "photoThumbnailUrl": null,
       "sourceStats": {
@@ -4516,7 +4547,12 @@
           "ownGoals": 1
         }
       },
-      "suggestedPrice": 7.5
+      "suggestedPrice": 7.5,
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "19243",
@@ -4623,13 +4659,9 @@
       "lastName": "Корнійчук",
       "position": "universal",
       "jerseyNumber": 9,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8261.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/8261.jpg",
       "sourceStats": {
@@ -4648,7 +4680,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/8261.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2003/07/IMG_0956-scaled.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/07/IMG_0956-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/07/IMG_0956-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "15224",
@@ -4659,13 +4696,9 @@
       "lastName": "Ярмола",
       "position": "universal",
       "jerseyNumber": 22,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/15224.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/15224.png",
       "sourceStats": {
@@ -4684,7 +4717,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/15224.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1981/07/in.IT__NAZAR_YARMOLA_1-removebg-preview.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1981/07/in.IT__NAZAR_YARMOLA_1-removebg-preview-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1981/07/in.IT__NAZAR_YARMOLA_1-removebg-preview-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "19241",
@@ -4695,13 +4733,9 @@
       "lastName": "Олійник",
       "position": "universal",
       "jerseyNumber": 23,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": null,
       "photoThumbnailUrl": null,
       "sourceStats": {
@@ -4715,7 +4749,12 @@
           "ownGoals": 0
         }
       },
-      "suggestedPrice": 7
+      "suggestedPrice": 7,
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "11928",
@@ -4726,13 +4765,9 @@
       "lastName": "Мірзаєв",
       "position": "goalkeeper",
       "jerseyNumber": 31,
-      "clubExternalId": "19235",
-      "currentTeamExternalIds": [
-        "19235"
-      ],
-      "listedTeamExternalIds": [
-        "19235"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11928.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/11928.png",
       "sourceStats": {
@@ -4744,7 +4779,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/11928.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/Ruslan-Mirzaiev.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/Ruslan-Mirzaiev-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/Ruslan-Mirzaiev-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "12610",
@@ -4972,7 +5012,7 @@
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5
+      "suggestedPrice": 8
     },
     {
       "externalId": "11744",
@@ -5565,7 +5605,7 @@
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 6.5,
+      "suggestedPrice": 8,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/21185.jpg",
@@ -5740,12 +5780,12 @@
       "lastName": "Сандер Гомес Де Фрейтас (Келвін Кел)",
       "position": "universal",
       "jerseyNumber": 70,
-      "clubExternalId": "21695",
+      "clubExternalId": "3438",
       "currentTeamExternalIds": [
-        "21695"
+        "3438"
       ],
       "listedTeamExternalIds": [
-        "21695"
+        "3438"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18870.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18870.png",
@@ -5765,7 +5805,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/18870.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2000/03/Kelvin-1-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/03/Kelvin-1-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/03/Kelvin-1-Photoroom-150x150.png",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4514",
@@ -5797,7 +5839,7 @@
         },
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 11,
+      "suggestedPrice": 10.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4514.png",
@@ -5850,13 +5892,12 @@
       "lastName": "Грицина",
       "position": "universal",
       "jerseyNumber": 17,
-      "clubExternalId": "21695",
+      "clubExternalId": "19235",
       "currentTeamExternalIds": [
-        "21695"
+        "19235"
       ],
       "listedTeamExternalIds": [
-        "2892",
-        "21695"
+        "19235"
       ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4782.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4782.png",
@@ -5876,7 +5917,9 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4782.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1989/06/Hrytsyna-Mykola-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1989/06/Hrytsyna-Mykola-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1989/06/Hrytsyna-Mykola-Photoroom-150x150.png",
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4604",
@@ -5887,14 +5930,9 @@
       "lastName": "Зварич",
       "position": "universal",
       "jerseyNumber": 10,
-      "clubExternalId": "21695",
-      "currentTeamExternalIds": [
-        "21695"
-      ],
-      "listedTeamExternalIds": [
-        "2892",
-        "21695"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4604.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4604.png",
       "sourceStats": {
@@ -5913,7 +5951,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4604.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1992/11/Zvarych-Photoroom.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/11/Zvarych-Photoroom-150x150.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1992/11/Zvarych-Photoroom-150x150.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Retired from playing career.",
+        "messageUk": "Завершив кар'єру."
+      }
     },
     {
       "externalId": "4516",
@@ -6124,7 +6167,7 @@
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5,
+      "suggestedPrice": 9,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/4756.png",
@@ -6182,7 +6225,7 @@
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
-      "suggestedPrice": 5.5,
+      "suggestedPrice": 9.5,
       "photoProvider": "cloudflare_r2",
       "photoCloudflareId": null,
       "photoStorageKey": "players/21187.jpg",

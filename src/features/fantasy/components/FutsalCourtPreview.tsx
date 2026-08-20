@@ -26,10 +26,12 @@ export type FutsalCourtSlot = {
 
 function CourtSlot({
   isWide,
+  noClubLabel,
   onPress,
   slot,
 }: {
   isWide?: boolean;
+  noClubLabel: string;
   onPress: (slot: FutsalCourtSlot) => void;
   slot: FutsalCourtSlot;
 }) {
@@ -57,7 +59,7 @@ function CourtSlot({
             {slot.player.displayName}
           </Text>
           <Text numberOfLines={1} style={styles.futsalCourtSlotMeta}>
-            {slot.player.clubName ?? slot.positionLabel} ·{" "}
+            {slot.player.clubName ?? noClubLabel} ·{" "}
             {formatFantasyMoney(slot.player.price)}
           </Text>
         </>
@@ -97,23 +99,44 @@ export function FutsalCourtPreview({
         <View pointerEvents="none" style={styles.futsalCourtGoalBox} />
         <View style={styles.futsalCourtRow}>
           {firstSlot ? (
-            <CourtSlot onPress={onSlotPress} slot={firstSlot} />
+            <CourtSlot
+              noClubLabel={t("players.noClub")}
+              onPress={onSlotPress}
+              slot={firstSlot}
+            />
           ) : null}
           {secondSlot ? (
-            <CourtSlot onPress={onSlotPress} slot={secondSlot} />
+            <CourtSlot
+              noClubLabel={t("players.noClub")}
+              onPress={onSlotPress}
+              slot={secondSlot}
+            />
           ) : null}
         </View>
         <View style={styles.futsalCourtRow}>
           {thirdSlot ? (
-            <CourtSlot onPress={onSlotPress} slot={thirdSlot} />
+            <CourtSlot
+              noClubLabel={t("players.noClub")}
+              onPress={onSlotPress}
+              slot={thirdSlot}
+            />
           ) : null}
           {fourthSlot ? (
-            <CourtSlot onPress={onSlotPress} slot={fourthSlot} />
+            <CourtSlot
+              noClubLabel={t("players.noClub")}
+              onPress={onSlotPress}
+              slot={fourthSlot}
+            />
           ) : null}
         </View>
         <View style={styles.futsalCourtRow}>
           {goalkeeperSlot ? (
-            <CourtSlot isWide onPress={onSlotPress} slot={goalkeeperSlot} />
+            <CourtSlot
+              isWide
+              noClubLabel={t("players.noClub")}
+              onPress={onSlotPress}
+              slot={goalkeeperSlot}
+            />
           ) : null}
         </View>
       </View>

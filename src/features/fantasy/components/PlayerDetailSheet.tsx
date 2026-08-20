@@ -119,6 +119,7 @@ function normalizeStatusText(value: string | null | undefined) {
 }
 
 type PlayerDetailHeroProps = {
+  isDesktopWeb?: boolean;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   player: PlayerDetail;
@@ -126,13 +127,19 @@ type PlayerDetailHeroProps = {
 };
 
 function PlayerDetailHero({
+  isDesktopWeb,
   isFavorite,
   onToggleFavorite,
   player,
   t,
 }: PlayerDetailHeroProps) {
   return (
-    <View style={styles.playerDetailHero}>
+    <View
+      style={[
+        styles.playerDetailHero,
+        isDesktopWeb ? styles.playerDetailHeroDesktop : null,
+      ]}
+    >
       {onToggleFavorite ? (
         <Pressable
           accessibilityLabel={
@@ -154,10 +161,17 @@ function PlayerDetailHero({
       ) : null}
       <PlayerAvatar
         displayName={player.displayName}
+        iconSize={isDesktopWeb ? 54 : undefined}
         photoUrl={getPlayerPhoto(player)}
         size="xl"
+        style={isDesktopWeb ? styles.playerDetailHeroAvatarDesktop : null}
       />
-      <View style={styles.playerDetailHeroText}>
+      <View
+        style={[
+          styles.playerDetailHeroText,
+          isDesktopWeb ? styles.playerDetailHeroTextDesktop : null,
+        ]}
+      >
         <Text style={styles.playerDetailPosition}>
           {t(POSITION_LABEL_KEYS[player.position])}
         </Text>
@@ -219,6 +233,90 @@ export function PlayerDetailSheet({
       ? statusMessage
       : fallbackStatusReason;
   const isDoubtful = publicStatus === "doubtful";
+  const quickStatsSection = (
+    <View
+      style={[
+        styles.playerDetailQuickStats,
+        isDesktopWeb ? styles.playerDetailQuickStatsDesktop : null,
+      ]}
+    >
+      <View style={styles.playerDetailQuickStat}>
+        <Text style={styles.playerDetailQuickLabel}>
+          {t("players.priceLabel")}
+        </Text>
+        <Text
+          style={[
+            styles.playerDetailQuickValue,
+            hasPriceTrend && priceDelta > 0
+              ? styles.playerDetailQuickValueUp
+              : null,
+            hasPriceTrend && priceDelta < 0
+              ? styles.playerDetailQuickValueDown
+              : null,
+          ]}
+        >
+          {formatFantasyMoney(player.price)}
+        </Text>
+        {hasPriceTrend ? (
+          <Text
+            style={
+              priceDelta > 0
+                ? styles.playerDetailPriceDeltaUp
+                : styles.playerDetailPriceDeltaDown
+            }
+          >
+            {formattedPriceDelta}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.playerDetailQuickStat}>
+        <Text style={styles.playerDetailQuickLabel}>
+          {t("playerDetails.selectedPercent")}
+        </Text>
+        <Text style={styles.playerDetailQuickValue}>{selectedPercent}%</Text>
+      </View>
+      <View style={styles.playerDetailQuickStat}>
+        <Text style={styles.playerDetailQuickLabel}>
+          {t("players.statusLabel")}
+        </Text>
+        <Text numberOfLines={1} style={styles.playerDetailQuickValueSmall}>
+          {statusLabel}
+        </Text>
+      </View>
+    </View>
+  );
+  const leadershipSection =
+    mode === "squad" && canSetLeadership ? (
+      <View
+        style={[
+          styles.playerDetailLeadershipPanel,
+          isDesktopWeb ? styles.playerDetailLeadershipPanelDesktop : null,
+        ]}
+      >
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: Boolean(isCaptain) }}
+          onPress={onSetCaptain}
+          style={styles.playerDetailLeadershipOption}
+        >
+          <CheckBoxMark checked={Boolean(isCaptain)} />
+          <Text numberOfLines={1} style={styles.playerDetailLeadershipText}>
+            {t("playerDetails.captain")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: Boolean(isViceCaptain) }}
+          onPress={onSetViceCaptain}
+          style={styles.playerDetailLeadershipOption}
+        >
+          <CheckBoxMark checked={Boolean(isViceCaptain)} />
+          <Text numberOfLines={1} style={styles.playerDetailLeadershipText}>
+            {t("playerDetails.viceCaptain")}
+          </Text>
+        </Pressable>
+      </View>
+    ) : null;
 
   return (
     <BottomSheet
@@ -242,6 +340,7 @@ export function PlayerDetailSheet({
         >
           <View style={isDesktopWeb ? styles.playerDetailTopPaneDesktop : null}>
             <PlayerDetailHero
+              isDesktopWeb={isDesktopWeb}
               isFavorite={isFavorite}
               onToggleFavorite={
                 mode === "market" ? onToggleFavorite : undefined
@@ -251,61 +350,14 @@ export function PlayerDetailSheet({
             />
           </View>
 
-          <View
-            style={[
-              styles.playerDetailQuickStats,
-              isDesktopWeb ? styles.playerDetailQuickStatsDesktop : null,
-            ]}
-          >
-            <View style={styles.playerDetailQuickStat}>
-              <Text style={styles.playerDetailQuickLabel}>
-                {t("players.priceLabel")}
-              </Text>
-              <Text
-                style={[
-                  styles.playerDetailQuickValue,
-                  hasPriceTrend && priceDelta > 0
-                    ? styles.playerDetailQuickValueUp
-                    : null,
-                  hasPriceTrend && priceDelta < 0
-                    ? styles.playerDetailQuickValueDown
-                    : null,
-                ]}
-              >
-                {formatFantasyMoney(player.price)}
-              </Text>
-              {hasPriceTrend ? (
-                <Text
-                  style={
-                    priceDelta > 0
-                      ? styles.playerDetailPriceDeltaUp
-                      : styles.playerDetailPriceDeltaDown
-                  }
-                >
-                  {formattedPriceDelta}
-                </Text>
-              ) : null}
+          {isDesktopWeb ? (
+            <View style={styles.playerDetailSidePaneDesktop}>
+              {quickStatsSection}
+              {leadershipSection}
             </View>
-            <View style={styles.playerDetailQuickStat}>
-              <Text style={styles.playerDetailQuickLabel}>
-                {t("playerDetails.selectedPercent")}
-              </Text>
-              <Text style={styles.playerDetailQuickValue}>
-                {selectedPercent}%
-              </Text>
-            </View>
-            <View style={styles.playerDetailQuickStat}>
-              <Text style={styles.playerDetailQuickLabel}>
-                {t("players.statusLabel")}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={styles.playerDetailQuickValueSmall}
-              >
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
+          ) : (
+            quickStatsSection
+          )}
         </View>
 
         {statusNoticeMessage ? (
@@ -330,51 +382,46 @@ export function PlayerDetailSheet({
           </View>
         ) : null}
 
-        {mode === "squad" && canSetLeadership ? (
-          <View style={styles.playerDetailLeadershipPanel}>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: Boolean(isCaptain) }}
-              onPress={onSetCaptain}
-              style={styles.playerDetailLeadershipOption}
-            >
-              <CheckBoxMark checked={Boolean(isCaptain)} />
-              <Text numberOfLines={1} style={styles.playerDetailLeadershipText}>
-                {t("playerDetails.captain")}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: Boolean(isViceCaptain) }}
-              onPress={onSetViceCaptain}
-              style={styles.playerDetailLeadershipOption}
-            >
-              <CheckBoxMark checked={Boolean(isViceCaptain)} />
-              <Text numberOfLines={1} style={styles.playerDetailLeadershipText}>
-                {t("playerDetails.viceCaptain")}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
+        {!isDesktopWeb ? leadershipSection : null}
 
         <View style={styles.playerDetailStatsPanel}>
           <Text style={styles.playerDetailSectionTitle}>
             {t("playerDetails.currentSeason")}
           </Text>
-          <View style={styles.playerDetailStatsGrid}>
-            <View style={styles.playerDetailStatCell}>
+          <View
+            style={[
+              styles.playerDetailStatsGrid,
+              isDesktopWeb ? styles.playerDetailStatsGridDesktop : null,
+            ]}
+          >
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>{seasonPoints}</Text>
               <Text style={styles.playerDetailStatLabel}>
                 {t("playerDetails.totalPoints")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>{averagePoints}</Text>
               <Text style={styles.playerDetailStatLabel}>
                 {t("playerDetails.averagePoints")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>
                 {player.goals ?? 0}
               </Text>
@@ -382,7 +429,12 @@ export function PlayerDetailSheet({
                 {t("players.stats.goals")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>
                 {player.assists ?? 0}
               </Text>
@@ -390,7 +442,12 @@ export function PlayerDetailSheet({
                 {t("players.stats.assists")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>
                 {player.penaltiesMissed ?? 0}
               </Text>
@@ -398,7 +455,12 @@ export function PlayerDetailSheet({
                 {t("playerDetails.penaltiesMissed")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>
                 {player.penaltiesSaved ?? 0}
               </Text>
@@ -406,7 +468,12 @@ export function PlayerDetailSheet({
                 {t("playerDetails.penaltiesSaved")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>
                 {player.appearances ?? 0}
               </Text>
@@ -414,7 +481,12 @@ export function PlayerDetailSheet({
                 {t("players.stats.matches")}
               </Text>
             </View>
-            <View style={styles.playerDetailStatCell}>
+            <View
+              style={[
+                styles.playerDetailStatCell,
+                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+              ]}
+            >
               <Text style={styles.playerDetailStatValue}>{cardCount}</Text>
               <Text style={styles.playerDetailStatLabel}>
                 {t("players.stats.cards")}

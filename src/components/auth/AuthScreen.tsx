@@ -22,6 +22,7 @@ import { storeLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { LegalConsentText } from "../legal/LegalConsentText";
 import { LegalTextSheet, type LegalTextKind } from "../legal/LegalTextSheet";
 import { AppLoadingOverlay } from "../common/AppLoadingOverlay";
+import { AppLoadingScreen } from "../common/AppLoadingScreen";
 import { ClearableTextInput } from "../common/ClearableTextInput";
 import { LanguageSwitcher } from "../common/LanguageSwitcher";
 import { styles } from "../../styles";
@@ -1413,7 +1414,14 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         visible={Boolean(legalSheetKind)}
       />
       {isCompletingAuthHandoff ? (
-        <AppLoadingOverlay title={t("loading.oauthComplete")} />
+        Platform.OS === "web" ? (
+          <AppLoadingScreen
+            title={t("loading.oauthComplete")}
+            description={t("loading.syncingAccount")}
+          />
+        ) : (
+          <AppLoadingOverlay title={t("loading.oauthComplete")} />
+        )
       ) : null}
     </View>
   );

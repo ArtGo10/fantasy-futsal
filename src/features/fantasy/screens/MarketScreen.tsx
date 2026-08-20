@@ -97,6 +97,11 @@ type MarketScreenProps = {
 };
 
 const MARKET_ALL_CLUBS_VALUE = "__all_clubs__";
+const MARKET_FREE_AGENTS_VALUE = "__free_agents__";
+type MarketClubFilterValue =
+  | Id<"fantasyClubs">
+  | typeof MARKET_FREE_AGENTS_VALUE
+  | null;
 
 const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
   goalkeeper: "players.position.goalkeeper",
@@ -120,7 +125,7 @@ export function MarketScreen({
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [isClubPickerOpen, setClubPickerOpen] = useState(false);
   const [selectedClubId, setSelectedClubId] =
-    useState<Id<"fantasyClubs"> | null>(null);
+    useState<MarketClubFilterValue>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<FantasyPlayer | null>(
     null,
   );
@@ -146,8 +151,12 @@ export function MarketScreen({
     () => new Map(activeClubs.map((club) => [club.id, club])),
     [activeClubs],
   );
+  const selectedClubIsFreeAgents = selectedClubId === MARKET_FREE_AGENTS_VALUE;
   const selectedClub = useMemo(
-    () => (selectedClubId ? (clubsById.get(selectedClubId) ?? null) : null),
+    () =>
+      selectedClubId && selectedClubId !== MARKET_FREE_AGENTS_VALUE
+        ? (clubsById.get(selectedClubId) ?? null)
+        : null,
     [clubsById, selectedClubId],
   );
 
@@ -165,16 +174,18 @@ export function MarketScreen({
       .filter(
         (player) => !deferredFavoritesOnly || favoriteIdSet.has(player.id),
       )
-      .filter(
-        (player) =>
-          !deferredSelectedClubId || player.clubId === deferredSelectedClubId,
-      )
+      .filter((player) => {
+        if (deferredSelectedClubId === MARKET_FREE_AGENTS_VALUE) {
+          return player.clubId === null;
+        }
+        return !deferredSelectedClubId || player.clubId === deferredSelectedClubId;
+      })
       .filter((player) => {
         if (!deferredSearchQuery) return true;
 
         return [
           player.displayName,
-          player.clubName,
+          player.clubName ?? t("players.noClub"),
           t(POSITION_LABEL_KEYS[player.position]),
           player.price.toFixed(1),
           formatFantasyMoney(player.price),
@@ -217,12 +228,15 @@ export function MarketScreen({
   const selectedPlayerIsFavorite = selectedPlayer
     ? favoriteIdSet.has(selectedPlayer.id)
     : false;
-  const teamFilterLabel = selectedClub
-    ? (selectedClub.shortName ?? selectedClub.name)
-    : t("market.teamFilter");
+  const teamFilterLabel = selectedClubIsFreeAgents
+    ? t("players.freeAgents")
+    : selectedClub
+      ? (selectedClub.shortName ?? selectedClub.name)
+      : t("market.teamFilter");
   const clubFilterOptions = useMemo(
     () => [
       { label: t("market.allTeams"), value: MARKET_ALL_CLUBS_VALUE },
+      { label: t("players.freeAgents"), value: MARKET_FREE_AGENTS_VALUE },
       ...activeClubs.map((club) => ({
         label: club.shortName ?? club.name,
         leading: <FantasyClubLogo club={club} size="sm" />,
@@ -299,7 +313,9 @@ export function MarketScreen({
                 setSelectedClubId(
                   value === MARKET_ALL_CLUBS_VALUE
                     ? null
-                    : (value as Id<"fantasyClubs">),
+                    : value === MARKET_FREE_AGENTS_VALUE
+                      ? MARKET_FREE_AGENTS_VALUE
+                      : (value as Id<"fantasyClubs">),
                 );
               }}
               options={clubFilterOptions}
@@ -312,13 +328,13 @@ export function MarketScreen({
               onPress={() => setClubPickerOpen(true)}
               style={[
                 styles.marketFilterButton,
-                selectedClub ? styles.marketFilterButtonActive : null,
+                selectedClubId !== null ? styles.marketFilterButtonActive : null,
               ]}
             >
               <Text
                 numberOfLines={1}
                 style={
-                  selectedClub
+                  selectedClubId !== null
                     ? styles.marketFilterTextActive
                     : styles.marketFilterText
                 }
@@ -327,7 +343,7 @@ export function MarketScreen({
               </Text>
               <ChevronDown
                 color={
-                  selectedClub ? colors.text.inverse : colors.text.secondary
+                  selectedClubId !== null ? colors.text.inverse : colors.text.secondary
                 }
                 size={18}
                 strokeWidth={2.4}
@@ -432,6 +448,43 @@ export function MarketScreen({
                   ]}
                 >
                   {selectedClubId === null ? (
+                    <View style={styles.seasonPickerOptionRadioDot} />
+                  ) : null}
+                </View>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setSelectedClubId(MARKET_FREE_AGENTS_VALUE);
+                  setClubPickerOpen(false);
+                }}
+                style={[
+                  styles.seasonPickerOption,
+                  selectedClubIsFreeAgents
+                    ? styles.seasonPickerOptionSelected
+                    : null,
+                ]}
+              >
+                <View style={styles.seasonPickerOptionBody}>
+                  <View style={styles.seasonPickerOptionTextGroup}>
+                    <Text
+                      numberOfLines={1}
+                      style={styles.seasonPickerOptionText}
+                    >
+                      {t("players.freeAgents")}
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={[
+                    styles.seasonPickerOptionRadio,
+                    selectedClubIsFreeAgents
+                      ? styles.seasonPickerOptionRadioSelected
+                      : null,
+                  ]}
+                >
+                  {selectedClubIsFreeAgents ? (
                     <View style={styles.seasonPickerOptionRadioDot} />
                   ) : null}
                 </View>
