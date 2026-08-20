@@ -422,10 +422,10 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
     setIsCompletingAuthHandoff(false);
   }, [t]);
   useEffect(() => {
-    if (authStep === "intro" || mode !== "sign_up") {
+    if (authStep === "intro") {
       setHasAcceptedLegal(false);
     }
-  }, [authStep, mode]);
+  }, [authStep]);
 
   const clearFormError = () => {
     setErrorText(null);
@@ -867,6 +867,10 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
     try {
       setErrorText(null);
       setInfoText(null);
+
+      if (!(await ensureLegalAccepted())) return;
+      await storeLegalAcceptance();
+
       setIsLoading(true);
       setIsCompletingAuthHandoff(true);
 
@@ -895,6 +899,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
           redirectUrlComplete,
           continueSignIn: true,
           continueSignUp: true,
+          legalAccepted: true,
           __internal_callbackParams: oauthCallbackParams,
         };
 
@@ -903,7 +908,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
           markWebOAuthAttemptStarted();
           await signUp.authenticateWithRedirect({
             ...oauthParams,
-            legalAccepted: hasAcceptedLegal,
+            legalAccepted: true,
             unsafeMetadata: {
               displayName: displayName.trim(),
             },
@@ -942,6 +947,36 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       }
     }
   };
+
+  const legalConsentControl = (
+    <View style={styles.legalConsentGroup}>
+      <View style={styles.legalConsentRow}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: hasAcceptedLegal }}
+          hitSlop={8}
+          onPress={toggleLegalAcceptance}
+        >
+          <View
+            style={[
+              styles.legalCheckbox,
+              hasAcceptedLegal ? styles.legalCheckboxChecked : null,
+            ]}
+          >
+            {hasAcceptedLegal ? (
+              <Check color={colors.text.inverse} size={15} strokeWidth={3} />
+            ) : null}
+          </View>
+        </Pressable>
+        <LegalConsentText
+          onPrivacyPress={() => setLegalSheetKind("privacy")}
+          onTermsPress={() => setLegalSheetKind("terms")}
+        />
+      </View>
+    </View>
+  );
+
+  const socialAuthDisabled = isLoading || !isReady || !hasAcceptedLegal;
 
   return (
     <View style={styles.authShellDark}>
@@ -1247,39 +1282,9 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
                 {!isAwaitingCode &&
                 mode === "sign_up" &&
-                !isResettingPassword ? (
-                  <View style={styles.legalConsentGroup}>
-                    <View style={styles.legalConsentRow}>
-                      <Pressable
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: hasAcceptedLegal }}
-                        hitSlop={8}
-                        onPress={toggleLegalAcceptance}
-                      >
-                        <View
-                          style={[
-                            styles.legalCheckbox,
-                            hasAcceptedLegal
-                              ? styles.legalCheckboxChecked
-                              : null,
-                          ]}
-                        >
-                          {hasAcceptedLegal ? (
-                            <Check
-                              color={colors.text.inverse}
-                              size={15}
-                              strokeWidth={3}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                      <LegalConsentText
-                        onPrivacyPress={() => setLegalSheetKind("privacy")}
-                        onTermsPress={() => setLegalSheetKind("terms")}
-                      />
-                    </View>
-                  </View>
-                ) : null}
+                !isResettingPassword
+                  ? legalConsentControl
+                  : null}
 
                 {infoText ? (
                   <Text style={styles.authInfoText}>{infoText}</Text>
@@ -1350,13 +1355,19 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
                   </View>
                 ) : null}
 
+                {!isAwaitingCode &&
+                mode === "sign_in" &&
+                !isResettingPassword
+                  ? legalConsentControl
+                  : null}
+
                 {!isAwaitingCode && !isResettingPassword ? (
                   <Pressable
                     style={[
                       styles.authSocialButton,
-                      isLoading || !isReady ? styles.buttonDisabled : null,
+                      socialAuthDisabled ? styles.buttonDisabled : null,
                     ]}
-                    disabled={isLoading || !isReady}
+                    disabled={socialAuthDisabled}
                     onPress={() => void handleSocialAuth("oauth_google")}
                   >
                     <View style={styles.authSocialIconFrame}>
@@ -1375,9 +1386,9 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
                     style={[
                       styles.authSocialButton,
                       styles.authSocialButtonDark,
-                      isLoading || !isReady ? styles.buttonDisabled : null,
+                      socialAuthDisabled ? styles.buttonDisabled : null,
                     ]}
-                    disabled={isLoading || !isReady}
+                    disabled={socialAuthDisabled}
                     onPress={() => void handleSocialAuth("oauth_apple")}
                   >
                     <View style={styles.authSocialIconFrame}>

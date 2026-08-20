@@ -203,7 +203,7 @@ export const upsertCurrentUser = mutation({
     const name = resolveName(identity, args.name, email);
     const now = Date.now();
 
-    const newUserLegalAcceptancePatch =
+    const legalAcceptancePatch =
       args.termsAcceptedAt && args.termsVersion
         ? {
             termsAcceptedAt: args.termsAcceptedAt,
@@ -218,6 +218,7 @@ export const upsertCurrentUser = mutation({
       await ctx.db.patch(existing._id, {
         email,
         name,
+        ...legalAcceptancePatch,
         ...preferredLanguagePatch,
         updatedAt: now,
       });
@@ -227,6 +228,7 @@ export const upsertCurrentUser = mutation({
           ...existing,
           email,
           name,
+          ...legalAcceptancePatch,
           ...preferredLanguagePatch,
         }),
       };
@@ -236,7 +238,7 @@ export const upsertCurrentUser = mutation({
       clerkId: identity.subject,
       email,
       name,
-      ...newUserLegalAcceptancePatch,
+      ...legalAcceptancePatch,
       ...preferredLanguagePatch,
       createdAt: now,
       updatedAt: now,
@@ -251,8 +253,8 @@ export const upsertCurrentUser = mutation({
         participantNumber: null,
         favoriteFantasyClubId: null,
         preferredLanguage: preferredLanguagePatch.preferredLanguage ?? null,
-        termsAcceptedAt: newUserLegalAcceptancePatch.termsAcceptedAt ?? null,
-        termsVersion: newUserLegalAcceptancePatch.termsVersion ?? null,
+        termsAcceptedAt: legalAcceptancePatch.termsAcceptedAt ?? null,
+        termsVersion: legalAcceptancePatch.termsVersion ?? null,
         createdAt: now,
       },
     };
