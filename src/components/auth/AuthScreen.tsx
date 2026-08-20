@@ -30,12 +30,14 @@ import fantasyFutsalAppIcon from "../../../assets/fantasy-futsal-big-icon.png";
 import fantasyFutsalBackground from "../../../assets/fantasy-team.png";
 import type { AuthMode, ClerkSignInAttempt } from "../../types";
 import {
+  consumePendingWebOAuthAttempt,
   consumeWebOAuthCallbackError,
   getErrorMessage,
   getNativeOAuthRedirectUrl,
   logAuthError,
   getIncompleteSignInMessage,
   getWebOAuthRedirectUrls,
+  markWebOAuthAttemptStarted,
   shouldConfirmSignInWithEmailCode,
 } from "../../utils/auth";
 
@@ -182,6 +184,120 @@ type ClerkPasswordResetAttempt = ClerkSignInAttempt & {
   }) => Promise<ClerkSignInAttempt>;
 };
 
+type ClerkSignUpAttempt = {
+  status?: string | null;
+  createdSessionId?: string | null;
+  missingFields?: string[];
+};
+
+type ClerkSignUpCompletionParams = {
+  firstName?: string;
+  lastName?: string;
+  legalAccepted?: boolean;
+  unsafeMetadata?: {
+    displayName?: string;
+  };
+  username?: string;
+};
+
+type ClerkSignUpCreator = {
+  create: (
+    params: ClerkSignUpCompletionParams & {
+      emailAddress: string;
+      password: string;
+    },
+  ) => Promise<unknown>;
+  update?: (
+    params: ClerkSignUpCompletionParams,
+  ) => Promise<ClerkSignUpAttempt | void>;
+  status?: string | null;
+  createdSessionId?: string | null;
+  missingFields?: string[];
+};
+
+function splitDisplayNameForClerk(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] ?? "";
+  const lastName = parts.slice(1).join(" ");
+
+  return {
+    firstName,
+    lastName: lastName || undefined,
+  };
+}
+
+function createUsernameFromEmail(value: string) {
+  const localPart = value.split("@")[0] ?? "";
+  const normalized = localPart.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 32);
+  return normalized || `user_${Date.now()}`;
+}
+
+function getSignUpMissingFields(
+  attempt: ClerkSignUpAttempt,
+  signUp: ClerkSignUpCreator,
+) {
+  const fields = attempt.missingFields ?? signUp.missingFields ?? [];
+  return fields.map((field) => String(field)).filter(Boolean);
+}
+
+function buildSignUpCompletionParams(
+  missingFields: string[],
+  displayName: string,
+  email: string,
+) {
+  const normalizedMissing = missingFields.map((field) => field.toLowerCase());
+  const shouldFillBroadly = missingFields.length === 0;
+  const hasMissingField = (...fieldNames: string[]) =>
+    shouldFillBroadly ||
+    normalizedMissing.some((field) =>
+      fieldNames.some(
+        (fieldName) => field === fieldName || field.includes(fieldName),
+      ),
+    );
+  const hasExplicitMissingField = (...fieldNames: string[]) =>
+    normalizedMissing.some((field) =>
+      fieldNames.some(
+        (fieldName) => field === fieldName || field.includes(fieldName),
+      ),
+    );
+  const { firstName, lastName } = splitDisplayNameForClerk(displayName);
+  const params: ClerkSignUpCompletionParams = {
+    unsafeMetadata: { displayName },
+  };
+
+  if (hasMissingField("legal", "terms")) {
+    params.legalAccepted = true;
+  }
+  if (firstName && hasMissingField("first_name", "firstname", "first")) {
+    params.firstName = firstName;
+  }
+  if (hasMissingField("last_name", "lastname", "last")) {
+    params.lastName = lastName ?? firstName;
+  }
+  if (hasExplicitMissingField("username")) {
+    params.username = createUsernameFromEmail(email);
+  }
+
+  return params;
+}
+
+function getIncompleteSignUpMessage(
+  status: string | null | undefined,
+  missingFields: string[],
+  language: string,
+) {
+  const statusText = status ? String(status) : "unknown";
+  const missingText = missingFields.length
+    ? missingFields.join(", ")
+    : statusText;
+
+  if (language === "uk") {
+    return `Реєстрація ще не завершена. Бракує: ${missingText}.`;
+  }
+
+  return `Registration is not complete yet. Missing: ${missingText}.`;
+}
+
 export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
   const { language, t } = useI18n();
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
@@ -296,9 +412,10 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
   useEffect(() => {
     const callbackError = consumeWebOAuthCallbackError();
-    if (!callbackError) return;
+    const pendingOAuthAttempt = consumePendingWebOAuthAttempt();
+    if (!callbackError && !pendingOAuthAttempt) return;
 
-    logAuthError("social-callback", callbackError);
+    logAuthError("social-callback", callbackError ?? { pendingOAuthAttempt });
     setAuthStep("form");
     setMode("sign_in");
     setErrorText(t("auth.socialFailed"));
@@ -522,9 +639,14 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       setInfoText(null);
       setIsLoading(true);
       const normalizedDisplayName = displayName.trim();
-      await signUp.create({
+      const { firstName, lastName } =
+        splitDisplayNameForClerk(normalizedDisplayName);
+      await (signUp as unknown as ClerkSignUpCreator).create({
         emailAddress: normalizedEmail,
         password,
+        firstName,
+        ...(lastName ? { lastName } : {}),
+        legalAccepted: true,
         unsafeMetadata: {
           displayName: normalizedDisplayName,
         },
@@ -617,9 +739,34 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       setErrorText(null);
       setInfoText(null);
       setIsLoading(true);
-      const verification = await signUp.attemptEmailAddressVerification({
+      const rawVerification = await signUp.attemptEmailAddressVerification({
         code: code.trim(),
       });
+      const signUpCreator = signUp as unknown as ClerkSignUpCreator;
+      let verification = rawVerification as ClerkSignUpAttempt;
+
+      if (
+        verification.status === "missing_requirements" &&
+        signUpCreator.update
+      ) {
+        const normalizedDisplayName = displayName.trim();
+        const missingFields = getSignUpMissingFields(
+          verification,
+          signUpCreator,
+        );
+        const completionParams = buildSignUpCompletionParams(
+          missingFields,
+          normalizedDisplayName,
+          email.trim(),
+        );
+        const updatedVerification =
+          await signUpCreator.update(completionParams);
+        verification = updatedVerification ?? {
+          status: signUpCreator.status,
+          createdSessionId: signUpCreator.createdSessionId,
+          missingFields: signUpCreator.missingFields,
+        };
+      }
 
       if (verification.status === "complete" && verification.createdSessionId) {
         await storeLegalAcceptance();
@@ -627,7 +774,21 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         await setActive({ session: verification.createdSessionId });
         shouldKeepHandoffScreen = true;
       } else {
-        setErrorText(t("auth.verificationIncomplete"));
+        const missingFields = getSignUpMissingFields(
+          verification,
+          signUpCreator,
+        );
+        console.warn("[auth:sign-up-incomplete]", {
+          status: verification.status,
+          missingFields,
+        });
+        setErrorText(
+          getIncompleteSignUpMessage(
+            verification.status,
+            missingFields,
+            language,
+          ),
+        );
       }
     } catch (error) {
       setIsCompletingAuthHandoff(false);
@@ -666,7 +827,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       setInfoText(t("auth.newCodeSent"));
     } catch (error) {
       logAuthError("resend-code", error);
-      setErrorText(getErrorMessage(error, language));
+      setErrorText(t("auth.resendCodeFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -739,8 +900,10 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
         if (mode === "sign_up" && signUp) {
           shouldKeepHandoffScreen = true;
+          markWebOAuthAttemptStarted();
           await signUp.authenticateWithRedirect({
             ...oauthParams,
+            legalAccepted: hasAcceptedLegal,
             unsafeMetadata: {
               displayName: displayName.trim(),
             },
@@ -750,6 +913,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
         if (signIn) {
           shouldKeepHandoffScreen = true;
+          markWebOAuthAttemptStarted();
           await signIn.authenticateWithRedirect(oauthParams);
           return;
         }

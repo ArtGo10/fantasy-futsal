@@ -12,6 +12,8 @@ import type { ClerkSignInAttempt } from "../types";
 
 const WEB_OAUTH_ERROR_SEARCH_PARAM = "oauth_error";
 const WEB_OAUTH_ERROR_STORAGE_KEY = "fantasyFutsal.oauthCallbackError";
+const WEB_OAUTH_ATTEMPT_STORAGE_KEY = "fantasyFutsal.oauthAttemptStartedAt";
+const WEB_OAUTH_ATTEMPT_TTL_MS = 5 * 60 * 1000;
 
 type WebOAuthCallbackError = {
   code?: string;
@@ -225,6 +227,68 @@ export function rememberWebOAuthCallbackError(error: unknown) {
     );
   } catch {
     // Browser storage can be unavailable in private modes.
+  }
+}
+
+export function markWebOAuthAttemptStarted() {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.sessionStorage
+  ) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      WEB_OAUTH_ATTEMPT_STORAGE_KEY,
+      String(Date.now()),
+    );
+  } catch {
+    // Browser storage can be unavailable in private modes.
+  }
+}
+
+export function clearPendingWebOAuthAttempt() {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.sessionStorage
+  ) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(WEB_OAUTH_ATTEMPT_STORAGE_KEY);
+  } catch {
+    // Browser storage can be unavailable in private modes.
+  }
+}
+
+export function consumePendingWebOAuthAttempt() {
+  if (
+    Platform.OS !== "web" ||
+    typeof window === "undefined" ||
+    !window.sessionStorage
+  ) {
+    return false;
+  }
+
+  try {
+    const rawStartedAt = window.sessionStorage.getItem(
+      WEB_OAUTH_ATTEMPT_STORAGE_KEY,
+    );
+    window.sessionStorage.removeItem(WEB_OAUTH_ATTEMPT_STORAGE_KEY);
+
+    if (!rawStartedAt) return false;
+
+    const startedAt = Number(rawStartedAt);
+    return (
+      Number.isFinite(startedAt) &&
+      Date.now() - startedAt <= WEB_OAUTH_ATTEMPT_TTL_MS
+    );
+  } catch {
+    return false;
   }
 }
 

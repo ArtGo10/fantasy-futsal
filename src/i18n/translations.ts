@@ -34,6 +34,8 @@ const en = {
   "auth.passwordResetFailed": "Could not reset the password. Try again.",
   "auth.passwordPlaceholder": "Password",
   "auth.resendCode": "Send code again",
+  "auth.resendCodeFailed":
+    "Could not send a new code. Try again in a moment.",
   "auth.resetPasswordCodeDescription":
     "Enter the code from your email and choose a new password.",
   "auth.resetPasswordDescription":
@@ -641,6 +643,8 @@ const uk: Record<TranslationKey, string> = {
   "auth.passwordResetFailed": "Не вдалося відновити пароль. Спробуйте ще раз.",
   "auth.passwordPlaceholder": "Пароль",
   "auth.resendCode": "Надіслати код ще раз",
+  "auth.resendCodeFailed":
+    "Не вдалося надіслати новий код. Спробуйте ще раз трохи пізніше.",
   "auth.resetPasswordCodeDescription":
     "Введіть код з листа та задайте новий пароль.",
   "auth.resetPasswordDescription":
