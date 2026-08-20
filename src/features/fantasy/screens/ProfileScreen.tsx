@@ -27,7 +27,10 @@ import {
 import { BottomSheet } from "../components/BottomSheet";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
-import { getErrorMessage } from "../../../utils/auth";
+import {
+  getDeleteAccountErrorMessage,
+  getErrorMessage,
+} from "../../../utils/auth";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import type { FantasyFixture, FantasyGameweek } from "./FixturesScreen";
 
@@ -609,16 +612,22 @@ export function ProfileScreen({
   };
 
   const handleConfirmDeleteAccount = async () => {
+    let shouldKeepDeletingState = false;
+
     try {
       setDeleteBusy(true);
       setDeleteErrorText(null);
       await onDeleteAccount();
+      shouldKeepDeletingState = true;
     } catch (error) {
       setDeleteErrorText(
-        getErrorMessage(error) || t("profile.deleteAccountFailed"),
+        getDeleteAccountErrorMessage(error, language) ||
+          t("profile.deleteAccountFailed"),
       );
     } finally {
-      setDeleteBusy(false);
+      if (!shouldKeepDeletingState) {
+        setDeleteBusy(false);
+      }
     }
   };
 

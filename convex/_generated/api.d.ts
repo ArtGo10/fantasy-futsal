@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as fantasy from "../fantasy.js";
 import type * as futsalImport from "../futsalImport.js";
 import type * as health from "../health.js";
+import type * as http from "../http.js";
 import type * as notificationInternals from "../notificationInternals.js";
 import type * as notifications from "../notifications.js";
 import type * as users from "../users.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   fantasy: typeof fantasy;
   futsalImport: typeof futsalImport;
   health: typeof health;
+  http: typeof http;
   notificationInternals: typeof notificationInternals;
   notifications: typeof notifications;
   users: typeof users;

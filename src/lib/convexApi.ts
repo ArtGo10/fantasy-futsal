@@ -106,6 +106,9 @@ export const api = {
     acceptCurrentUserTerms: functionRef<
       GeneratedApi["users"]["acceptCurrentUserTerms"]
     >("users:acceptCurrentUserTerms"),
+    deleteCurrentUserAccount: functionRef<
+      GeneratedApi["users"]["deleteCurrentUserAccount"]
+    >("users:deleteCurrentUserAccount"),
     deleteCurrentUserData: functionRef<
       GeneratedApi["users"]["deleteCurrentUserData"]
     >("users:deleteCurrentUserData"),

@@ -25,6 +25,12 @@ const AUTH_ERROR_MESSAGES: Record<
   {
     accountExists: string;
     actionFailed: string;
+    deleteAppDataFailed: string;
+    deleteAuthRequired: string;
+    deleteCleanupQueueFailed: string;
+    deleteNotConfigured: string;
+    deleteProviderFailed: string;
+    deleteUnknown: string;
     emailInvalid: string;
     identifierNotFound: string;
     incompleteDefault: string;
@@ -49,6 +55,17 @@ const AUTH_ERROR_MESSAGES: Record<
       "An account with this email already exists. Sign in instead.",
     actionFailed:
       "Could not complete the action. Check the details and try again.",
+    deleteAppDataFailed:
+      "The login account was deleted, but app data cleanup did not finish. Contact support.",
+    deleteAuthRequired: "Sign in again before deleting your account.",
+    deleteCleanupQueueFailed:
+      "Account deletion could not be prepared safely. No app data was removed. Try again in a moment.",
+    deleteNotConfigured:
+      "Account deletion is not configured yet. Contact support.",
+    deleteProviderFailed:
+      "We could not delete the login account yet. No app data was removed. Try again in a moment or contact support.",
+    deleteUnknown:
+      "Could not delete the account. No app data was removed. Try again.",
     emailInvalid: "Enter a valid email address.",
     identifierNotFound: "No user was found with these details.",
     incompleteDefault:
@@ -77,6 +94,17 @@ const AUTH_ERROR_MESSAGES: Record<
       "Акаунт із цією поштою вже існує. Увійдіть замість реєстрації.",
     actionFailed:
       "Не вдалося виконати дію. Перевірте дані та спробуйте ще раз.",
+    deleteAppDataFailed:
+      "Акаунт для входу видалено, але очищення даних застосунку не завершилося. Напишіть у підтримку.",
+    deleteAuthRequired: "Увійдіть знову перед видаленням акаунта.",
+    deleteCleanupQueueFailed:
+      "Не вдалося безпечно підготувати видалення акаунта. Дані застосунку не видалено. Спробуйте ще раз трохи пізніше.",
+    deleteNotConfigured:
+      "Видалення акаунта ще не налаштовано. Напишіть у підтримку.",
+    deleteProviderFailed:
+      "Не вдалося видалити акаунт для входу. Дані застосунку не видалено. Спробуйте ще раз трохи пізніше або напишіть у підтримку.",
+    deleteUnknown:
+      "Не вдалося видалити акаунт. Дані застосунку не видалено. Спробуйте ще раз.",
     emailInvalid: "Введіть коректну пошту.",
     identifierNotFound: "Користувача з такими даними не знайдено.",
     incompleteDefault:
@@ -514,6 +542,68 @@ export function getIncompleteSignInMessage(
     default:
       return messages.incompleteDefault;
   }
+}
+
+export function getDeleteAccountErrorMessage(
+  error: unknown,
+  language: LanguageCode = DEFAULT_LANGUAGE,
+): string {
+  const messages = AUTH_ERROR_MESSAGES[language];
+  const records = getClerkErrorRecords(error);
+  const firstRecord = records[0];
+  const rawMessage =
+    getClerkRecordMessage(firstRecord) ??
+    (error instanceof Error ? error.message : null);
+  const normalized = [
+    firstRecord?.code ?? "",
+    getClerkRecordParam(firstRecord) ?? "",
+    rawMessage ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (normalized.includes("delete_account_auth_required")) {
+    return messages.deleteAuthRequired;
+  }
+
+  if (normalized.includes("delete_account_not_configured")) {
+    return messages.deleteNotConfigured;
+  }
+
+  if (normalized.includes("delete_account_cleanup_queue_failed")) {
+    return messages.deleteCleanupQueueFailed;
+  }
+
+  if (normalized.includes("delete_account_app_data_failed")) {
+    return messages.deleteAppDataFailed;
+  }
+
+  if (
+    normalized.includes("delete_account_clerk_failed") ||
+    normalized.includes("form_param_missing") ||
+    normalized.includes("required") ||
+    normalized.includes("clerk")
+  ) {
+    return messages.deleteProviderFailed;
+  }
+
+  if (
+    normalized.includes("too_many") ||
+    normalized.includes("rate") ||
+    normalized.includes("thrott")
+  ) {
+    return messages.rateLimited;
+  }
+
+  if (
+    normalized.includes("network") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("load failed")
+  ) {
+    return messages.network;
+  }
+
+  return messages.deleteUnknown;
 }
 
 export function shouldConfirmSignInWithEmailCode(attempt: ClerkSignInAttempt) {

@@ -24,6 +24,16 @@ const processPassedGameweekDeadlinesInternal = makeFunctionReference<
   Record<string, never>,
   { createdSnapshots: number; grantedTeams: number; processedGameweeks: number }
 >;
+const processAccountDeletionCleanupJobsInternal = makeFunctionReference<
+  "action",
+  Record<string, never>,
+  { cleaned: number; failed: number; processed: number; rescheduled: number }
+>("users:processAccountDeletionCleanupJobsInternal") as unknown as FunctionReference<
+  "action",
+  "internal",
+  Record<string, never>,
+  { cleaned: number; failed: number; processed: number; rescheduled: number }
+>;
 
 crons.interval(
   "send deadline push reminders",
@@ -34,6 +44,11 @@ crons.interval(
   "process fantasy gameweek deadlines",
   { minutes: 1 },
   processPassedGameweekDeadlinesInternal,
+);
+crons.interval(
+  "cleanup deleted account data",
+  { minutes: 15 },
+  processAccountDeletionCleanupJobsInternal,
 );
 
 export default crons;
