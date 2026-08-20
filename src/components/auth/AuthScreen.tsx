@@ -30,6 +30,7 @@ import fantasyFutsalAppIcon from "../../../assets/fantasy-futsal-big-icon.png";
 import fantasyFutsalBackground from "../../../assets/fantasy-team.png";
 import type { AuthMode, ClerkSignInAttempt } from "../../types";
 import {
+  consumeWebOAuthCallbackError,
   getErrorMessage,
   getNativeOAuthRedirectUrl,
   logAuthError,
@@ -40,7 +41,7 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-const SOCIAL_AUTH_HANDOFF_TIMEOUT_MS = 3500;
+const AUTH_HANDOFF_TIMEOUT_MS = 3500;
 const SOCIAL_AUTH_ICON_SIZE = 21;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -215,7 +216,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
     useState(false);
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCompletingSocialAuth, setIsCompletingSocialAuth] = useState(false);
+  const [isCompletingAuthHandoff, setIsCompletingAuthHandoff] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [infoText, setInfoText] = useState<string | null>(null);
   const [awaitingVerification, setAwaitingVerification] = useState(false);
@@ -282,16 +283,27 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
   ]);
 
   useEffect(() => {
-    if (!isCompletingSocialAuth) return undefined;
+    if (!isCompletingAuthHandoff) return undefined;
 
     const timeoutId = setTimeout(() => {
-      setIsCompletingSocialAuth(false);
-    }, SOCIAL_AUTH_HANDOFF_TIMEOUT_MS);
+      setIsCompletingAuthHandoff(false);
+    }, AUTH_HANDOFF_TIMEOUT_MS);
 
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [isCompletingSocialAuth]);
+  }, [isCompletingAuthHandoff]);
+
+  useEffect(() => {
+    const callbackError = consumeWebOAuthCallbackError();
+    if (!callbackError) return;
+
+    logAuthError("social-callback", callbackError);
+    setAuthStep("form");
+    setMode("sign_in");
+    setErrorText(t("auth.socialFailed"));
+    setIsCompletingAuthHandoff(false);
+  }, [t]);
   useEffect(() => {
     if (authStep === "intro" || mode !== "sign_up") {
       setHasAcceptedLegal(false);
@@ -410,6 +422,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
   const handleSignIn = async () => {
     if (!signIn || !setActive) return;
 
+    let shouldKeepHandoffScreen = false;
     try {
       setErrorText(null);
       setInfoText(null);
@@ -426,7 +439,9 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         signInAttempt.status === "complete" &&
         signInAttempt.createdSessionId
       ) {
+        setIsCompletingAuthHandoff(true);
         await setActive({ session: signInAttempt.createdSessionId });
+        shouldKeepHandoffScreen = true;
       } else if (shouldConfirmSignInWithEmailCode(signInAttempt)) {
         await startSignInEmailCodeVerification(signInAttempt);
       } else {
@@ -438,16 +453,20 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         );
       }
     } catch (error) {
+      setIsCompletingAuthHandoff(false);
       logAuthError("sign-in", error);
       setErrorText(getErrorMessage(error, language));
     } finally {
-      setIsLoading(false);
+      if (!shouldKeepHandoffScreen) {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleSignInVerify = async () => {
     if (!signIn || !setActive) return;
 
+    let shouldKeepHandoffScreen = false;
     try {
       setErrorText(null);
       setInfoText(null);
@@ -462,17 +481,22 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       if (!attempt) {
         setErrorText(t("auth.verifyCodeFailed"));
       } else if (attempt.status === "complete" && attempt.createdSessionId) {
+        setIsCompletingAuthHandoff(true);
         await setActive({ session: attempt.createdSessionId });
+        shouldKeepHandoffScreen = true;
       } else {
         setErrorText(
           getIncompleteSignInMessage(String(attempt.status ?? ""), language),
         );
       }
     } catch (error) {
+      setIsCompletingAuthHandoff(false);
       logAuthError("sign-in-verify", error);
       setErrorText(getErrorMessage(error, language));
     } finally {
-      setIsLoading(false);
+      if (!shouldKeepHandoffScreen) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -550,6 +574,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       return;
     }
 
+    let shouldKeepHandoffScreen = false;
     try {
       setErrorText(null);
       setInfoText(null);
@@ -565,23 +590,29 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       if (!attempt) {
         setErrorText(t("auth.passwordResetFailed"));
       } else if (attempt.status === "complete" && attempt.createdSessionId) {
+        setIsCompletingAuthHandoff(true);
         await setActive({ session: attempt.createdSessionId });
+        shouldKeepHandoffScreen = true;
       } else {
         setErrorText(
           getIncompleteSignInMessage(String(attempt.status ?? ""), language),
         );
       }
     } catch (error) {
+      setIsCompletingAuthHandoff(false);
       logAuthError("password-reset-submit", error);
       setErrorText(getErrorMessage(error, language));
     } finally {
-      setIsLoading(false);
+      if (!shouldKeepHandoffScreen) {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleSignUpVerify = async () => {
     if (!signUp || !setActive) return;
 
+    let shouldKeepHandoffScreen = false;
     try {
       setErrorText(null);
       setInfoText(null);
@@ -592,15 +623,20 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
 
       if (verification.status === "complete" && verification.createdSessionId) {
         await storeLegalAcceptance();
+        setIsCompletingAuthHandoff(true);
         await setActive({ session: verification.createdSessionId });
+        shouldKeepHandoffScreen = true;
       } else {
         setErrorText(t("auth.verificationIncomplete"));
       }
     } catch (error) {
+      setIsCompletingAuthHandoff(false);
       logAuthError("sign-up-verify", error);
       setErrorText(getErrorMessage(error, language));
     } finally {
-      setIsLoading(false);
+      if (!shouldKeepHandoffScreen) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -671,7 +707,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
       setErrorText(null);
       setInfoText(null);
       setIsLoading(true);
-      setIsCompletingSocialAuth(true);
+      setIsCompletingAuthHandoff(true);
 
       if (Platform.OS === "web") {
         const { redirectUrl, redirectUrlComplete } = getWebOAuthRedirectUrls();
@@ -738,7 +774,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
     } finally {
       setIsLoading(false);
       if (!shouldKeepHandoffScreen) {
-        setIsCompletingSocialAuth(false);
+        setIsCompletingAuthHandoff(false);
       }
     }
   };
@@ -1198,7 +1234,7 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         onClose={() => setLegalSheetKind(null)}
         visible={Boolean(legalSheetKind)}
       />
-      {isCompletingSocialAuth ? (
+      {isCompletingAuthHandoff ? (
         <AppLoadingOverlay title={t("loading.oauthComplete")} />
       ) : null}
     </View>

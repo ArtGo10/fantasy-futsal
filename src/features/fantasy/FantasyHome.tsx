@@ -386,10 +386,6 @@ export function FantasyHome({
   const preferDefaultToken = sessionClaims?.aud === "convex";
   const convexTokenReady = convexTokenStatus === "ready";
   const convexTokenFailed = convexTokenStatus === "failed";
-  const hasRawAuthProblem =
-    userIsSignedIn &&
-    !convexAuth.isLoading &&
-    (!convexAuth.isAuthenticated || convexTokenFailed);
   const hasAuthBootstrapProblem =
     userIsSignedIn &&
     (convexAuth.isLoading || !convexAuth.isAuthenticated || convexTokenFailed);
@@ -634,6 +630,9 @@ export function FantasyHome({
     setRequiredLegalBusy(false);
     setRequiredLegalErrorText(null);
     setRequiredLegalSheetKind(null);
+    setCanShowAuthProblem(false);
+    setConvexTokenStatus("idle");
+    setPrivateLoadingTimedOut(false);
   }, [authIsLoaded, currentAuthUserId]);
 
   useEffect(() => {
@@ -688,11 +687,6 @@ export function FantasyHome({
       return undefined;
     }
 
-    if (convexTokenFailed || hasRawAuthProblem) {
-      setCanShowAuthProblem(true);
-      return undefined;
-    }
-
     const timeoutId = setTimeout(() => {
       setCanShowAuthProblem(true);
     }, CONVEX_AUTH_PROBLEM_GRACE_MS);
@@ -700,7 +694,7 @@ export function FantasyHome({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [convexTokenFailed, hasAuthBootstrapProblem, hasRawAuthProblem]);
+  }, [hasAuthBootstrapProblem]);
 
   useEffect(() => {
     if (
@@ -1143,16 +1137,19 @@ export function FantasyHome({
   const privateLoadingOverlayReason =
     hasEnteredPrivateApp && userIsSignedIn && isSigningOut
       ? "signingOut"
-      : null;
+      : hasEnteredPrivateApp &&
+          userIsSignedIn &&
+          !isOffline &&
+          hasAuthBootstrapProblem &&
+          !canShowAuthProblem
+        ? "authBootstrap"
+        : null;
   const privateLoadingOverlayTitle =
     privateLoadingOverlayReason === "signingOut"
       ? t("loading.signingOut")
-      : privateLoadingOverlayReason === "currentUserProfileLoading" ||
-          privateLoadingOverlayReason === "profileBootstrap"
-        ? t("loading.preparingProfile")
-        : privateLoadingOverlayReason
-          ? t("loading.checkingSession")
-          : null;
+      : privateLoadingOverlayReason === "authBootstrap"
+        ? t("loading.oauthComplete")
+        : null;
   const privateLoadingOverlayDebugKey = privateLoadingOverlayReason
     ? JSON.stringify({
         reason: privateLoadingOverlayReason,
