@@ -41,6 +41,7 @@ import { api } from "../../lib/convexApi";
 import { styles } from "../../styles";
 import { colors, spacing } from "../../theme/tokens";
 import {
+  clearPendingWebOAuthAttempt,
   getErrorMessage,
   getMetadataDisplayName,
   getWebAppRedirectUrl,
@@ -571,6 +572,10 @@ export function FantasyHome({
   }, [getToken]);
 
   useEffect(() => {
+    if (authIsLoaded && isSignedIn) {
+      clearPendingWebOAuthAttempt();
+    }
+
     if (authIsLoaded && !isSignedIn) {
       setHasEnteredPrivateApp(false);
       setIsSigningOut(false);
