@@ -346,7 +346,8 @@ const en = {
   "profile.deleteAccountConfirmDescription":
     "This will permanently delete your account, fantasy team, saved squads, favourites, points, and app data. This cannot be undone.",
   "profile.deleteAccountDeleting": "Deleting...",
-  "profile.deleteAccountFailed": "Could not delete the account. Try again.",
+  "profile.deleteAccountFailed":
+    "Could not finish deleting the account. Try again or contact support.",
   "profile.feedbackTitle": "Feedback & support",
   "profile.feedbackDescription":
     "Send a question, bug report, or idea to the league admin.",
@@ -957,7 +958,7 @@ const uk: Record<TranslationKey, string> = {
     "Ця дія назавжди видалить ваш акаунт, fantasy-команду, збережені склади, обраних гравців, очки та дані застосунку. Скасувати її не можна.",
   "profile.deleteAccountDeleting": "Видаляємо...",
   "profile.deleteAccountFailed":
-    "Не вдалося видалити акаунт. Спробуйте ще раз.",
+    "Не вдалося завершити видалення акаунта. Спробуйте ще раз або напишіть у підтримку.",
   "profile.feedbackTitle": "Зворотний звʼязок і підтримка",
   "profile.feedbackDescription":
     "Надішліть питання, помилку або ідею адміну ліги.",

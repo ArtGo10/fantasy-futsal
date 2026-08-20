@@ -1,6 +1,6 @@
 import { useAuth, useClerk, useUser } from "@clerk/expo";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -342,7 +342,7 @@ export function FantasyHome({
   const convexAuth = useConvexAuth();
   const upsertCurrentUser = useMutation(api.users.upsertCurrentUser);
   const acceptCurrentUserTerms = useMutation(api.users.acceptCurrentUserTerms);
-  const deleteCurrentUserData = useMutation(api.users.deleteCurrentUserData);
+  const deleteCurrentUserAccount = useAction(api.users.deleteCurrentUserAccount);
   const toggleFavoritePlayer = useMutation(api.fantasy.toggleFavoritePlayer);
   const upsertExpoPushToken = useMutation(
     api.notifications.upsertExpoPushToken,
@@ -1014,23 +1014,30 @@ export function FantasyHome({
   }, [isSigningOut, language, setAsyncError, signOut]);
 
   const handleDeleteAccount = useCallback(async () => {
-    const clerkUser = user as { delete?: () => Promise<unknown> } & typeof user;
-    if (!clerkUser?.delete) {
-      throw new Error(t("profile.deleteAccountFailed"));
-    }
-
-    await deleteCurrentUserData({});
+    await deleteCurrentUserAccount({});
+    setErrorText(null);
+    setIsSigningOut(true);
+    await waitForNextPaint();
     await clearStoredLegalAcceptance();
-    await clerkUser.delete();
-    if (Platform.OS === "web") {
-      await (signOut as (options?: { redirectUrl?: string }) => Promise<void>)({
-        redirectUrl: getWebAppRedirectUrl(),
-      });
-      keepBrowserOnWebAppPath();
-    } else {
-      await signOut();
+
+    try {
+      if (Platform.OS === "web") {
+        await (
+          signOut as (options?: { redirectUrl?: string }) => Promise<void>
+        )({
+          redirectUrl: getWebAppRedirectUrl(),
+        });
+        keepBrowserOnWebAppPath();
+      } else {
+        await signOut();
+      }
+    } catch (error) {
+      console.warn("[auth:deleteAccountSignOut]", error);
+      if (Platform.OS === "web") {
+        keepBrowserOnWebAppPath();
+      }
     }
-  }, [deleteCurrentUserData, signOut, t, user]);
+  }, [deleteCurrentUserAccount, signOut]);
 
   const handlePointsDetailsVisibleChange = useCallback((isVisible: boolean) => {
     if (isVisible) {

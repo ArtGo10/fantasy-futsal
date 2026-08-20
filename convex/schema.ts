@@ -29,6 +29,24 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkId"])
     .index("by_participant_number", ["participantNumber"]),
 
+  accountDeletionCleanupJobs: defineTable({
+    clerkId: v.string(),
+    status: v.union(
+      v.literal("clerk_delete_pending"),
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    attempts: v.number(),
+    lastError: v.optional(v.string()),
+    nextAttemptAt: v.number(),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_status_next_attempt", ["status", "nextAttemptAt"]),
+
   pushNotificationTokens: defineTable({
     userId: v.id("users"),
     provider: v.union(v.literal("expo")),

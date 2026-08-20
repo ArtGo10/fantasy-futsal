@@ -2,13 +2,24 @@ import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
-import { internalAction, mutation, query } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
 
 const MAX_FEEDBACK_MESSAGE_LENGTH = 4000;
 const SUPPORT_EMAIL = "support@fantasyfutsal.app";
 const RESEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
+const CLERK_API_USERS_ENDPOINT = "https://api.clerk.com/v1/users";
 const DEFAULT_FEEDBACK_EMAIL_FROM = "Fantasy Futsal <" + SUPPORT_EMAIL + ">";
+const DELETE_ACCOUNT_AUTH_REQUIRED = "DELETE_ACCOUNT_AUTH_REQUIRED";
+const DELETE_ACCOUNT_NOT_CONFIGURED = "DELETE_ACCOUNT_NOT_CONFIGURED";
+const DELETE_ACCOUNT_CLERK_FAILED = "DELETE_ACCOUNT_CLERK_FAILED";
+const DELETE_ACCOUNT_CLEANUP_QUEUE_FAILED =
+  "DELETE_ACCOUNT_CLEANUP_QUEUE_FAILED";
+const ACCOUNT_DELETION_CLEANUP_BATCH_SIZE = 10;
+const ACCOUNT_DELETION_CLEANUP_MAX_ATTEMPTS = 12;
+const ACCOUNT_DELETION_CLEANUP_RETRY_BASE_MS = 60 * 1000;
+const ACCOUNT_DELETION_CLEANUP_RETRY_MAX_MS = 60 * 60 * 1000;
 
 type SendFeedbackEmailArgs = {
   createdAt: number;
@@ -35,9 +46,167 @@ const sendFeedbackEmailInternalRef = makeFunctionReference<
   SendFeedbackEmailResult
 >;
 
+type DeleteCurrentUserDataResult = {
+  deleted: boolean;
+  favorites: number;
+  feedback: number;
+  gameweekSquadPicks: number;
+  notifications: number;
+  pointDeductions: number;
+  pushTokens: number;
+  squadPicks: number;
+  teamScores: number;
+  teams: number;
+  transfers: number;
+};
+
+type DeleteCurrentUserDataByClerkIdArgs = {
+  clerkId: string;
+};
+
+const deleteCurrentUserDataByClerkIdInternalRef = makeFunctionReference<
+  "mutation",
+  DeleteCurrentUserDataByClerkIdArgs,
+  DeleteCurrentUserDataResult
+>("users:deleteCurrentUserDataByClerkIdInternal") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  DeleteCurrentUserDataByClerkIdArgs,
+  DeleteCurrentUserDataResult
+>;
+
+type AccountDeletionCleanupJobStatus = "clerk_delete_pending" | "pending";
+
+type AccountDeletionCleanupJobArgs = {
+  clerkId: string;
+  lastError?: string;
+  nextAttemptAt?: number;
+  status?: AccountDeletionCleanupJobStatus;
+};
+
+type AccountDeletionCleanupJobResult = {
+  jobId: Id<"accountDeletionCleanupJobs">;
+};
+
+type AccountDeletionCleanupJobView = {
+  attempts: number;
+  clerkId: string;
+  jobId: Id<"accountDeletionCleanupJobs">;
+  status: AccountDeletionCleanupJobStatus;
+};
+
+type AccountDeletionCleanupJobsResult = {
+  jobs: AccountDeletionCleanupJobView[];
+};
+
+type AccountDeletionCleanupJobStatusArgs = {
+  clerkId: string;
+  jobId: Id<"accountDeletionCleanupJobs">;
+};
+
+type AccountDeletionCleanupJobFailedArgs = AccountDeletionCleanupJobStatusArgs & {
+  attempts: number;
+  lastError: string;
+  nextAttemptAt: number;
+  status: "clerk_delete_pending" | "failed" | "pending";
+};
+
+const upsertAccountDeletionCleanupJobInternalRef = makeFunctionReference<
+  "mutation",
+  AccountDeletionCleanupJobArgs,
+  AccountDeletionCleanupJobResult
+>("users:upsertAccountDeletionCleanupJobInternal") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  AccountDeletionCleanupJobArgs,
+  AccountDeletionCleanupJobResult
+>;
+
+const listDueAccountDeletionCleanupJobsInternalRef = makeFunctionReference<
+  "query",
+  { limit?: number; now: number },
+  AccountDeletionCleanupJobsResult
+>("users:listDueAccountDeletionCleanupJobsInternal") as unknown as FunctionReference<
+  "query",
+  "internal",
+  { limit?: number; now: number },
+  AccountDeletionCleanupJobsResult
+>;
+
+const markAccountDeletionCleanupJobCompleteInternalRef = makeFunctionReference<
+  "mutation",
+  AccountDeletionCleanupJobStatusArgs,
+  { completed: boolean }
+>("users:markAccountDeletionCleanupJobCompleteInternal") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  AccountDeletionCleanupJobStatusArgs,
+  { completed: boolean }
+>;
+
+const markAccountDeletionCleanupJobFailedInternalRef = makeFunctionReference<
+  "mutation",
+  AccountDeletionCleanupJobFailedArgs,
+  { failed: boolean }
+>("users:markAccountDeletionCleanupJobFailedInternal") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  AccountDeletionCleanupJobFailedArgs,
+  { failed: boolean }
+>;
+
+function emptyDeleteCurrentUserDataResult(): DeleteCurrentUserDataResult {
+  return {
+    deleted: false,
+    favorites: 0,
+    feedback: 0,
+    gameweekSquadPicks: 0,
+    notifications: 0,
+    pointDeductions: 0,
+    pushTokens: 0,
+    squadPicks: 0,
+    teamScores: 0,
+    teams: 0,
+    transfers: 0,
+  };
+}
+
 function normalizeOptional(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function formatUnknownError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function getAccountDeletionCleanupRetryDelayMs(attempts: number) {
+  const exponent = Math.max(0, attempts - 1);
+  return Math.min(
+    ACCOUNT_DELETION_CLEANUP_RETRY_MAX_MS,
+    ACCOUNT_DELETION_CLEANUP_RETRY_BASE_MS * 2 ** exponent,
+  );
+}
+
+async function getClerkUserExists(secretKey: string, clerkId: string) {
+  const response = await fetch(
+    `${CLERK_API_USERS_ENDPOINT}/${encodeURIComponent(clerkId)}`,
+    { headers: { Authorization: "Bearer " + secretKey } },
+  );
+
+  if (response.status === 404) return false;
+  if (response.ok) return true;
+
+  const errorText = await response.text().catch(() => "");
+  throw new Error(
+    `Clerk user lookup failed: ${response.status} ${errorText}`.trim(),
+  );
 }
 
 function escapeHtml(value: string) {
@@ -442,151 +611,428 @@ export const listFeedback = query({
   },
 });
 
-export const deleteCurrentUserData = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const { user } = await getCurrentUser(ctx);
-    if (!user) {
-      return {
-        deleted: false,
-        favorites: 0,
-        feedback: 0,
-        gameweekSquadPicks: 0,
-        pushTokens: 0,
-        notifications: 0,
-        squadPicks: 0,
-        pointDeductions: 0,
-        teamScores: 0,
-        teams: 0,
-        transfers: 0,
-      };
-    }
+type CurrentUserDocument = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>["user"]>;
 
-    let deletedGameweekSquadPicks = 0;
-    let deletedSquadPicks = 0;
-    let deletedTeamScores = 0;
-    let deletedTransfers = 0;
-    let deletedPointDeductions = 0;
-    const fantasyTeams = await ctx.db
-      .query("fantasyTeams")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+async function deleteUserDataForUser(
+  ctx: MutationCtx,
+  user: CurrentUserDocument,
+): Promise<DeleteCurrentUserDataResult> {
+  let deletedGameweekSquadPicks = 0;
+  let deletedSquadPicks = 0;
+  let deletedTeamScores = 0;
+  let deletedTransfers = 0;
+  let deletedPointDeductions = 0;
+  const fantasyTeams = await ctx.db
+    .query("fantasyTeams")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+
+  for (const fantasyTeam of fantasyTeams) {
+    const picks = await ctx.db
+      .query("fantasySquadPicks")
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
       .collect();
-
-    for (const fantasyTeam of fantasyTeams) {
-      const picks = await ctx.db
-        .query("fantasySquadPicks")
-        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
-        .collect();
-      for (const pick of picks) {
-        await ctx.db.delete(pick._id);
-        deletedSquadPicks += 1;
-      }
-
-      const gameweekPicks = await ctx.db
-        .query("fantasyGameweekSquadPicks")
-        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
-        .collect();
-      for (const gameweekPick of gameweekPicks) {
-        await ctx.db.delete(gameweekPick._id);
-        deletedGameweekSquadPicks += 1;
-      }
-
-      const deductions = await ctx.db
-        .query("fantasyPointDeductions")
-        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
-        .collect();
-      for (const deduction of deductions) {
-        await ctx.db.delete(deduction._id);
-        deletedPointDeductions += 1;
-      }
-
-      const transfers = await ctx.db
-        .query("fantasyTransfers")
-        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
-        .collect();
-      for (const transfer of transfers) {
-        await ctx.db.delete(transfer._id);
-        deletedTransfers += 1;
-      }
-
-      const scores = await ctx.db
-        .query("fantasyTeamGameweekScores")
-        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
-        .collect();
-      for (const score of scores) {
-        await ctx.db.delete(score._id);
-        deletedTeamScores += 1;
-      }
+    for (const pick of picks) {
+      await ctx.db.delete(pick._id);
+      deletedSquadPicks += 1;
     }
 
-    const favorites = await ctx.db
-      .query("fantasyPlayerFavorites")
-      .filter((q) => q.eq(q.field("userId"), user._id))
+    const gameweekPicks = await ctx.db
+      .query("fantasyGameweekSquadPicks")
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
       .collect();
-    for (const favorite of favorites) {
-      await ctx.db.delete(favorite._id);
+    for (const gameweekPick of gameweekPicks) {
+      await ctx.db.delete(gameweekPick._id);
+      deletedGameweekSquadPicks += 1;
     }
 
-    const pushTokens = await ctx.db
-      .query("pushNotificationTokens")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    for (const pushToken of pushTokens) {
-      await ctx.db.delete(pushToken._id);
-    }
-
-    const notifications = await ctx.db
-      .query("userNotifications")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    for (const notification of notifications) {
-      await ctx.db.delete(notification._id);
-    }
-
-    const feedbackItems = await ctx.db
-      .query("userFeedback")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    for (const feedbackItem of feedbackItems) {
-      await ctx.db.delete(feedbackItem._id);
-    }
-
-    const remainingDeductions = await ctx.db
+    const deductions = await ctx.db
       .query("fantasyPointDeductions")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
       .collect();
-    for (const deduction of remainingDeductions) {
+    for (const deduction of deductions) {
       await ctx.db.delete(deduction._id);
       deletedPointDeductions += 1;
     }
 
-    const remainingTransfers = await ctx.db
+    const transfers = await ctx.db
       .query("fantasyTransfers")
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
       .collect();
-    for (const transfer of remainingTransfers) {
+    for (const transfer of transfers) {
       await ctx.db.delete(transfer._id);
       deletedTransfers += 1;
     }
 
-    for (const fantasyTeam of fantasyTeams) {
-      await ctx.db.delete(fantasyTeam._id);
+    const scores = await ctx.db
+      .query("fantasyTeamGameweekScores")
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+      .collect();
+    for (const score of scores) {
+      await ctx.db.delete(score._id);
+      deletedTeamScores += 1;
+    }
+  }
+
+  const favorites = await ctx.db
+    .query("fantasyPlayerFavorites")
+    .filter((q) => q.eq(q.field("userId"), user._id))
+    .collect();
+  for (const favorite of favorites) {
+    await ctx.db.delete(favorite._id);
+  }
+
+  const pushTokens = await ctx.db
+    .query("pushNotificationTokens")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  for (const pushToken of pushTokens) {
+    await ctx.db.delete(pushToken._id);
+  }
+
+  const notifications = await ctx.db
+    .query("userNotifications")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  for (const notification of notifications) {
+    await ctx.db.delete(notification._id);
+  }
+
+  const feedbackItems = await ctx.db
+    .query("userFeedback")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  for (const feedbackItem of feedbackItems) {
+    await ctx.db.delete(feedbackItem._id);
+  }
+
+  const remainingDeductions = await ctx.db
+    .query("fantasyPointDeductions")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  for (const deduction of remainingDeductions) {
+    await ctx.db.delete(deduction._id);
+    deletedPointDeductions += 1;
+  }
+
+  const remainingTransfers = await ctx.db
+    .query("fantasyTransfers")
+    .filter((q) => q.eq(q.field("userId"), user._id))
+    .collect();
+  for (const transfer of remainingTransfers) {
+    await ctx.db.delete(transfer._id);
+    deletedTransfers += 1;
+  }
+
+  for (const fantasyTeam of fantasyTeams) {
+    await ctx.db.delete(fantasyTeam._id);
+  }
+
+  await ctx.db.delete(user._id);
+
+  return {
+    deleted: true,
+    favorites: favorites.length,
+    feedback: feedbackItems.length,
+    gameweekSquadPicks: deletedGameweekSquadPicks,
+    notifications: notifications.length,
+    pointDeductions: deletedPointDeductions,
+    pushTokens: pushTokens.length,
+    squadPicks: deletedSquadPicks,
+    teamScores: deletedTeamScores,
+    teams: fantasyTeams.length,
+    transfers: deletedTransfers,
+  };
+}
+
+export const deleteCurrentUserDataByClerkIdInternal = internalMutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) return emptyDeleteCurrentUserDataResult();
+
+    return deleteUserDataForUser(ctx, user);
+  },
+});
+
+export const upsertAccountDeletionCleanupJobInternal = internalMutation({
+  args: {
+    clerkId: v.string(),
+    lastError: v.optional(v.string()),
+    nextAttemptAt: v.optional(v.number()),
+    status: v.optional(
+      v.union(v.literal("clerk_delete_pending"), v.literal("pending")),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existingJob = await ctx.db
+      .query("accountDeletionCleanupJobs")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+    const nextAttemptAt = args.nextAttemptAt ?? now;
+    const status = args.status ?? "pending";
+
+    if (existingJob) {
+      await ctx.db.patch(existingJob._id, {
+        lastError: args.lastError,
+        nextAttemptAt,
+        status,
+        updatedAt: now,
+      });
+      return { jobId: existingJob._id };
     }
 
-    await ctx.db.delete(user._id);
+    const jobId = await ctx.db.insert("accountDeletionCleanupJobs", {
+      clerkId: args.clerkId,
+      status,
+      attempts: 0,
+      lastError: args.lastError,
+      nextAttemptAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { jobId };
+  },
+});
+
+export const listDueAccountDeletionCleanupJobsInternal = internalQuery({
+  args: {
+    limit: v.optional(v.number()),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.max(
+      1,
+      Math.min(args.limit ?? ACCOUNT_DELETION_CLEANUP_BATCH_SIZE, 50),
+    );
+    const pendingJobs = await ctx.db
+      .query("accountDeletionCleanupJobs")
+      .withIndex("by_status_next_attempt", (q) =>
+        q.eq("status", "pending").lte("nextAttemptAt", args.now),
+      )
+      .take(limit);
+    const clerkDeletePendingJobs = await ctx.db
+      .query("accountDeletionCleanupJobs")
+      .withIndex("by_status_next_attempt", (q) =>
+        q.eq("status", "clerk_delete_pending").lte("nextAttemptAt", args.now),
+      )
+      .take(Math.max(0, limit - pendingJobs.length));
+    const jobs = [...pendingJobs, ...clerkDeletePendingJobs];
 
     return {
+      jobs: jobs.map((job) => ({
+        attempts: job.attempts,
+        clerkId: job.clerkId,
+        jobId: job._id,
+        status: job.status === "clerk_delete_pending" ? job.status : "pending",
+      })),
+    };
+  },
+});
+
+export const markAccountDeletionCleanupJobCompleteInternal = internalMutation({
+  args: {
+    clerkId: v.string(),
+    jobId: v.id("accountDeletionCleanupJobs"),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.clerkId !== args.clerkId) return { completed: false };
+
+    const now = Date.now();
+    await ctx.db.patch(args.jobId, {
+      completedAt: now,
+      lastError: undefined,
+      nextAttemptAt: now,
+      status: "completed",
+      updatedAt: now,
+    });
+
+    return { completed: true };
+  },
+});
+
+export const markAccountDeletionCleanupJobFailedInternal = internalMutation({
+  args: {
+    attempts: v.number(),
+    clerkId: v.string(),
+    jobId: v.id("accountDeletionCleanupJobs"),
+    lastError: v.string(),
+    nextAttemptAt: v.number(),
+    status: v.union(
+      v.literal("clerk_delete_pending"),
+      v.literal("pending"),
+      v.literal("failed"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.clerkId !== args.clerkId) return { failed: false };
+
+    await ctx.db.patch(args.jobId, {
+      attempts: args.attempts,
+      lastError: args.lastError.slice(0, 1000),
+      nextAttemptAt: args.nextAttemptAt,
+      status: args.status,
+      updatedAt: Date.now(),
+    });
+
+    return { failed: true };
+  },
+});
+
+export const deleteCurrentUserData = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) return emptyDeleteCurrentUserDataResult();
+
+    return deleteUserDataForUser(ctx, user);
+  },
+});
+
+export const processAccountDeletionCleanupJobsInternal = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const { jobs } = await ctx.runQuery(
+      listDueAccountDeletionCleanupJobsInternalRef,
+      { now, limit: ACCOUNT_DELETION_CLEANUP_BATCH_SIZE },
+    );
+
+    let cleaned = 0;
+    let failed = 0;
+    let rescheduled = 0;
+
+    for (const job of jobs) {
+      try {
+        if (job.status === "clerk_delete_pending") {
+          const secretKey = normalizeOptional(process.env.CLERK_SECRET_KEY);
+          if (!secretKey) throw new Error(DELETE_ACCOUNT_NOT_CONFIGURED);
+
+          const clerkUserExists = await getClerkUserExists(
+            secretKey,
+            job.clerkId,
+          );
+          if (clerkUserExists) {
+            throw new Error("Clerk user still exists; app data cleanup skipped.");
+          }
+
+          await ctx.runMutation(upsertAccountDeletionCleanupJobInternalRef, {
+            clerkId: job.clerkId,
+            status: "pending",
+          });
+        }
+
+        await ctx.runMutation(deleteCurrentUserDataByClerkIdInternalRef, {
+          clerkId: job.clerkId,
+        });
+        await ctx.runMutation(markAccountDeletionCleanupJobCompleteInternalRef, {
+          clerkId: job.clerkId,
+          jobId: job.jobId,
+        });
+        cleaned += 1;
+      } catch (error) {
+        const attempts = job.attempts + 1;
+        const reachedLimit = attempts >= ACCOUNT_DELETION_CLEANUP_MAX_ATTEMPTS;
+        const nextAttemptAt = reachedLimit
+          ? now
+          : now + getAccountDeletionCleanupRetryDelayMs(attempts);
+        const retryStatus = reachedLimit ? "failed" : job.status;
+
+        await ctx.runMutation(markAccountDeletionCleanupJobFailedInternalRef, {
+          attempts,
+          clerkId: job.clerkId,
+          jobId: job.jobId,
+          lastError: formatUnknownError(error),
+          nextAttemptAt,
+          status: retryStatus,
+        });
+
+        if (reachedLimit) {
+          failed += 1;
+        } else {
+          rescheduled += 1;
+        }
+      }
+    }
+
+    return { cleaned, failed, processed: jobs.length, rescheduled };
+  },
+});
+
+export const deleteCurrentUserAccount = action({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error(DELETE_ACCOUNT_AUTH_REQUIRED);
+
+    const secretKey = normalizeOptional(process.env.CLERK_SECRET_KEY);
+    if (!secretKey) throw new Error(DELETE_ACCOUNT_NOT_CONFIGURED);
+
+    const clerkId = identity.subject;
+    let cleanupJobId: Id<"accountDeletionCleanupJobs"> | null = null;
+
+    try {
+      const cleanupJob = await ctx.runMutation(
+        upsertAccountDeletionCleanupJobInternalRef,
+        { clerkId, status: "clerk_delete_pending" },
+      );
+      cleanupJobId = cleanupJob.jobId;
+    } catch (error) {
+      console.warn("Could not enqueue account deletion cleanup job", error);
+      throw new Error(DELETE_ACCOUNT_CLEANUP_QUEUE_FAILED);
+    }
+
+    const response = await fetch(
+      `${CLERK_API_USERS_ENDPOINT}/${encodeURIComponent(clerkId)}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + secretKey },
+      },
+    );
+
+    if (!response.ok && response.status !== 404) {
+      const errorText = await response.text().catch(() => "");
+      console.warn(
+        "Clerk user deletion failed",
+        response.status,
+        errorText.slice(0, 1000),
+      );
+
+      if (cleanupJobId) {
+        await ctx.runMutation(markAccountDeletionCleanupJobFailedInternalRef, {
+          attempts: 1,
+          clerkId,
+          jobId: cleanupJobId,
+          lastError: DELETE_ACCOUNT_CLERK_FAILED,
+          nextAttemptAt: Date.now(),
+          status: "failed",
+        });
+      }
+
+      throw new Error(DELETE_ACCOUNT_CLERK_FAILED);
+    }
+
+    try {
+      await ctx.runMutation(upsertAccountDeletionCleanupJobInternalRef, {
+        clerkId,
+        status: "pending",
+      });
+    } catch (error) {
+      console.warn("Could not enqueue account deletion cleanup job", error);
+    }
+
+    return {
+      cleanupQueued: true,
       deleted: true,
-      favorites: favorites.length,
-      feedback: feedbackItems.length,
-      gameweekSquadPicks: deletedGameweekSquadPicks,
-      pointDeductions: deletedPointDeductions,
-      pushTokens: pushTokens.length,
-      notifications: notifications.length,
-      squadPicks: deletedSquadPicks,
-      teamScores: deletedTeamScores,
-      teams: fantasyTeams.length,
-      transfers: deletedTransfers,
+      appData: emptyDeleteCurrentUserDataResult(),
     };
   },
 });
