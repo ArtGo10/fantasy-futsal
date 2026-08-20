@@ -1,6 +1,13 @@
 import { X } from "lucide-react-native";
-import { forwardRef, type ReactNode, useState } from "react";
 import {
+  forwardRef,
+  type ReactNode,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import {
+  Platform,
   Pressable,
   TextInput,
   type StyleProp,
@@ -45,18 +52,36 @@ export const ClearableTextInput = forwardRef<
   },
   ref,
 ) {
+  const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  useImperativeHandle(ref, () => inputRef.current as TextInput);
+
   const shouldShowClearButton = isFocused && value.length > 0;
   const reservedRightPadding = rightAccessoryWidth + 42;
   const handleClear = () => {
     if (value.length > 0) onChangeText("");
+    inputRef.current?.focus();
   };
+  const webClearButtonProps =
+    Platform.OS === "web"
+      ? {
+          onMouseDown: (event: {
+            preventDefault?: () => void;
+            stopPropagation?: () => void;
+          }) => {
+            event.preventDefault?.();
+            event.stopPropagation?.();
+            handleClear();
+          },
+        }
+      : {};
 
   return (
     <View style={[styles.clearableInputContainer, containerStyle]}>
       <TextInput
         {...inputProps}
-        ref={ref}
+        ref={inputRef}
         multiline={multiline}
         onBlur={(event) => {
           setIsFocused(false);
@@ -72,6 +97,7 @@ export const ClearableTextInput = forwardRef<
       />
       {shouldShowClearButton ? (
         <Pressable
+          {...webClearButtonProps}
           accessibilityLabel={clearAccessibilityLabel}
           accessibilityRole="button"
           hitSlop={6}
