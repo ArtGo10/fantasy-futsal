@@ -42,7 +42,6 @@ import { I18nProvider, useI18n } from "./src/i18n/I18nProvider";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
 import { isPublicWebPath, isWebAppPath } from "./src/web/publicSiteConfig";
 import { styles } from "./src/styles";
-import { colors } from "./src/theme/tokens";
 import {
   clearStoredCrashReport,
   formatCrashReport,
@@ -65,9 +64,6 @@ const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
 const AUTH_BOOT_TIMEOUT_MS = 15000;
 const AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT = 1;
 const WEB_SCROLLBAR_STYLE_ID = "fantasy-futsal-scrollbar-styles";
-const WEB_SCROLLBAR_THUMB_COLOR = `${colors.brand.blueDark}E6`;
-const WEB_SCROLLBAR_THUMB_HOVER_COLOR = colors.brand.blueDark;
-const WEB_SCROLLBAR_TRACK_COLOR = `${colors.brand.blueDark}1F`;
 
 const DEFAULT_SAFE_AREA_EDGES = ["top", "right", "bottom", "left"] as const;
 const TOP_EDGE_TO_EDGE_SAFE_AREA_EDGES = ["right", "bottom", "left"] as const;
@@ -108,10 +104,8 @@ function useWebScrollbarStyles() {
     styleElement.id = WEB_SCROLLBAR_STYLE_ID;
     styleElement.textContent = `
       * {
-        scrollbar-width: thin !important;
-        scrollbar-color: ${WEB_SCROLLBAR_THUMB_COLOR} ${WEB_SCROLLBAR_TRACK_COLOR} !important;
-        scrollbar-gutter: stable;
-        -ms-overflow-style: auto !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
       }
 
       html::-webkit-scrollbar,
@@ -119,46 +113,11 @@ function useWebScrollbarStyles() {
       #root::-webkit-scrollbar,
       #root *::-webkit-scrollbar,
       *::-webkit-scrollbar {
-        width: 1px !important;
-        height: 1px !important;
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
         background: transparent !important;
         -webkit-appearance: none !important;
-      }
-
-      html::-webkit-scrollbar-track,
-      body::-webkit-scrollbar-track,
-      #root::-webkit-scrollbar-track,
-      #root *::-webkit-scrollbar-track,
-      *::-webkit-scrollbar-track {
-        background: ${WEB_SCROLLBAR_TRACK_COLOR} !important;
-        border: 0 !important;
-      }
-
-      html::-webkit-scrollbar-thumb,
-      body::-webkit-scrollbar-thumb,
-      #root::-webkit-scrollbar-thumb,
-      #root *::-webkit-scrollbar-thumb,
-      *::-webkit-scrollbar-thumb {
-        background: ${WEB_SCROLLBAR_THUMB_COLOR} !important;
-        border: 0 !important;
-        border-radius: 999px !important;
-      }
-
-      html::-webkit-scrollbar-thumb:hover,
-      body::-webkit-scrollbar-thumb:hover,
-      #root::-webkit-scrollbar-thumb:hover,
-      #root *::-webkit-scrollbar-thumb:hover,
-      *::-webkit-scrollbar-thumb:hover {
-        background: ${WEB_SCROLLBAR_THUMB_HOVER_COLOR} !important;
-      }
-
-      html::-webkit-scrollbar-corner,
-      body::-webkit-scrollbar-corner,
-      #root::-webkit-scrollbar-corner,
-      #root *::-webkit-scrollbar-corner,
-      *::-webkit-scrollbar-corner {
-        background: transparent !important;
-        border: 0 !important;
       }
     `;
     if (!existingStyleElement) {

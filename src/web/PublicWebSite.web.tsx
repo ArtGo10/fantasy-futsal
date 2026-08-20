@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -73,6 +74,22 @@ type PublicCopy = {
   footer: string;
   updatedAt: string;
 };
+
+type PublicLayout = {
+  isMobile: boolean;
+  isTablet: boolean;
+  isNarrow: boolean;
+};
+
+function usePublicLayout(): PublicLayout {
+  const { width } = useWindowDimensions();
+
+  return {
+    isMobile: width < 640,
+    isTablet: width >= 640 && width < 960,
+    isNarrow: width < 960,
+  };
+}
 
 const COPY: Record<LanguageCode, PublicCopy> = {
   en: {
@@ -328,6 +345,7 @@ function getTitleForRoute(copy: PublicCopy, route: PublicWebRoute) {
 
 export function PublicWebSite() {
   const { language } = useI18n();
+  const layout = usePublicLayout();
   const [route, setRoute] = useState<PublicWebRoute>(() => getPublicWebRoute());
   const copy = COPY[language];
 
@@ -375,32 +393,72 @@ export function PublicWebSite() {
 
   return (
     <ScrollView
-      contentContainerStyle={webStyles.pageContent}
+      contentContainerStyle={[
+        webStyles.pageContent,
+        layout.isMobile ? webStyles.pageContentMobile : null,
+        layout.isTablet ? webStyles.pageContentTablet : null,
+      ]}
       style={webStyles.page}
     >
-      <View style={webStyles.header}>
+      <View
+        style={[
+          webStyles.header,
+          layout.isNarrow ? webStyles.headerNarrow : null,
+          layout.isMobile ? webStyles.headerMobile : null,
+        ]}
+      >
         <Pressable
           accessibilityRole="link"
           onPress={() => navigate("/")}
-          style={webStyles.brand}
+          style={[
+            webStyles.brand,
+            layout.isNarrow ? webStyles.brandNarrow : null,
+          ]}
         >
-          <Image source={appIcon} style={webStyles.brandIcon} />
-          <Text style={webStyles.brandTitle}>{PUBLIC_SITE_NAME}</Text>
+          <Image
+            source={appIcon}
+            style={[
+              webStyles.brandIcon,
+              layout.isMobile ? webStyles.brandIconMobile : null,
+            ]}
+          />
+          <Text
+            style={[
+              webStyles.brandTitle,
+              layout.isMobile ? webStyles.brandTitleMobile : null,
+            ]}
+          >
+            {PUBLIC_SITE_NAME}
+          </Text>
         </Pressable>
 
-        <View style={webStyles.headerActions}>
-          <View style={webStyles.nav}>
+        <View
+          style={[
+            webStyles.headerActions,
+            layout.isNarrow ? webStyles.headerActionsNarrow : null,
+          ]}
+        >
+          <View
+            style={[
+              webStyles.nav,
+              layout.isMobile ? webStyles.navMobile : null,
+            ]}
+          >
             {(["/privacy", "/terms", "/rules", "/support"] as const).map(
               (path) => (
                 <Pressable
                   accessibilityRole="link"
                   key={path}
                   onPress={() => navigate(path)}
-                  style={webStyles.navLink}
+                  style={[
+                    webStyles.navLink,
+                    layout.isMobile ? webStyles.navLinkMobile : null,
+                  ]}
                 >
                   <Text
                     style={[
                       webStyles.navLinkText,
+                      layout.isMobile ? webStyles.navLinkTextMobile : null,
                       route === path ? webStyles.navLinkTextActive : null,
                     ]}
                   >
@@ -415,50 +473,113 @@ export function PublicWebSite() {
       </View>
 
       {route === "/" ? (
-        <LandingPage copy={copy} navigate={navigate} openApp={openApp} />
+        <LandingPage
+          copy={copy}
+          layout={layout}
+          navigate={navigate}
+          openApp={openApp}
+        />
       ) : route === "/privacy" ? (
-        <LegalPage copy={copy} kind="privacy" language={language} />
+        <LegalPage
+          copy={copy}
+          kind="privacy"
+          language={language}
+          layout={layout}
+        />
       ) : route === "/terms" ? (
-        <LegalPage copy={copy} kind="terms" language={language} />
+        <LegalPage
+          copy={copy}
+          kind="terms"
+          language={language}
+          layout={layout}
+        />
       ) : route === "/rules" ? (
-        <LegalPage copy={copy} kind="rules" language={language} />
+        <LegalPage
+          copy={copy}
+          kind="rules"
+          language={language}
+          layout={layout}
+        />
       ) : route === "/support" ? (
-        <SupportPage copy={copy} openMail={openMail} />
+        <SupportPage copy={copy} layout={layout} openMail={openMail} />
       ) : route === "/account-deletion" ? (
-        <AccountDeletionPage copy={copy} openMail={openMail} />
+        <AccountDeletionPage
+          copy={copy}
+          layout={layout}
+          openMail={openMail}
+        />
       ) : route === NOT_FOUND_PUBLIC_WEB_PATH ? (
-        <NotFoundPage copy={copy} navigate={navigate} />
+        <NotFoundPage copy={copy} layout={layout} navigate={navigate} />
       ) : null}
 
-      <Footer copy={copy} navigate={navigate} />
+      <Footer copy={copy} layout={layout} navigate={navigate} />
     </ScrollView>
   );
 }
 
 function LandingPage({
   copy,
+  layout,
   navigate,
   openApp,
 }: {
   copy: PublicCopy;
+  layout: PublicLayout;
   navigate: (path: PublicWebPath) => void;
   openApp: () => void;
 }) {
   return (
-    <View style={webStyles.main}>
-      <View style={webStyles.hero}>
-        <View style={webStyles.heroCopy}>
+    <View
+      style={[
+        webStyles.main,
+        layout.isNarrow ? webStyles.mainNarrow : null,
+        layout.isMobile ? webStyles.mainMobile : null,
+      ]}
+    >
+      <View
+        style={[
+          webStyles.hero,
+          layout.isNarrow ? webStyles.heroNarrow : null,
+        ]}
+      >
+        <View
+          style={[
+            webStyles.heroCopy,
+            layout.isNarrow ? webStyles.heroCopyNarrow : null,
+          ]}
+        >
           <Text style={webStyles.eyebrow}>{copy.landing.eyebrow}</Text>
-          <Text style={webStyles.heroTitle}>{copy.landing.title}</Text>
-          <Text style={webStyles.heroDescription}>
+          <Text
+            style={[
+              webStyles.heroTitle,
+              layout.isTablet ? webStyles.heroTitleTablet : null,
+              layout.isMobile ? webStyles.heroTitleMobile : null,
+            ]}
+          >
+            {copy.landing.title}
+          </Text>
+          <Text
+            style={[
+              webStyles.heroDescription,
+              layout.isMobile ? webStyles.heroDescriptionMobile : null,
+            ]}
+          >
             {copy.landing.description}
           </Text>
 
-          <View style={webStyles.ctaRow}>
+          <View
+            style={[
+              webStyles.ctaRow,
+              layout.isMobile ? webStyles.ctaRowMobile : null,
+            ]}
+          >
             <Pressable
               accessibilityRole="link"
               onPress={openApp}
-              style={webStyles.primaryButton}
+              style={[
+                webStyles.primaryButton,
+                layout.isMobile ? webStyles.fullWidthButton : null,
+              ]}
             >
               <Text style={webStyles.primaryButtonText}>
                 {copy.landing.appCta}
@@ -467,7 +588,10 @@ function LandingPage({
             <Pressable
               accessibilityRole="link"
               onPress={() => navigate("/rules")}
-              style={webStyles.secondaryButton}
+              style={[
+                webStyles.secondaryButton,
+                layout.isMobile ? webStyles.fullWidthButton : null,
+              ]}
             >
               <Text style={webStyles.secondaryButtonText}>
                 {copy.landing.primaryCta}
@@ -476,7 +600,10 @@ function LandingPage({
             <Pressable
               accessibilityRole="link"
               onPress={() => navigate("/support")}
-              style={webStyles.secondaryButton}
+              style={[
+                webStyles.secondaryButton,
+                layout.isMobile ? webStyles.fullWidthButton : null,
+              ]}
             >
               <Text style={webStyles.secondaryButtonText}>
                 {copy.landing.secondaryCta}
@@ -489,15 +616,30 @@ function LandingPage({
           imageStyle={webStyles.heroArtImage}
           resizeMode="cover"
           source={splashImage}
-          style={webStyles.heroArt}
+          style={[
+            webStyles.heroArt,
+            layout.isTablet ? webStyles.heroArtTablet : null,
+            layout.isMobile ? webStyles.heroArtMobile : null,
+          ]}
         >
           <View style={webStyles.heroArtOverlay}>
-            <Image source={appIcon} style={webStyles.heroIcon} />
+            <Image
+              source={appIcon}
+              style={[
+                webStyles.heroIcon,
+                layout.isMobile ? webStyles.heroIconMobile : null,
+              ]}
+            />
           </View>
         </ImageBackground>
       </View>
 
-      <View style={webStyles.statusCard}>
+      <View
+        style={[
+          webStyles.statusCard,
+          layout.isMobile ? webStyles.statusCardMobile : null,
+        ]}
+      >
         <Text style={webStyles.statusLabel}>{copy.landing.statusLabel}</Text>
         <Text style={webStyles.statusText}>{copy.landing.statusText}</Text>
       </View>
@@ -509,13 +651,21 @@ function LandingPage({
         </Text>
       </View>
 
-      <View style={webStyles.cardGrid}>
+      <View
+        style={[
+          webStyles.cardGrid,
+          layout.isMobile ? webStyles.cardGridMobile : null,
+        ]}
+      >
         {copy.landing.cards.map((card) => (
           <Pressable
             accessibilityRole="link"
             key={card.path}
             onPress={() => navigate(card.path)}
-            style={webStyles.infoCard}
+            style={[
+              webStyles.infoCard,
+              layout.isMobile ? webStyles.infoCardMobile : null,
+            ]}
           >
             <Text style={webStyles.infoCardTitle}>{card.title}</Text>
             <Text style={webStyles.infoCardText}>{card.description}</Text>
@@ -530,10 +680,12 @@ function LegalPage({
   copy,
   kind,
   language,
+  layout,
 }: {
   copy: PublicCopy;
   kind: LegalKind;
   language: LanguageCode;
+  layout: PublicLayout;
 }) {
   const legalContent = useMemo(
     () => getLegalContent(language, kind),
@@ -545,6 +697,7 @@ function LegalPage({
     <ArticleShell
       description={pageCopy.description}
       eyebrow={pageCopy.eyebrow}
+      layout={layout}
       title={pageCopy.title}
     >
       <Text style={webStyles.updatedAt}>
@@ -566,15 +719,18 @@ function LegalPage({
 
 function SupportPage({
   copy,
+  layout,
   openMail,
 }: {
   copy: PublicCopy;
+  layout: PublicLayout;
   openMail: () => void;
 }) {
   return (
     <ArticleShell
       description={copy.support.description}
       eyebrow={copy.support.eyebrow}
+      layout={layout}
       title={copy.support.title}
     >
       <View style={webStyles.callout}>
@@ -612,15 +768,18 @@ function SupportPage({
 
 function AccountDeletionPage({
   copy,
+  layout,
   openMail,
 }: {
   copy: PublicCopy;
+  layout: PublicLayout;
   openMail: () => void;
 }) {
   return (
     <ArticleShell
       description={copy.deletion.description}
       eyebrow={copy.deletion.eyebrow}
+      layout={layout}
       title={copy.deletion.title}
     >
       <View style={webStyles.articleSection}>
@@ -660,15 +819,18 @@ function AccountDeletionPage({
 
 function NotFoundPage({
   copy,
+  layout,
   navigate,
 }: {
   copy: PublicCopy;
+  layout: PublicLayout;
   navigate: (path: PublicWebPath) => void;
 }) {
   return (
     <ArticleShell
       description={copy.notFound.description}
       eyebrow="404"
+      layout={layout}
       title={copy.notFound.title}
     >
       <Pressable onPress={() => navigate("/")} style={webStyles.primaryButton}>
@@ -682,36 +844,77 @@ function ArticleShell({
   children,
   description,
   eyebrow,
+  layout,
   title,
 }: {
   children: ReactNode;
   description: string;
   eyebrow: string;
+  layout: PublicLayout;
   title: string;
 }) {
   return (
-    <View style={webStyles.articleShell}>
+    <View
+      style={[
+        webStyles.articleShell,
+        layout.isNarrow ? webStyles.articleShellNarrow : null,
+        layout.isMobile ? webStyles.articleShellMobile : null,
+      ]}
+    >
       <View style={webStyles.articleHero}>
         <Text style={webStyles.eyebrow}>{eyebrow}</Text>
-        <Text style={webStyles.articleTitle}>{title}</Text>
-        <Text style={webStyles.articleDescription}>{description}</Text>
+        <Text
+          style={[
+            webStyles.articleTitle,
+            layout.isMobile ? webStyles.articleTitleMobile : null,
+          ]}
+        >
+          {title}
+        </Text>
+        <Text
+          style={[
+            webStyles.articleDescription,
+            layout.isMobile ? webStyles.articleDescriptionMobile : null,
+          ]}
+        >
+          {description}
+        </Text>
       </View>
-      <View style={webStyles.articleCard}>{children}</View>
+      <View
+        style={[
+          webStyles.articleCard,
+          layout.isMobile ? webStyles.articleCardMobile : null,
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 }
 
 function Footer({
   copy,
+  layout,
   navigate,
 }: {
   copy: PublicCopy;
+  layout: PublicLayout;
   navigate: (path: PublicWebPath) => void;
 }) {
   return (
-    <View style={webStyles.footer}>
+    <View
+      style={[
+        webStyles.footer,
+        layout.isMobile ? webStyles.footerMobile : null,
+      ]}
+    >
       <Text style={webStyles.footerText}>{copy.footer}</Text>
-      <View style={webStyles.footerLinks}>
+      <View
+        style={[
+          webStyles.footerLinks,
+          layout.isMobile ? webStyles.footerLinksMobile : null,
+        ]}
+      >
         {(
           [
             "/privacy",
@@ -747,6 +950,14 @@ const webStyles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xl,
   },
+  pageContentTablet: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  pageContentMobile: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
   header: {
     width: "100%",
     maxWidth: 1120,
@@ -755,21 +966,42 @@ const webStyles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.lg,
   },
+  headerNarrow: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+    gap: spacing.md,
+  },
+  headerMobile: {
+    gap: spacing.sm,
+  },
   brand: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  brandNarrow: {
+    maxWidth: "100%",
   },
   brandIcon: {
     width: 46,
     height: 46,
     borderRadius: radii.lg,
   },
+  brandIconMobile: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+  },
   brandTitle: {
     color: colors.text.primary,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.lg,
+  },
+  brandTitleMobile: {
+    flexShrink: 1,
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.base,
   },
   headerActions: {
     flexDirection: "row",
@@ -778,14 +1010,31 @@ const webStyles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.md,
   },
+  headerActionsNarrow: {
+    width: "100%",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
   nav: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
     gap: spacing.xs,
   },
+  navMobile: {
+    width: "100%",
+    gap: 6,
+  },
   navLink: {
     paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  navLinkMobile: {
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    paddingVertical: 7,
     paddingHorizontal: spacing.sm,
   },
   navLinkText: {
@@ -793,6 +1042,10 @@ const webStyles = StyleSheet.create({
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
     lineHeight: typography.lineHeight.sm,
+  },
+  navLinkTextMobile: {
+    fontSize: 13,
+    lineHeight: 17,
   },
   navLinkTextActive: {
     color: colors.app.primary,
@@ -803,11 +1056,23 @@ const webStyles = StyleSheet.create({
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
   },
+  mainNarrow: {
+    gap: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  mainMobile: {
+    gap: spacing.md,
+    paddingTop: spacing.lg,
+  },
   hero: {
     width: "100%",
     flexDirection: "row",
     alignItems: "stretch",
     gap: spacing.xl,
+  },
+  heroNarrow: {
+    flexDirection: "column",
+    gap: spacing.lg,
   },
   heroCopy: {
     flex: 1,
@@ -815,6 +1080,11 @@ const webStyles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.lg,
     paddingVertical: spacing.xxl,
+  },
+  heroCopyNarrow: {
+    minWidth: 0,
+    gap: spacing.md,
+    paddingVertical: 0,
   },
   eyebrow: {
     color: colors.app.primary,
@@ -829,6 +1099,14 @@ const webStyles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: 54,
   },
+  heroTitleTablet: {
+    fontSize: 42,
+    lineHeight: 48,
+  },
+  heroTitleMobile: {
+    fontSize: 34,
+    lineHeight: 39,
+  },
   heroDescription: {
     maxWidth: 560,
     color: colors.text.secondary,
@@ -836,11 +1114,24 @@ const webStyles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     lineHeight: 26,
   },
+  heroDescriptionMobile: {
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.base,
+  },
   ctaRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
     gap: spacing.md,
+  },
+  ctaRowMobile: {
+    alignItems: "stretch",
+    flexDirection: "column",
+    gap: spacing.sm,
+  },
+  fullWidthButton: {
+    width: "100%",
+    alignSelf: "stretch",
   },
   primaryButton: {
     minHeight: 48,
@@ -884,6 +1175,14 @@ const webStyles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.app.primaryDark,
   },
+  heroArtTablet: {
+    minWidth: 0,
+    minHeight: 340,
+  },
+  heroArtMobile: {
+    minWidth: 0,
+    minHeight: 260,
+  },
   heroArtImage: {
     borderRadius: radii.lg,
   },
@@ -898,6 +1197,11 @@ const webStyles = StyleSheet.create({
     height: 148,
     borderRadius: 34,
   },
+  heroIconMobile: {
+    width: 104,
+    height: 104,
+    borderRadius: 24,
+  },
   statusCard: {
     width: "100%",
     borderWidth: 1,
@@ -906,6 +1210,10 @@ const webStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.xl,
     gap: spacing.xs,
+  },
+  statusCardMobile: {
+    borderRadius: radii.md,
+    padding: spacing.lg,
   },
   statusLabel: {
     color: colors.app.primary,
@@ -941,6 +1249,10 @@ const webStyles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.md,
   },
+  cardGridMobile: {
+    flexDirection: "column",
+    gap: spacing.sm,
+  },
   infoCard: {
     minWidth: 220,
     flexGrow: 1,
@@ -951,6 +1263,13 @@ const webStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.xs,
     padding: spacing.lg,
+  },
+  infoCardMobile: {
+    minWidth: 0,
+    flexBasis: "auto",
+    width: "100%",
+    borderRadius: radii.md,
+    padding: spacing.md,
   },
   infoCardTitle: {
     color: colors.text.primary,
@@ -970,6 +1289,14 @@ const webStyles = StyleSheet.create({
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
   },
+  articleShellNarrow: {
+    gap: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  articleShellMobile: {
+    gap: spacing.md,
+    paddingTop: spacing.lg,
+  },
   articleHero: {
     gap: spacing.sm,
   },
@@ -979,11 +1306,19 @@ const webStyles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: 44,
   },
+  articleTitleMobile: {
+    fontSize: 30,
+    lineHeight: 35,
+  },
   articleDescription: {
     color: colors.text.secondary,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.medium,
     lineHeight: 26,
+  },
+  articleDescriptionMobile: {
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.base,
   },
   articleCard: {
     width: "100%",
@@ -993,6 +1328,11 @@ const webStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.lg,
     padding: spacing.xl,
+  },
+  articleCardMobile: {
+    borderRadius: radii.md,
+    gap: spacing.md,
+    padding: spacing.md,
   },
   updatedAt: {
     color: colors.text.muted,
@@ -1058,6 +1398,10 @@ const webStyles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
   },
+  footerMobile: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+  },
   footerText: {
     color: colors.text.muted,
     fontSize: typography.size.sm,
@@ -1068,6 +1412,11 @@ const webStyles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
+  },
+  footerLinksMobile: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+    gap: spacing.sm,
   },
   footerLinkText: {
     color: colors.app.primary,
