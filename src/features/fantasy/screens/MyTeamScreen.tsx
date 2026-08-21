@@ -99,11 +99,7 @@ type PlayerPickerSortMode =
   | "club";
 const FAVORITE_CLUB_NONE_VALUE = "__no_favorite__";
 const PLAYER_PICKER_ALL_CLUBS_VALUE = "__all_clubs__";
-const PLAYER_PICKER_FREE_AGENTS_VALUE = "__free_agents__";
-type PlayerPickerClubFilterValue =
-  | Id<"fantasyClubs">
-  | typeof PLAYER_PICKER_FREE_AGENTS_VALUE
-  | null;
+type PlayerPickerClubFilterValue = Id<"fantasyClubs"> | null;
 
 const PLAYER_PICKER_SORT_OPTIONS: Array<{
   id: PlayerPickerSortMode;
@@ -3182,13 +3178,17 @@ export function MyTeamScreen({
   const sortedPlayersByPosition = useMemo(
     () => ({
       goalkeeper: (fantasyPlayers ?? [])
-        .filter((player) => player.position === "goalkeeper")
+        .filter(
+          (player) => player.clubId !== null && player.position === "goalkeeper",
+        )
         .sort(
           (a, b) =>
             b.price - a.price || a.displayName.localeCompare(b.displayName),
         ),
       universal: (fantasyPlayers ?? [])
-        .filter((player) => player.position === "universal")
+        .filter(
+          (player) => player.clubId !== null && player.position === "universal",
+        )
         .sort(
           (a, b) =>
             b.price - a.price || a.displayName.localeCompare(b.displayName),
@@ -3208,17 +3208,12 @@ export function MyTeamScreen({
   const favoriteClub = favoriteClubId
     ? (clubsById.get(favoriteClubId) ?? null)
     : null;
-  const playerPickerClubIsFreeAgents =
-    playerPickerClubId === PLAYER_PICKER_FREE_AGENTS_VALUE;
-  const playerPickerClub =
-    playerPickerClubId && playerPickerClubId !== PLAYER_PICKER_FREE_AGENTS_VALUE
-      ? (clubsById.get(playerPickerClubId) ?? null)
-      : null;
-  const playerPickerClubLabel = playerPickerClubIsFreeAgents
-    ? t("players.freeAgents")
-    : playerPickerClub
-      ? (playerPickerClub.shortName ?? playerPickerClub.name)
-      : t("team.playerPicker.allClubs");
+  const playerPickerClub = playerPickerClubId
+    ? (clubsById.get(playerPickerClubId) ?? null)
+    : null;
+  const playerPickerClubLabel = playerPickerClub
+    ? (playerPickerClub.shortName ?? playerPickerClub.name)
+    : t("team.playerPicker.allClubs");
   const playerPickerSortOptionLabel = t(
     PLAYER_PICKER_SORT_OPTIONS.find(
       (option) => option.id === playerPickerSortMode,
@@ -3233,10 +3228,6 @@ export function MyTeamScreen({
       {
         label: t("team.playerPicker.allClubs"),
         value: PLAYER_PICKER_ALL_CLUBS_VALUE,
-      },
-      {
-        label: t("players.freeAgents"),
-        value: PLAYER_PICKER_FREE_AGENTS_VALUE,
       },
       ...activeClubs.map((club) => ({
         label: club.shortName ?? club.name,
@@ -3357,21 +3348,20 @@ export function MyTeamScreen({
 
     const sourcePlayers =
       playerPickerPurpose === "incomingTransfer"
-        ? [...(fantasyPlayers ?? [])].sort(
-            (a, b) =>
-              b.price - a.price || a.displayName.localeCompare(b.displayName),
-          )
+        ? [...(fantasyPlayers ?? [])]
+            .filter((player) => player.clubId !== null)
+            .sort(
+              (a, b) =>
+                b.price - a.price || a.displayName.localeCompare(b.displayName),
+            )
         : activeSlot
           ? sortedPlayersByPosition[activeSlot.position]
           : [];
 
     const filteredPlayers = sourcePlayers
-      .filter((player) => {
-        if (playerPickerClubId === PLAYER_PICKER_FREE_AGENTS_VALUE) {
-          return player.clubId === null;
-        }
-        return playerPickerClubId ? player.clubId === playerPickerClubId : true;
-      })
+      .filter((player) =>
+        playerPickerClubId ? player.clubId === playerPickerClubId : true,
+      )
       .filter((player) => {
         if (!normalizedPlayerSearchQuery) return true;
 
@@ -4779,9 +4769,7 @@ export function MyTeamScreen({
                   setPlayerPickerClubId(
                     value === PLAYER_PICKER_ALL_CLUBS_VALUE
                       ? null
-                      : value === PLAYER_PICKER_FREE_AGENTS_VALUE
-                        ? PLAYER_PICKER_FREE_AGENTS_VALUE
-                        : (value as Id<"fantasyClubs">),
+                      : (value as Id<"fantasyClubs">),
                   );
                   setPlayerPickerDropdown(null);
                 }}
@@ -4909,40 +4897,6 @@ export function MyTeamScreen({
                   </View>
                 </View>
                 {playerPickerClubId === null ? (
-                  <Check
-                    color={colors.brand.blue}
-                    size={22}
-                    strokeWidth={2.8}
-                  />
-                ) : (
-                  <View style={styles.seasonPickerOptionRadio} />
-                )}
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setPlayerPickerClubId(PLAYER_PICKER_FREE_AGENTS_VALUE);
-                  setPlayerPickerDropdown(null);
-                }}
-                style={[
-                  styles.seasonPickerOption,
-                  playerPickerClubIsFreeAgents
-                    ? styles.seasonPickerOptionSelected
-                    : null,
-                ]}
-              >
-                <View style={styles.seasonPickerOptionBody}>
-                  <View style={styles.seasonPickerOptionTextGroup}>
-                    <Text
-                      numberOfLines={1}
-                      style={styles.seasonPickerOptionText}
-                    >
-                      {t("players.freeAgents")}
-                    </Text>
-                  </View>
-                </View>
-                {playerPickerClubIsFreeAgents ? (
                   <Check
                     color={colors.brand.blue}
                     size={22}

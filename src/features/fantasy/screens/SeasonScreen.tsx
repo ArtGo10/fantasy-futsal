@@ -671,26 +671,33 @@ function SeasonStats({
         localizeFantasyPlayer(player, language, clubsById),
       ]),
     );
-    const getLocalizedLeader = (player: SeasonPlayerStat | null) =>
-      player
+    const hasClub = (player: SeasonPlayerStat | null) =>
+      Boolean(player?.clubId);
+    const getLocalizedLeader = (player: SeasonPlayerStat | null) => {
+      const localizedPlayer = player
         ? (localizedById.get(player.id) ??
           localizeFantasyPlayer(player, language, clubsById))
         : null;
 
+      return hasClub(localizedPlayer) ? localizedPlayer : null;
+    };
+    const localizedLeaderboard = playerStatistics.leaderboard
+      .map((player) => localizedById.get(player.id) ?? player)
+      .filter(hasClub);
+    const localizedTopPerformers = playerStatistics.topPerformers
+      .map((player) => localizedById.get(player.id) ?? player)
+      .filter(hasClub);
+
     return {
       ...playerStatistics,
-      leaderboard: playerStatistics.leaderboard.map(
-        (player) => localizedById.get(player.id) ?? player,
-      ),
+      leaderboard: localizedLeaderboard,
       leaders: {
         bestValue: getLocalizedLeader(playerStatistics.leaders.bestValue),
         mostAssists: getLocalizedLeader(playerStatistics.leaders.mostAssists),
         mostPicked: getLocalizedLeader(playerStatistics.leaders.mostPicked),
         topScorer: getLocalizedLeader(playerStatistics.leaders.topScorer),
       },
-      topPerformers: playerStatistics.topPerformers.map(
-        (player) => localizedById.get(player.id) ?? player,
-      ),
+      topPerformers: localizedTopPerformers,
     };
   }, [clubsById, language, playerStatistics]);
 

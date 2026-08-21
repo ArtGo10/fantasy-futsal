@@ -3757,19 +3757,60 @@ export const listFantasyTeams = query({
       .query("fantasyTeams")
       .withIndex("by_season", (q) => q.eq("seasonId", season._id))
       .collect();
-    const [users, gameweeks, teamGameweekScores] = await Promise.all([
-      Promise.all(
-        fantasyTeams.map((fantasyTeam) => ctx.db.get(fantasyTeam.userId)),
+    const [users, gameweeks, teamGameweekScores, squadPickLists] =
+      await Promise.all([
+        Promise.all(
+          fantasyTeams.map((fantasyTeam) => ctx.db.get(fantasyTeam.userId)),
+        ),
+        ctx.db
+          .query("fantasyGameweeks")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyTeamGameweekScores")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        Promise.all(
+          fantasyTeams.map((fantasyTeam) =>
+            ctx.db
+              .query("fantasySquadPicks")
+              .withIndex("by_team", (q) =>
+                q.eq("fantasyTeamId", fantasyTeam._id),
+              )
+              .collect(),
+          ),
+        ),
+      ]);
+
+    const squadPlayerIds = Array.from(
+      new Set(
+        squadPickLists.flatMap((picks) => picks.map((pick) => pick.playerId)),
       ),
-      ctx.db
-        .query("fantasyGameweeks")
-        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
-        .collect(),
-      ctx.db
-        .query("fantasyTeamGameweekScores")
-        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
-        .collect(),
-    ]);
+    );
+    const squadPlayers = await Promise.all(
+      squadPlayerIds.map((playerId) => ctx.db.get(playerId)),
+    );
+    const playerPriceById = new Map<Id<"fantasyPlayers">, number>();
+    for (const player of squadPlayers) {
+      if (player) {
+        playerPriceById.set(player._id, player.price);
+      }
+    }
+    const teamValueById = new Map<Id<"fantasyTeams">, number>();
+    for (const [index, picks] of squadPickLists.entries()) {
+      const uniquePlayerIds = Array.from(
+        new Set(picks.map((pick) => pick.playerId)),
+      );
+      teamValueById.set(
+        fantasyTeams[index]._id,
+        roundFantasyMoney(
+          uniquePlayerIds.reduce(
+            (sum, playerId) => sum + (playerPriceById.get(playerId) ?? 0),
+            0,
+          ),
+        ),
+      );
+    }
 
     const gameweekNumberById = new Map(
       gameweeks.map((gameweek) => [gameweek._id, gameweek.number]),
@@ -3835,6 +3876,7 @@ export const listFantasyTeams = query({
           bestGameweekPoints: gameweekMetrics.bestGameweekPoints,
           lastGameweekPoints: gameweekMetrics.lastGameweekPoints,
           budgetRemaining: fantasyTeam.budgetRemaining,
+          teamValue: teamValueById.get(fantasyTeam._id) ?? 0,
         };
       })
       .sort(

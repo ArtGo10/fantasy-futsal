@@ -9,11 +9,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { TOKEN_FETCH_TIMEOUT_MS } from "../constants";
 
 type ClerkGetToken = ReturnType<typeof useAuth>["getToken"];
+
+const WEB_FOREGROUND_TOKEN_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -71,6 +73,7 @@ function useClerkConvexAuth() {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth();
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
+  const lastForegroundTokenRefreshAtRef = useRef(Date.now());
   const [foregroundRefreshNonce, setForegroundRefreshNonce] = useState(0);
   const preferDefaultToken = sessionClaims?.aud === "convex";
 
@@ -88,6 +91,17 @@ function useClerkConvexAuth() {
         nextAppState === "active" &&
         /inactive|background/.test(previousAppState)
       ) {
+        const now = Date.now();
+
+        if (
+          Platform.OS === "web" &&
+          now - lastForegroundTokenRefreshAtRef.current <
+            WEB_FOREGROUND_TOKEN_REFRESH_COOLDOWN_MS
+        ) {
+          return;
+        }
+
+        lastForegroundTokenRefreshAtRef.current = now;
         setForegroundRefreshNonce((current) => current + 1);
       }
     });

@@ -4476,11 +4476,35 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     lineHeight: typography.lineHeight.sm,
   },
+  leagueMetricsGroup: {
+    alignItems: "flex-end",
+    gap: spacing.xs,
+  },
+  leagueMetric: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: spacing.xs,
+  },
+  leagueMetricLabel: {
+    flexShrink: 1,
+    color: colors.text.muted,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.heavy,
+    lineHeight: typography.lineHeight.xs,
+    textTransform: "uppercase",
+  },
   leaguePoints: {
     color: colors.text.primary,
-    fontSize: typography.size.lg,
+    fontSize: typography.size.base,
     fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.lg,
+    lineHeight: typography.lineHeight.base,
+  },
+  leagueTeamValue: {
+    color: colors.brand.blueDark,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.black,
+    lineHeight: typography.lineHeight.md,
   },
   playerCardMain: {
     flex: 1,

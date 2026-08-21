@@ -97,11 +97,7 @@ type MarketScreenProps = {
 };
 
 const MARKET_ALL_CLUBS_VALUE = "__all_clubs__";
-const MARKET_FREE_AGENTS_VALUE = "__free_agents__";
-type MarketClubFilterValue =
-  | Id<"fantasyClubs">
-  | typeof MARKET_FREE_AGENTS_VALUE
-  | null;
+type MarketClubFilterValue = Id<"fantasyClubs"> | null;
 
 const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
   goalkeeper: "players.position.goalkeeper",
@@ -151,21 +147,19 @@ export function MarketScreen({
     () => new Map(activeClubs.map((club) => [club.id, club])),
     [activeClubs],
   );
-  const selectedClubIsFreeAgents = selectedClubId === MARKET_FREE_AGENTS_VALUE;
   const selectedClub = useMemo(
-    () =>
-      selectedClubId && selectedClubId !== MARKET_FREE_AGENTS_VALUE
-        ? (clubsById.get(selectedClubId) ?? null)
-        : null,
+    () => (selectedClubId ? (clubsById.get(selectedClubId) ?? null) : null),
     [clubsById, selectedClubId],
   );
 
   const sortedPlayers = useMemo(
     () =>
-      [...(players ?? [])].sort(
-        (a, b) =>
-          b.price - a.price || a.displayName.localeCompare(b.displayName),
-      ),
+      [...(players ?? [])]
+        .filter((player) => player.clubId !== null)
+        .sort(
+          (a, b) =>
+            b.price - a.price || a.displayName.localeCompare(b.displayName),
+        ),
     [players],
   );
 
@@ -174,12 +168,10 @@ export function MarketScreen({
       .filter(
         (player) => !deferredFavoritesOnly || favoriteIdSet.has(player.id),
       )
-      .filter((player) => {
-        if (deferredSelectedClubId === MARKET_FREE_AGENTS_VALUE) {
-          return player.clubId === null;
-        }
-        return !deferredSelectedClubId || player.clubId === deferredSelectedClubId;
-      })
+      .filter(
+        (player) =>
+          !deferredSelectedClubId || player.clubId === deferredSelectedClubId,
+      )
       .filter((player) => {
         if (!deferredSearchQuery) return true;
 
@@ -228,15 +220,12 @@ export function MarketScreen({
   const selectedPlayerIsFavorite = selectedPlayer
     ? favoriteIdSet.has(selectedPlayer.id)
     : false;
-  const teamFilterLabel = selectedClubIsFreeAgents
-    ? t("players.freeAgents")
-    : selectedClub
-      ? (selectedClub.shortName ?? selectedClub.name)
-      : t("market.teamFilter");
+  const teamFilterLabel = selectedClub
+    ? (selectedClub.shortName ?? selectedClub.name)
+    : t("market.teamFilter");
   const clubFilterOptions = useMemo(
     () => [
       { label: t("market.allTeams"), value: MARKET_ALL_CLUBS_VALUE },
-      { label: t("players.freeAgents"), value: MARKET_FREE_AGENTS_VALUE },
       ...activeClubs.map((club) => ({
         label: club.shortName ?? club.name,
         leading: <FantasyClubLogo club={club} size="sm" />,
@@ -313,9 +302,7 @@ export function MarketScreen({
                 setSelectedClubId(
                   value === MARKET_ALL_CLUBS_VALUE
                     ? null
-                    : value === MARKET_FREE_AGENTS_VALUE
-                      ? MARKET_FREE_AGENTS_VALUE
-                      : (value as Id<"fantasyClubs">),
+                    : (value as Id<"fantasyClubs">),
                 );
               }}
               options={clubFilterOptions}
@@ -453,42 +440,6 @@ export function MarketScreen({
                 </View>
               </Pressable>
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setSelectedClubId(MARKET_FREE_AGENTS_VALUE);
-                  setClubPickerOpen(false);
-                }}
-                style={[
-                  styles.seasonPickerOption,
-                  selectedClubIsFreeAgents
-                    ? styles.seasonPickerOptionSelected
-                    : null,
-                ]}
-              >
-                <View style={styles.seasonPickerOptionBody}>
-                  <View style={styles.seasonPickerOptionTextGroup}>
-                    <Text
-                      numberOfLines={1}
-                      style={styles.seasonPickerOptionText}
-                    >
-                      {t("players.freeAgents")}
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={[
-                    styles.seasonPickerOptionRadio,
-                    selectedClubIsFreeAgents
-                      ? styles.seasonPickerOptionRadioSelected
-                      : null,
-                  ]}
-                >
-                  {selectedClubIsFreeAgents ? (
-                    <View style={styles.seasonPickerOptionRadioDot} />
-                  ) : null}
-                </View>
-              </Pressable>
 
               {activeClubs.map((club) => {
                 const isSelected = club.id === selectedClubId;

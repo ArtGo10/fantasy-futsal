@@ -145,6 +145,7 @@ const CONNECTION_TOAST_RESUME_GRACE_MS = 8000;
 const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
+const WEB_FOREGROUND_SESSION_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
 function waitForNextPaint() {
   return new Promise<void>((resolve) => {
@@ -327,6 +328,7 @@ export function FantasyHome({
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
   const lastForegroundResumeAtRef = useRef(0);
+  const lastForegroundSessionRefreshAtRef = useRef(Date.now());
   const wasOfflineRef = useRef(isOffline);
   const preferredLanguageSyncKeyRef = useRef<string | null>(null);
   const previousPrivateLoadingOverlayDebugRef = useRef<string | null>(null);
@@ -510,6 +512,10 @@ export function FantasyHome({
       localizeFantasyPlayers(fantasyPlayers, language, localizedFantasyClubs),
     [fantasyPlayers, language, localizedFantasyClubs],
   );
+  const localizedActiveClubFantasyPlayers = useMemo(
+    () => localizedFantasyPlayers?.filter((player) => player.clubId !== null),
+    [localizedFantasyPlayers],
+  );
   const localizedFantasyFixtures = useMemo(
     () =>
       localizeFantasyFixtures(fantasyFixtures, language, localizedFantasyClubs),
@@ -602,10 +608,20 @@ export function FantasyHome({
         nextAppState === "active" &&
         /inactive|background/.test(previousAppState)
       ) {
-        lastForegroundResumeAtRef.current = Date.now();
+        const now = Date.now();
+        lastForegroundResumeAtRef.current = now;
         setIsConnectionToastVisible(false);
 
         if (userIsSignedIn) {
+          if (
+            Platform.OS === "web" &&
+            now - lastForegroundSessionRefreshAtRef.current <
+              WEB_FOREGROUND_SESSION_REFRESH_COOLDOWN_MS
+          ) {
+            return;
+          }
+
+          lastForegroundSessionRefreshAtRef.current = now;
           setCanShowAuthProblem(false);
           setConvexTokenStatus("idle");
           setForegroundRefreshNonce((current) => current + 1);
@@ -1054,7 +1070,7 @@ export function FantasyHome({
       <MyTeamScreen
         fantasyClubs={localizedFantasyClubs}
         fantasyOverview={fantasyOverview}
-        fantasyPlayers={localizedFantasyPlayers}
+        fantasyPlayers={localizedActiveClubFantasyPlayers}
         fantasyTeam={localizedFantasyTeam}
         fantasyTeams={fantasyTeams}
         fantasyGameweeks={localizedFantasyGameweeks}
@@ -1072,7 +1088,7 @@ export function FantasyHome({
     [
       fantasyOverview,
       localizedFantasyClubs,
-      localizedFantasyPlayers,
+      localizedActiveClubFantasyPlayers,
       localizedFantasyTeam,
       fantasyTeams,
       localizedFantasyGameweeks,
@@ -1092,12 +1108,12 @@ export function FantasyHome({
         clubs={localizedFantasyClubs}
         favoritePlayerIds={favoritePlayerIds}
         onToggleFavorite={handleToggleFavoritePlayer}
-        players={localizedFantasyPlayers}
+        players={localizedActiveClubFantasyPlayers}
       />
     ),
     [
       localizedFantasyClubs,
-      localizedFantasyPlayers,
+      localizedActiveClubFantasyPlayers,
       favoritePlayerIds,
       handleToggleFavoritePlayer,
     ],
@@ -1130,7 +1146,7 @@ export function FantasyHome({
         onDeleteAccount={handleDeleteAccount}
         onOpenAdminActions={handleOpenAdminActions}
         onSignOut={handleSignOut}
-        players={localizedFantasyPlayers}
+        players={localizedActiveClubFantasyPlayers}
       />
     ),
     [
@@ -1141,7 +1157,7 @@ export function FantasyHome({
       handleOpenAdminActions,
       handleSignOut,
       localizedFantasyFixtures,
-      localizedFantasyPlayers,
+      localizedActiveClubFantasyPlayers,
       profileEmail,
       profileName,
     ],
@@ -1457,7 +1473,7 @@ export function FantasyHome({
         onDeleteAccount={handleDeleteAccount}
         onOpenAdminActions={handleOpenAdminActions}
         onSignOut={handleSignOut}
-        players={localizedFantasyPlayers}
+        players={localizedActiveClubFantasyPlayers}
       />
     );
   }

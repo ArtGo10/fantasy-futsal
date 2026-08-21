@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, Coins } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
   Platform,
@@ -18,6 +18,7 @@ import { colors } from "../../../theme/tokens";
 import { BottomSheet } from "../components/BottomSheet";
 import { DesktopSelect } from "../components/DesktopSelect";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
+import { formatFantasyMoney } from "../utils/money";
 
 type LeagueMode = "total" | "average" | "record" | "lastWeek";
 
@@ -28,6 +29,7 @@ type FantasyLeagueTeam = {
   lastGameweekPoints?: number | null;
   managerName: string | null;
   name: string;
+  teamValue?: number | null;
   totalPoints?: number | null;
 };
 
@@ -163,13 +165,30 @@ export function LeagueScreen({
                     </Text>
                   ) : null}
                 </View>
-                <Text style={styles.leaguePoints}>
-                  {getFormattedLeagueMetric(
-                    getLeagueMetric(team, leagueMode),
-                    leagueMode,
-                    language,
-                  )}
-                </Text>
+                <View style={styles.leagueMetricsGroup}>
+                  <View style={styles.leagueMetric}>
+                    <Text numberOfLines={1} style={styles.leagueMetricLabel}>
+                      {t("league.pointsLabel")}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.leaguePoints}>
+                      {getFormattedLeagueMetric(
+                        getLeagueMetric(team, leagueMode),
+                        leagueMode,
+                        language,
+                      )}
+                    </Text>
+                  </View>
+                  <View style={styles.leagueMetric}>
+                    <Coins
+                      color={colors.brand.blueDark}
+                      size={16}
+                      strokeWidth={2.5}
+                    />
+                    <Text numberOfLines={1} style={styles.leagueTeamValue}>
+                      {formatFantasyMoney(team.teamValue, { fallback: 0 })}
+                    </Text>
+                  </View>
+                </View>
               </View>
             ))}
           </View>
