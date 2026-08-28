@@ -37,7 +37,7 @@ const processAccountDeletionCleanupJobsInternal = makeFunctionReference<
 
 crons.interval(
   "send deadline push reminders",
-  { minutes: 5 },
+  { minutes: 15 },
   sendDeadlineRemindersInternal,
 );
 crons.interval(

@@ -6,8 +6,10 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { styles } from "../../styles";
 
 export function LanguageSwitcher({
+  activeColor,
   variant = "default",
 }: {
+  activeColor?: string;
   variant?: "default" | "app";
 }) {
   const { language, setLanguage, t } = useI18n();
@@ -65,6 +67,7 @@ export function LanguageSwitcher({
               isAppVariant ? styles.languageButtonApp : null,
               isActive ? styles.languageButtonActive : null,
               isActive && isAppVariant ? styles.languageButtonActiveApp : null,
+              isActive && activeColor ? { backgroundColor: activeColor } : null,
             ]}
           >
             <Text

@@ -9,6 +9,7 @@ type AppUser = {
   clerkId: string;
   email?: string;
   participantNumber?: number;
+  role?: "user" | "admin";
 };
 
 function getEnvList(name: string) {
@@ -27,6 +28,7 @@ export function isAdminUser(
   const identityEmail = identity.email?.trim().toLowerCase();
   const userEmail = user?.email?.trim().toLowerCase();
 
+  if (user?.role === "admin") return true;
   if (adminClerkIds.includes(identity.subject.toLowerCase())) return true;
   if (identityEmail && adminEmails.includes(identityEmail)) return true;
   if (userEmail && adminEmails.includes(userEmail)) return true;
@@ -44,14 +46,27 @@ export async function requireIdentity(ctx: QueryCtx | MutationCtx) {
   return identity;
 }
 
-export async function getCurrentUser(ctx: QueryCtx | MutationCtx) {
-  const identity = await requireIdentity(ctx);
+export async function getCurrentUserIfAuthenticated(
+  ctx: QueryCtx | MutationCtx,
+) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+
   const user = await ctx.db
     .query("users")
     .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
     .first();
 
   return { identity, user };
+}
+
+export async function getCurrentUser(ctx: QueryCtx | MutationCtx) {
+  const currentUser = await getCurrentUserIfAuthenticated(ctx);
+  if (!currentUser) {
+    throw new Error("Вы не авторизованы.");
+  }
+
+  return currentUser;
 }
 
 export async function requireAdmin(ctx: QueryCtx | MutationCtx) {

@@ -10,6 +10,7 @@ import {
   getClubKitSource,
   type PlayerPosition,
 } from "../assets/fantasyAssets";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 type TeamKitAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -48,6 +49,7 @@ export const TeamKitAvatar = memo(function TeamKitAvatar({
   size = "md",
   variant = "avatar",
 }: TeamKitAvatarProps) {
+  const fantasyTheme = useFantasySeasonTheme();
   const kitSource = getClubKitSource(clubName, clubShortName, position);
   const isSlotVariant = variant === "slot";
 
@@ -74,7 +76,7 @@ export const TeamKitAvatar = memo(function TeamKitAvatar({
         />
       ) : (
         <Shirt
-          color={isMuted ? colors.text.muted : colors.brand.blueDark}
+          color={isMuted ? colors.text.muted : fantasyTheme.primaryColor}
           size={Math.round(KIT_ICON_SIZES[size] * (isSlotVariant ? 1.1 : 1))}
           strokeWidth={2.2}
         />

@@ -243,6 +243,11 @@
         "4757",
         "4750",
         "16370",
+        "4933",
+        "4600",
+        "8270",
+        "source-kyrylo-bratenko",
+        "uaf-30029461",
         "source-dmytro-chalyy",
         "academy-futsal-artem-tkach",
         "duf-44917",
@@ -275,7 +280,6 @@
         "4516",
         "4518",
         "4756",
-        "8270",
         "9762",
         "6503",
         "4686",
@@ -283,6 +287,7 @@
         "19220",
         "6505",
         "6329",
+        "18946",
         "source-artem-rybak"
       ],
       "sortOrder": 10,
@@ -1575,9 +1580,13 @@
       "lastName": "Моспан",
       "position": "universal",
       "jerseyNumber": 24,
-      "clubExternalId": null,
-      "currentTeamExternalIds": [],
-      "listedTeamExternalIds": [],
+      "clubExternalId": "19258",
+      "currentTeamExternalIds": [
+        "19258"
+      ],
+      "listedTeamExternalIds": [
+        "19258"
+      ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4933.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4933.png",
       "sourceStats": {
@@ -1597,11 +1606,8 @@
       "photoStorageKey": "players/4933.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/04/Mospan-Vlad-Photoroom.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/04/Mospan-Vlad-Photoroom-150x150.png",
-      "status": "unavailable",
-      "statusDetails": {
-        "messageEn": "Without club right now.",
-        "messageUk": "Без клубу зараз."
-      }
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "4581",
@@ -3821,9 +3827,13 @@
       "lastName": "Гураль",
       "position": "universal",
       "jerseyNumber": 8,
-      "clubExternalId": null,
-      "currentTeamExternalIds": [],
-      "listedTeamExternalIds": [],
+      "clubExternalId": "19258",
+      "currentTeamExternalIds": [
+        "19258"
+      ],
+      "listedTeamExternalIds": [
+        "19258"
+      ],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4600.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4600.jpg",
       "sourceStats": {
@@ -3843,11 +3853,8 @@
       "photoStorageKey": "players/4600.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2002/06/Hural-1-scaled.jpg",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2002/06/Hural-1-150x150.jpg",
-      "status": "unavailable",
-      "statusDetails": {
-        "messageEn": "Without club right now.",
-        "messageUk": "Без клубу зараз."
-      }
+      "status": "active",
+      "statusDetails": null
     },
     {
       "externalId": "5786",
@@ -6742,13 +6749,9 @@
       "lastName": "Поночовний",
       "position": "universal",
       "jerseyNumber": 12,
-      "clubExternalId": "21695",
-      "currentTeamExternalIds": [
-        "21695"
-      ],
-      "listedTeamExternalIds": [
-        "21695"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4518.png",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4518.png",
       "sourceStats": {
@@ -6760,7 +6763,12 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4518.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1994/06/IMG_9137-removebg-preview.png",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1994/06/IMG_9137-removebg-preview-200x300.png"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1994/06/IMG_9137-removebg-preview-200x300.png",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Without club right now.",
+        "messageUk": "Без клубу зараз."
+      }
     },
     {
       "externalId": "4756",
@@ -6936,12 +6944,12 @@
       "lastName": "Сторожук",
       "position": "universal",
       "jerseyNumber": 69,
-      "clubExternalId": "21695",
+      "clubExternalId": "19258",
       "currentTeamExternalIds": [
-        "21695"
+        "19258"
       ],
       "listedTeamExternalIds": [
-        "21695"
+        "19258"
       ],
       "photoUrl": "https://futsal.com.ua/wp-content/uploads/2005/05/Dyzayn-bez-nazvy.png-2-scaled.png",
       "photoThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2005/05/Dyzayn-bez-nazvy.png-2-200x300.png",
@@ -7183,6 +7191,44 @@
       "photoProvider": "source",
       "photoCloudflareId": null,
       "photoStorageKey": null,
+      "status": "active",
+      "statusDetails": null
+    },
+    {
+      "externalId": "18946",
+      "sourceSlug": "dmytro-stepanov",
+      "sourceUrl": "https://futsal.com.ua/гравці/dmytro-stepanov/",
+      "displayName": "Дмитро Степанов",
+      "firstName": "Дмитро",
+      "lastName": "Степанов",
+      "position": "universal",
+      "jerseyNumber": 11,
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18946.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/18946.png",
+      "sourceStats": {
+        "extraLeague2025_26": {
+          "goals": 0,
+          "assists": 0,
+          "appearances": 9,
+          "yellowCards": 0,
+          "redCards": 0,
+          "ownGoals": 0
+        },
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 7.5,
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2008/11/Stepanov-1-scaled.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2008/11/Stepanov-1-150x150.png",
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/18946.png",
       "status": "active",
       "statusDetails": null
     },
@@ -7613,6 +7659,75 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 8,
+      "status": "active",
+      "statusDetails": null
+    },
+    {
+      "externalId": "uaf-30029461",
+      "sourceSlug": "uaf-30029461",
+      "sourceUrl": "https://start.uaf.ua/players/30029461",
+      "displayName": "Данііл Сокальський",
+      "firstName": "Данііл",
+      "lastName": "Сокальський",
+      "position": "universal",
+      "jerseyNumber": null,
+      "clubExternalId": "19258",
+      "currentTeamExternalIds": [
+        "19258"
+      ],
+      "listedTeamExternalIds": [
+        "19258"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoCloudflareId": null,
+      "photoStorageKey": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5,
+      "status": "active",
+      "statusDetails": null
+    },
+    {
+      "externalId": "source-kyrylo-bratenko",
+      "sourceSlug": "kyrylo-bratenko",
+      "sourceUrl": "https://futsal.com.ua/гравці/kyrylo-bratenko/",
+      "displayName": "Кирил Братенко",
+      "firstName": "Кирил",
+      "lastName": "Братенко",
+      "position": "universal",
+      "jerseyNumber": 21,
+      "clubExternalId": "19258",
+      "currentTeamExternalIds": [
+        "19258"
+      ],
+      "listedTeamExternalIds": [
+        "19258"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/source-kyrylo-bratenko.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/source-kyrylo-bratenko.png",
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/source-kyrylo-bratenko.png",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1999/10/Bratenko__7_zelena_foto_1-removebg-preview.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/10/Bratenko__7_zelena_foto_1-removebg-preview-150x150.png",
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": {
+          "goals": 1,
+          "assists": 0,
+          "appearances": 6,
+          "yellowCards": 2,
+          "redCards": 0,
+          "ownGoals": 0
+        }
+      },
+      "suggestedPrice": 6.5,
       "status": "active",
       "statusDetails": null
     },

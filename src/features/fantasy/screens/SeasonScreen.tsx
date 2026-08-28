@@ -32,6 +32,7 @@ import {
   getLocalizedClubName,
   localizeFantasyPlayer,
 } from "../utils/localizedFantasyData";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import type {
   FantasyFixture,
   FantasyGameweek,
@@ -182,6 +183,7 @@ const TABLE_MODES: Array<{ id: TableMode; labelKey: TranslationKey }> = [
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
   en: "en-US",
+  pl: "pl-PL",
   uk: "uk-UA",
 };
 
@@ -433,16 +435,34 @@ function SeasonSelectButton({
   label: string;
   onPress: () => void;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={styles.seasonSelectButton}
+      style={[
+        styles.seasonSelectButton,
+        {
+          backgroundColor: fantasyTheme.softColor,
+          borderColor: fantasyTheme.borderColor,
+        },
+      ]}
     >
-      <Text numberOfLines={1} style={styles.seasonSelectButtonText}>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.seasonSelectButtonText,
+          { color: fantasyTheme.primaryColor },
+        ]}
+      >
         {label}
       </Text>
-      <ChevronDown color={colors.text.secondary} size={18} strokeWidth={2.3} />
+      <ChevronDown
+        color={fantasyTheme.primaryColor}
+        size={18}
+        strokeWidth={2.3}
+      />
     </Pressable>
   );
 }
@@ -458,6 +478,8 @@ function SeasonPickerSheet({
   options: PickerOption[];
   visible: boolean;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <BottomSheet
       contentScrollEnabled={false}
@@ -477,7 +499,15 @@ function SeasonPickerSheet({
               onPress={option.onPress}
               style={[
                 styles.seasonPickerOption,
-                option.isSelected ? styles.seasonPickerOptionSelected : null,
+                option.isSelected
+                  ? [
+                      styles.seasonPickerOptionSelected,
+                      {
+                        backgroundColor: fantasyTheme.softColor,
+                        borderColor: fantasyTheme.borderColor,
+                      },
+                    ]
+                  : null,
               ]}
             >
               <View style={styles.seasonPickerOptionBody}>
@@ -502,12 +532,20 @@ function SeasonPickerSheet({
                 style={[
                   styles.seasonPickerOptionRadio,
                   option.isSelected
-                    ? styles.seasonPickerOptionRadioSelected
+                    ? [
+                        styles.seasonPickerOptionRadioSelected,
+                        { borderColor: fantasyTheme.primaryColor },
+                      ]
                     : null,
                 ]}
               >
                 {option.isSelected ? (
-                  <View style={styles.seasonPickerOptionRadioDot} />
+                  <View
+                    style={[
+                      styles.seasonPickerOptionRadioDot,
+                      { backgroundColor: fantasyTheme.primaryColor },
+                    ]}
+                  />
                 ) : null}
               </View>
             </Pressable>
@@ -531,6 +569,8 @@ function SeasonStatsCard({
   player: SeasonPlayerStat | null;
   value: string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.seasonStatsCard}>
       <Text style={styles.seasonStatsCardLabel}>{label}</Text>
@@ -546,7 +586,13 @@ function SeasonStatsCard({
             <Text numberOfLines={1} style={styles.seasonStatsCardName}>
               {player.displayName}
             </Text>
-            <Text numberOfLines={1} style={styles.seasonStatsCardMeta}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.seasonStatsCardMeta,
+                { color: fantasyTheme.primaryColor },
+              ]}
+            >
               {value}
             </Text>
           </View>
@@ -567,6 +613,8 @@ function SeasonStatsRow({
   player: SeasonPlayerStat;
   t: (key: TranslationKey) => string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.seasonStatsRow}>
       <Text style={styles.seasonStatsRank}>{index + 1}</Text>
@@ -584,7 +632,9 @@ function SeasonStatsRow({
           {player.clubName ?? t("players.noClub")}
         </Text>
       </View>
-      <Text style={styles.seasonStatsPoints}>
+      <Text
+        style={[styles.seasonStatsPoints, { color: fantasyTheme.primaryColor }]}
+      >
         {formatSeasonStatNumber(player.points)}
       </Text>
     </View>
@@ -600,6 +650,8 @@ function SeasonStatsLeaderboardRow({
   player: SeasonPlayerStat;
   t: (key: TranslationKey) => string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.seasonStatsLeaderboardRow}>
       <Text style={styles.seasonStatsLeaderboardRank}>{index + 1}</Text>
@@ -640,7 +692,12 @@ function SeasonStatsLeaderboardRow({
       <Text style={styles.seasonStatsLeaderboardCell}>
         {formatSeasonStatNumber(player.averagePointsPerGameweek)}
       </Text>
-      <Text style={styles.seasonStatsLeaderboardPoints}>
+      <Text
+        style={[
+          styles.seasonStatsLeaderboardPoints,
+          { color: fantasyTheme.primaryColor },
+        ]}
+      >
         {formatSeasonStatNumber(player.points)}
       </Text>
     </View>
@@ -833,7 +890,7 @@ function getMatchFixtureClubName(
   return getLocalizedClubName(clubName, language);
 }
 
-function MatchDetailsPage({
+export function MatchDetailsPage({
   clubsById,
   clubsByName,
   details,
@@ -867,6 +924,7 @@ function MatchDetailsPage({
   onBack: () => void;
 }) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -899,10 +957,13 @@ function MatchDetailsPage({
         <Pressable
           accessibilityRole="button"
           onPress={onBack}
-          style={styles.teamWorkspaceBackButton}
+          style={[
+            styles.teamWorkspaceBackButton,
+            { backgroundColor: fantasyTheme.softColor },
+          ]}
         >
           <ChevronLeft
-            color={colors.brand.blueDark}
+            color={fantasyTheme.primaryColor}
             size={22}
             strokeWidth={2.5}
           />
@@ -926,7 +987,12 @@ function MatchDetailsPage({
         </View>
       ) : (
         <>
-          <View style={styles.matchDetailsScoreCard}>
+          <View
+            style={[
+              styles.matchDetailsScoreCard,
+              { backgroundColor: fantasyTheme.softColor },
+            ]}
+          >
             <View style={styles.matchDetailsTeamNameGroup}>
               <View style={styles.matchDetailsTeamIdentity}>
                 <FantasyClubLogo club={homeClub} size="md" />
@@ -935,7 +1001,12 @@ function MatchDetailsPage({
                 </Text>
               </View>
             </View>
-            <Text style={styles.matchDetailsScoreText}>
+            <Text
+              style={[
+                styles.matchDetailsScoreText,
+                { color: fantasyTheme.primaryColor },
+              ]}
+            >
               {formatMatchTime(fixture, language)}
             </Text>
             <View style={styles.matchDetailsTeamNameGroup}>
@@ -965,7 +1036,12 @@ function MatchDetailsPage({
                 isDesktopWeb ? styles.matchDetailsContentPaneDesktop : null,
               ]}
             >
-              <Text style={styles.teamOverviewTitle}>
+              <Text
+                style={[
+                  styles.teamOverviewTitle,
+                  { color: fantasyTheme.primaryColor },
+                ]}
+              >
                 {t("matchDetails.eventsTitle")}
               </Text>
               {events.length === 0 ? (
@@ -995,7 +1071,12 @@ function MatchDetailsPage({
                         </Text>
                       </View>
                       {event.points !== null ? (
-                        <Text style={styles.matchDetailsEventPoints}>
+                        <Text
+                          style={[
+                            styles.matchDetailsEventPoints,
+                            { color: fantasyTheme.primaryColor },
+                          ]}
+                        >
                           {event.points > 0 ? "+" : ""}
                           {event.points}
                         </Text>
@@ -1012,7 +1093,12 @@ function MatchDetailsPage({
                 isDesktopWeb ? styles.matchDetailsContentPaneDesktop : null,
               ]}
             >
-              <Text style={styles.teamOverviewTitle}>
+              <Text
+                style={[
+                  styles.teamOverviewTitle,
+                  { color: fantasyTheme.primaryColor },
+                ]}
+              >
                 {t("matchDetails.lineupsTitle")}
               </Text>
               {homeLineups.length === 0 && awayLineups.length === 0 ? (
@@ -1031,7 +1117,10 @@ function MatchDetailsPage({
                     >
                       <Text
                         numberOfLines={1}
-                        style={styles.matchDetailsLineupTitle}
+                        style={[
+                          styles.matchDetailsLineupTitle,
+                          { color: fantasyTheme.primaryColor },
+                        ]}
                       >
                         {column.title}
                       </Text>
@@ -1090,6 +1179,7 @@ function SeasonCalendar({
   selectedGameweekId: string | null;
 }) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -1352,7 +1442,7 @@ function SeasonCalendar({
             {t("season.reset")}
           </Text>
           <RotateCcw
-            color={filtersDirty ? colors.text.primary : colors.text.muted}
+            color={filtersDirty ? fantasyTheme.primaryColor : colors.text.muted}
             size={16}
             strokeWidth={2.2}
           />
@@ -1368,13 +1458,14 @@ function SeasonCalendar({
               onPress={() => moveGameweek(-1)}
               style={[
                 styles.seasonNavButton,
+                { backgroundColor: fantasyTheme.softColor },
                 selectedGameweekIndex <= 0
                   ? styles.seasonNavButtonDisabled
                   : null,
               ]}
             >
               <ChevronLeft
-                color={colors.brand.blueDark}
+                color={fantasyTheme.primaryColor}
                 size={22}
                 strokeWidth={2.5}
               />
@@ -1405,6 +1496,7 @@ function SeasonCalendar({
               onPress={() => moveGameweek(1)}
               style={[
                 styles.seasonNavButton,
+                { backgroundColor: fantasyTheme.softColor },
                 selectedGameweekIndex < 0 ||
                 selectedGameweekIndex >= gameweeks.length - 1
                   ? styles.seasonNavButtonDisabled
@@ -1412,7 +1504,7 @@ function SeasonCalendar({
               ]}
             >
               <ChevronRight
-                color={colors.brand.blueDark}
+                color={fantasyTheme.primaryColor}
                 size={22}
                 strokeWidth={2.5}
               />
@@ -1671,6 +1763,7 @@ function SeasonStandings({
   setTableMode: (mode: TableMode) => void;
 }) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -1694,7 +1787,12 @@ function SeasonStandings({
 
   return (
     <View style={styles.seasonSectionStack}>
-      <View style={styles.seasonTableModeTabs}>
+      <View
+        style={[
+          styles.seasonTableModeTabs,
+          { backgroundColor: fantasyTheme.softColor },
+        ]}
+      >
         {TABLE_MODES.map((mode) => {
           const isActive = tableMode === mode.id;
           return (
@@ -1704,15 +1802,21 @@ function SeasonStandings({
               onPress={() => setTableMode(mode.id)}
               style={[
                 styles.seasonTableModeButton,
-                isActive ? styles.seasonTableModeButtonActive : null,
+                isActive
+                  ? [
+                      styles.seasonTableModeButtonActive,
+                      { borderColor: fantasyTheme.borderColor },
+                    ]
+                  : null,
               ]}
             >
               <Text
-                style={
+                style={[
                   isActive
                     ? styles.seasonTableModeTextActive
-                    : styles.seasonTableModeText
-                }
+                    : styles.seasonTableModeText,
+                  isActive ? { color: fantasyTheme.primaryColor } : null,
+                ]}
               >
                 {t(mode.labelKey)}
               </Text>
@@ -1937,6 +2041,7 @@ export function SeasonScreen({
   playerStatistics,
 }: SeasonScreenProps) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -2190,11 +2295,12 @@ export function SeasonScreen({
                   style={styles.seasonTabButton}
                 >
                   <Text
-                    style={
+                    style={[
                       isActive
                         ? styles.seasonTabTextActive
-                        : styles.seasonTabText
-                    }
+                        : styles.seasonTabText,
+                      isActive ? { color: fantasyTheme.primaryColor } : null,
+                    ]}
                   >
                     {t(section.labelKey)}
                   </Text>

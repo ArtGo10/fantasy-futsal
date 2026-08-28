@@ -7,7 +7,35 @@ const DEFAULT_SOURCE_FILE = "data/futsal/source-2026-27.json";
 const DEFAULT_PROVIDER = "cloudflare_r2";
 const DEFAULT_KEY_PREFIX = "players";
 const DEFAULT_CACHE_CONTROL = "public, max-age=31536000, immutable";
-const SOURCE_PHOTO_HOSTS = new Set(["futsal.com.ua", "www.futsal.com.ua"]);
+const SOURCE_PHOTO_HOSTS = new Set([
+  "futsal.com.ua",
+  "www.futsal.com.ua",
+  "futsalekstraklasa.pl",
+  "www.futsalekstraklasa.pl",
+  "piastgliwice.com",
+  "www.piastgliwice.com",
+  "legiafutsal.com",
+  "www.legiafutsal.com",
+  "cdn.sportigio.com",
+  "assets.zyrosite.com",
+  "torunfc.pl",
+  "www.torunfc.pl",
+  "kkfkazimierzawielka.pl",
+  "www.kkfkazimierzawielka.pl",
+  "jagielloniafutsal.pl",
+  "www.jagielloniafutsal.pl",
+  "wiaralecha.pl",
+  "www.wiaralecha.pl",
+  "futsal.leszno.pl",
+  "www.futsal.leszno.pl",
+  "futsalswiecie.pl",
+  "www.futsalswiecie.pl",
+  "futsalazs.pl",
+  "www.futsalazs.pl",
+  "bts.rekord.com.pl",
+  "futsalpniewy.pl",
+  "www.futsalpniewy.pl",
+]);
 const EMPTY_SHA256 = createHash("sha256").update("").digest("hex");
 
 function parseArgs(argv) {
@@ -18,6 +46,7 @@ function parseArgs(argv) {
     out: null,
     force: false,
     limit: 0,
+    playerExternalId: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -41,6 +70,7 @@ function parseArgs(argv) {
     else if (arg === "--out") options.out = next();
     else if (arg === "--force") options.force = true;
     else if (arg === "--limit") options.limit = Number(next());
+    else if (arg === "--player") options.playerExternalId = next();
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -61,6 +91,7 @@ function printHelp() {
     "  --out <path>     Output JSON path. Default: overwrite --file when --apply is used.\n" +
     "  --force          Re-upload even players that already use Cloudflare R2.\n" +
     "  --limit <n>      Process only first n upload candidates. Useful for testing.\n\n" +
+    "  --player <id>    Process only one player by externalId.\n\n" +
     "Required env for --apply:\n" +
     "  CLOUDFLARE_R2_ACCESS_KEY_ID\n" +
     "  CLOUDFLARE_R2_SECRET_ACCESS_KEY\n" +
@@ -309,7 +340,11 @@ async function main() {
   const source = readJson(options.file);
   const players = Array.isArray(source.players) ? source.players : [];
 
-  const candidates = players
+  const scopedPlayers = options.playerExternalId
+    ? players.filter((player) => player.externalId === options.playerExternalId)
+    : players;
+
+  const candidates = scopedPlayers
     .map((player) => {
       const sourcePhotoUrl = resolveSourcePhotoUrl(player);
       return {

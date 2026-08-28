@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as appDiagnostics from "../appDiagnostics.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
 import type * as fantasy from "../fantasy.js";
@@ -26,6 +27,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  appDiagnostics: typeof appDiagnostics;
   authHelpers: typeof authHelpers;
   crons: typeof crons;
   fantasy: typeof fantasy;

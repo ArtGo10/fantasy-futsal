@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Plus,
   Repeat2,
   Shirt,
 } from "lucide-react-native";
@@ -48,15 +49,16 @@ import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import {
-  EXTRA_LIGA_WELCOME_GRADIENT_IMAGE,
-  EXTRA_LIGA_WELCOME_ICON_IMAGE,
   FANTASY_STATIC_IMAGE_PROPS,
-  FANTASY_TEAM_IMAGE,
   FUTSAL_FIELD_IMAGE,
+  getFantasySeasonTeamImageSource,
+  getFantasySeasonWelcomeBackgroundSource,
+  getFantasySeasonWelcomeIconSource,
   preloadFantasyStaticAssets,
 } from "../assets/fantasyAssets";
 import { BottomSheet } from "../components/BottomSheet";
 import { DesktopSelect } from "../components/DesktopSelect";
+import { GameweekTeamViewer } from "../components/GameweekTeamViewer";
 import {
   FANTASY_PLAYER_PICKER_STATS_ITEM_HEIGHT,
   FantasyClubLogo,
@@ -69,6 +71,16 @@ import { TeamKitAvatar } from "../components/TeamKitAvatar";
 import { PlayerDetailSheet } from "../components/PlayerDetailSheet";
 import { formatFantasyMoney } from "../utils/money";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
+import { getFantasySeasonDisplayTitle } from "../utils/seasonDisplay";
+import {
+  colorWithAlpha,
+  getFantasySeasonAccentColor,
+  getFantasySeasonPrimaryColor,
+  getFantasySeasonSecondaryColor,
+  isPolishEkstraklasaSeason,
+  type FantasySeasonVisualSource,
+} from "../utils/seasonVisuals";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
@@ -141,7 +153,10 @@ type FantasyOverview =
       } | null;
       currentGameweek: {
         deadlineAt: number | null;
+        id: string;
+        name: string;
         number: number;
+        status: string;
       } | null;
       nextDeadlineAt: number | null;
     }
@@ -167,11 +182,14 @@ type FantasyPlayer = {
   assists?: number | null;
   activeGameweeks?: number | null;
   averagePointsPerGameweek?: number | null;
+  cleanSheets?: number | null;
   goals?: number | null;
+  goalsConceded?: number | null;
   lastGameweekPoints?: number | null;
   managerAveragePointsPerGameweek?: number | null;
   managerLastGameweekPoints?: number | null;
   managerSeasonPoints?: number | null;
+  ownGoals?: number | null;
   penaltiesMissed?: number | null;
   penaltiesSaved?: number | null;
   position: PlayerPosition;
@@ -180,6 +198,7 @@ type FantasyPlayer = {
   priceChangedAt?: number | null;
   priceDelta?: number | null;
   redCards?: number | null;
+  saves?: number | null;
   seasonPoints?: number | null;
   selectedByTeams?: number | null;
   selectedPercent?: number | null;
@@ -197,12 +216,19 @@ type FantasyPlayer = {
 type FantasyPlayers = FantasyPlayer[] | undefined;
 
 type FantasyLeagueTeam = {
+  currentGameweekId?: string | null;
+  currentGameweekNumber?: number | null;
+  currentGameweekParticipated?: boolean | null;
+  currentGameweekPoints?: number | null;
+  currentGameweekStatus?: string | null;
   id: string;
+  managerName?: string | null;
   name: string;
   totalPoints?: number | null;
 };
 
 type FantasyGameweek = {
+  deadlineAt?: number | null;
   id: string;
   name: string;
   number: number;
@@ -360,20 +386,24 @@ type CompactSquadCardProps = {
 };
 
 type TeamDashboardCardProps = {
-  formPoints: string;
+  actionDeadlineValue: string;
+  actionGameweekNumber: number | null;
+  averagePoints: string;
   currentGameweekNumber: number | null;
-  deadlineValue: string;
   highestPoints: string;
+  onOpenHighestDetails?: () => void;
   onOpenPointsDetails: () => void;
   onPickTeam: () => void;
   onTransfers: () => void;
   points: string;
+  season?: FantasySeasonVisualSource | null;
   teamName: string;
 };
 
 type TeamCreateWelcomeProps = {
   onPickTeam: () => void;
   onRules: () => void;
+  season?: FantasySeasonVisualSource | null;
   t: (key: TranslationKey) => string;
 };
 
@@ -388,6 +418,7 @@ type TeamCreateSetupProps = {
   onFavoriteClubChange: (clubId: Id<"fantasyClubs"> | null) => void;
   onOpenFavoriteClubPicker: () => void;
   onTeamNameChange: (value: string) => void;
+  season?: FantasySeasonVisualSource | null;
   shouldHighlightTeamName: boolean;
   t: (key: TranslationKey) => string;
   teamName: string;
@@ -535,6 +566,7 @@ const TEAM_NAME_MAX_LENGTH = 20;
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
   en: "en-US",
+  pl: "pl-PL",
   uk: "uk-UA",
 };
 
@@ -675,6 +707,10 @@ function formatWholeNumber(value: number | null | undefined) {
   return String(value ?? 0);
 }
 
+function getFiniteFantasyNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function formatFantasyPointsValue(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
@@ -736,35 +772,75 @@ function TeamDashboardStat({
   );
 }
 
-function TeamCreateWelcome({ onPickTeam, onRules, t }: TeamCreateWelcomeProps) {
+function TeamCreateWelcome({
+  onPickTeam,
+  onRules,
+  season,
+  t,
+}: TeamCreateWelcomeProps) {
+  const isPolishSeason = isPolishEkstraklasaSeason(season);
+  const primaryColor = getFantasySeasonPrimaryColor(season);
+  const secondaryColor = getFantasySeasonSecondaryColor(season);
+  const accentColor = getFantasySeasonAccentColor(season);
+  const welcomeCardBaseColor = primaryColor;
+  const welcomeLogoBorderColor = isPolishSeason
+    ? colors.text.inverse
+    : accentColor;
+  const welcomePrimaryButtonColor = isPolishSeason
+    ? colorWithAlpha(colors.brand.polishRedDark, 0.46)
+    : colorWithAlpha(secondaryColor, 0.45);
+  const seasonTitle = getFantasySeasonDisplayTitle(
+    season,
+    t,
+    t("competition.extraLiga.shortTitle"),
+  );
+  const description = t("team.welcome.leagueDescription").replace(
+    "{league}",
+    seasonTitle,
+  );
+
   return (
-    <View style={styles.teamCreateWelcomeCard}>
+    <View
+      style={[
+        styles.teamCreateWelcomeCard,
+        { backgroundColor: welcomeCardBaseColor },
+      ]}
+    >
       <Image
         {...FANTASY_STATIC_IMAGE_PROPS}
         contentFit="cover"
-        source={EXTRA_LIGA_WELCOME_GRADIENT_IMAGE}
+        source={getFantasySeasonWelcomeBackgroundSource(season)}
         style={styles.teamCreateWelcomeBackground}
       />
       <View style={styles.teamCreateWelcomeContent}>
-        <View style={styles.teamCreateWelcomeLogoWrap}>
+        <View
+          style={[
+            styles.teamCreateWelcomeLogoWrap,
+            { borderColor: welcomeLogoBorderColor },
+          ]}
+        >
           <Image
             {...FANTASY_STATIC_IMAGE_PROPS}
             contentFit="contain"
-            source={EXTRA_LIGA_WELCOME_ICON_IMAGE}
-            style={styles.teamCreateWelcomeLogo}
+            source={getFantasySeasonWelcomeIconSource(season)}
+            style={[
+              styles.teamCreateWelcomeLogo,
+              isPolishSeason ? styles.teamCreateWelcomeLogoSquare : null,
+            ]}
           />
         </View>
-        <Text style={styles.teamCreateWelcomeTitle}>
-          {t("competition.extraLiga.title")}
-        </Text>
+        <Text style={styles.teamCreateWelcomeTitle}>{seasonTitle}</Text>
         <Text style={styles.teamCreateWelcomeDescription}>
-          {t("team.welcome.description")}
+          {description}
         </Text>
         <View style={styles.teamCreateWelcomeActions}>
           <Pressable
             accessibilityRole="button"
             onPress={onPickTeam}
-            style={styles.teamCreateWelcomePrimaryButton}
+            style={[
+              styles.teamCreateWelcomePrimaryButton,
+              { backgroundColor: welcomePrimaryButtonColor },
+            ]}
           >
             <Shirt color={colors.text.inverse} size={22} strokeWidth={2.4} />
             <Text style={styles.teamCreateWelcomePrimaryText}>
@@ -777,11 +853,16 @@ function TeamCreateWelcome({ onPickTeam, onRules, t }: TeamCreateWelcomeProps) {
             style={styles.teamCreateWelcomeSecondaryButton}
           >
             <BookOpen
-              color={colors.brand.blueDark}
+              color={primaryColor}
               size={20}
               strokeWidth={2.4}
             />
-            <Text style={styles.teamCreateWelcomeSecondaryText}>
+            <Text
+              style={[
+                styles.teamCreateWelcomeSecondaryText,
+                { color: primaryColor },
+              ]}
+            >
               {t("team.welcome.rulesButton")}
             </Text>
           </Pressable>
@@ -802,11 +883,13 @@ function TeamCreateSetup({
   onFavoriteClubChange,
   onOpenFavoriteClubPicker,
   onTeamNameChange,
+  season,
   shouldHighlightTeamName,
   t,
   teamName,
   teamNameErrorText,
 }: TeamCreateSetupProps) {
+  const fantasyTheme = useFantasySeasonTheme();
   const { height: windowHeight } = useWindowDimensions();
   const teamNameInputRef = useRef<TextInput>(null);
   const heroHeight = Math.min(Math.max(windowHeight * 0.5, 300), 460);
@@ -909,7 +992,7 @@ function TeamCreateSetup({
               {favoriteClub?.name ?? t("team.setup.favoriteClubPlaceholder")}
             </Text>
             <ChevronDown
-              color={colors.brand.blueDark}
+              color={fantasyTheme.primaryColor}
               size={24}
               strokeWidth={2.4}
             />
@@ -930,9 +1013,17 @@ function TeamCreateSetup({
         accessibilityRole="button"
         onPress={handleCancelPress}
         onPressIn={dismissSetupKeyboard}
-        style={styles.teamBuilderFooterSecondaryButton}
+        style={[
+          styles.teamBuilderFooterSecondaryButton,
+          { borderColor: fantasyTheme.borderColor },
+        ]}
       >
-        <Text style={styles.teamBuilderFooterSecondaryText}>
+        <Text
+          style={[
+            styles.teamBuilderFooterSecondaryText,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
           {t("team.cancelButton")}
         </Text>
       </Pressable>
@@ -943,6 +1034,7 @@ function TeamCreateSetup({
         onPressIn={dismissSetupKeyboard}
         style={[
           styles.teamBuilderFooterPrimaryButton,
+          canContinue ? { backgroundColor: fantasyTheme.primaryColor } : null,
           canContinue ? null : styles.teamBuilderFooterButtonDisabled,
         ]}
       >
@@ -968,6 +1060,7 @@ function TeamCreateSetup({
       <View
         style={[
           styles.teamCreateSetupHero,
+          { backgroundColor: fantasyTheme.primaryColor },
           isDesktopWeb
             ? styles.teamCreateSetupHeroDesktop
             : { height: heroHeight },
@@ -977,7 +1070,7 @@ function TeamCreateSetup({
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"
           contentPosition="center"
-          source={FANTASY_TEAM_IMAGE}
+          source={getFantasySeasonTeamImageSource(season)}
           style={styles.teamCreateSetupHeroImage}
         />
       </View>
@@ -1003,24 +1096,41 @@ function TeamCreateSetup({
 }
 
 function TeamDashboardCard({
-  formPoints,
+  actionDeadlineValue,
+  actionGameweekNumber,
+  averagePoints,
   currentGameweekNumber,
-  deadlineValue,
   highestPoints,
+  onOpenHighestDetails,
   onOpenPointsDetails,
   onPickTeam,
   onTransfers,
   points,
+  season,
   teamName,
 }: TeamDashboardCardProps) {
   const { t } = useI18n();
+  const isPolishSeason = isPolishEkstraklasaSeason(season);
+  const primaryColor = getFantasySeasonPrimaryColor(season);
+  const secondaryColor = getFantasySeasonSecondaryColor(season);
+  const actionButtonColor = isPolishSeason
+    ? colorWithAlpha(colors.brand.polishRedDark, 0.58)
+    : colorWithAlpha(secondaryColor, 0.45);
+  const currentGameweekLabel = t("team.dashboard.gameweekLabel").replace(
+    "{number}",
+    currentGameweekNumber ? String(currentGameweekNumber) : "-",
+  );
+  const actionGameweekLabel = t("team.dashboard.gameweekLabel").replace(
+    "{number}",
+    actionGameweekNumber ? String(actionGameweekNumber) : "-",
+  );
 
   return (
-    <View style={styles.teamDashboardCard}>
+    <View style={[styles.teamDashboardCard, { backgroundColor: primaryColor }]}>
       <Image
         {...FANTASY_STATIC_IMAGE_PROPS}
         contentFit="cover"
-        source={EXTRA_LIGA_WELCOME_GRADIENT_IMAGE}
+        source={getFantasySeasonWelcomeBackgroundSource(season)}
         style={styles.teamDashboardCardBackground}
       />
       <View style={styles.teamDashboardProfileRow}>
@@ -1029,25 +1139,18 @@ function TeamDashboardCard({
             {teamName}
           </Text>
         </View>
-        <View style={styles.teamDashboardGameweekTextGroup}>
-          <Text style={styles.teamDashboardGameweekTitle}>
-            {t("team.dashboard.gameweekLabel").replace(
-              "{number}",
-              currentGameweekNumber ? String(currentGameweekNumber) : "-",
-            )}
-          </Text>
-          <Text numberOfLines={1} style={styles.teamDashboardDeadlineText}>
-            {t("team.dashboard.deadlineLabel")}: {deadlineValue}
-          </Text>
-        </View>
       </View>
 
-      <View style={styles.teamDashboardDivider} />
+      <View style={styles.teamDashboardGameweekTextGroup}>
+        <Text style={styles.teamDashboardGameweekTitle}>
+          {currentGameweekLabel}
+        </Text>
+      </View>
 
       <View style={styles.teamDashboardStatsRow}>
         <TeamDashboardStat
-          label={t("team.dashboard.formLabel")}
-          value={formPoints}
+          label={t("team.dashboard.averageLabel")}
+          value={averagePoints}
         />
         <TeamDashboardStat
           label={t("team.dashboard.pointsLabel")}
@@ -1056,15 +1159,30 @@ function TeamDashboardCard({
         />
         <TeamDashboardStat
           label={t("team.dashboard.highestLabel")}
+          onPress={onOpenHighestDetails}
           value={highestPoints}
         />
+      </View>
+
+      <View style={styles.teamDashboardDivider} />
+
+      <View style={styles.teamDashboardGameweekTextGroup}>
+        <Text style={styles.teamDashboardGameweekTitle}>
+          {actionGameweekLabel}
+        </Text>
+        <Text numberOfLines={1} style={styles.teamDashboardDeadlineText}>
+          {t("team.dashboard.deadlineLabel")}: {actionDeadlineValue}
+        </Text>
       </View>
 
       <View style={styles.teamDashboardActionRow}>
         <Pressable
           accessibilityRole="button"
           onPress={onPickTeam}
-          style={styles.teamDashboardActionButton}
+          style={[
+            styles.teamDashboardActionButton,
+            { backgroundColor: actionButtonColor },
+          ]}
         >
           <Shirt color={colors.text.inverse} size={22} strokeWidth={2.4} />
           <Text style={styles.teamDashboardActionText}>
@@ -1074,7 +1192,10 @@ function TeamDashboardCard({
         <Pressable
           accessibilityRole="button"
           onPress={onTransfers}
-          style={styles.teamDashboardActionButton}
+          style={[
+            styles.teamDashboardActionButton,
+            { backgroundColor: actionButtonColor },
+          ]}
         >
           <Repeat2 color={colors.text.inverse} size={22} strokeWidth={2.4} />
           <Text style={styles.teamDashboardActionText}>
@@ -1095,6 +1216,8 @@ function TeamOverviewRow({
   value: string;
   valueTone?: "danger" | "success";
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.teamOverviewRow}>
       <Text numberOfLines={1} style={styles.teamOverviewRowLabel}>
@@ -1104,6 +1227,7 @@ function TeamOverviewRow({
         numberOfLines={1}
         style={[
           styles.teamOverviewRowValue,
+          !valueTone ? { color: fantasyTheme.primaryColor } : null,
           valueTone === "success" ? styles.teamOverviewRowValueSuccess : null,
           valueTone === "danger" ? styles.teamOverviewRowValueDanger : null,
         ]}
@@ -1161,6 +1285,7 @@ function TeamPointsDetailsPlayerCard({
   playersById: Map<Id<"fantasyPlayers">, FantasyPlayer>;
 }) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const localizedPlayer = item.player ? playersById.get(item.player.id) : null;
   const playerName =
     localizedPlayer?.displayName ?? item.player?.displayName ?? "-";
@@ -1196,7 +1321,12 @@ function TeamPointsDetailsPlayerCard({
             </Text>
           </View>
         </View>
-        <Text style={styles.teamPointsBreakdownManagerPoints}>
+        <Text
+          style={[
+            styles.teamPointsBreakdownManagerPoints,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
           {formatFantasyPointsValue(item.managerPoints)}
         </Text>
       </View>
@@ -1206,7 +1336,12 @@ function TeamPointsDetailsPlayerCard({
           <Text style={styles.teamPointsBreakdownMiniLabel}>
             {t("team.pointsBreakdownRaw")}
           </Text>
-          <Text style={styles.teamPointsBreakdownMiniValue}>
+          <Text
+            style={[
+              styles.teamPointsBreakdownMiniValue,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
             {formatFantasyPointsValue(item.rawPlayerPoints)}
           </Text>
         </View>
@@ -1214,7 +1349,12 @@ function TeamPointsDetailsPlayerCard({
           <Text style={styles.teamPointsBreakdownMiniLabel}>
             {t("team.pointsBreakdownMultiplier")}
           </Text>
-          <Text style={styles.teamPointsBreakdownMiniValue}>
+          <Text
+            style={[
+              styles.teamPointsBreakdownMiniValue,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
             {"×" + formatFantasyPointsValue(item.multiplier)}
           </Text>
         </View>
@@ -1222,7 +1362,12 @@ function TeamPointsDetailsPlayerCard({
           <Text style={styles.teamPointsBreakdownMiniLabel}>
             {t("team.pointsBreakdownRole")}
           </Text>
-          <Text style={styles.teamPointsBreakdownMiniValue}>
+          <Text
+            style={[
+              styles.teamPointsBreakdownMiniValue,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
             {formatFantasyPointsValue(item.rolePoints)}
           </Text>
         </View>
@@ -1230,7 +1375,12 @@ function TeamPointsDetailsPlayerCard({
           <Text style={styles.teamPointsBreakdownMiniLabel}>
             {t("team.pointsBreakdownManager")}
           </Text>
-          <Text style={styles.teamPointsBreakdownMiniValue}>
+          <Text
+            style={[
+              styles.teamPointsBreakdownMiniValue,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
             {formatFantasyPointsValue(item.managerPoints)}
           </Text>
         </View>
@@ -1280,6 +1430,7 @@ function TeamPointsGameweekDetailsCard({
   playersById: Map<Id<"fantasyPlayers">, FantasyPlayer>;
 }) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const visiblePlayers = getVisibleBreakdownPlayers(breakdown);
   const gameweekTitle = breakdown.gameweek
     ? t("team.pointsBreakdownGameweekTitle").replace(
@@ -1305,7 +1456,12 @@ function TeamPointsGameweekDetailsCard({
             </Text>
           ) : null}
         </View>
-        <Text style={styles.teamPointsDetailsGameweekPoints}>
+        <Text
+          style={[
+            styles.teamPointsDetailsGameweekPoints,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
           {formatFantasyPointsValue(breakdown.score?.points)}
         </Text>
       </View>
@@ -1354,6 +1510,7 @@ function TeamPointsDetailsScreen({
   totalPointsFallback: string;
 }) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const gameweeks = breakdown?.gameweeks ?? [];
   const deductions = breakdown?.deductions ?? [];
   const hasContent = gameweeks.length > 0 || deductions.length > 0;
@@ -1367,10 +1524,13 @@ function TeamPointsDetailsScreen({
         <Pressable
           accessibilityRole="button"
           onPress={onBack}
-          style={styles.teamWorkspaceBackButton}
+          style={[
+            styles.teamWorkspaceBackButton,
+            { backgroundColor: fantasyTheme.softColor },
+          ]}
         >
           <ArrowLeft
-            color={colors.brand.blueDark}
+            color={fantasyTheme.primaryColor}
             size={22}
             strokeWidth={2.5}
           />
@@ -1386,7 +1546,12 @@ function TeamPointsDetailsScreen({
         <View style={styles.teamWorkspaceHeaderSpacer} />
       </View>
 
-      <View style={styles.teamPointsDetailsHero}>
+      <View
+        style={[
+          styles.teamPointsDetailsHero,
+          { backgroundColor: fantasyTheme.primaryColor },
+        ]}
+      >
         <Text style={styles.teamPointsDetailsHeroLabel}>
           {t("team.overview.overallPoints")}
         </Text>
@@ -1400,7 +1565,7 @@ function TeamPointsDetailsScreen({
 
       {breakdown === undefined ? (
         <View style={[styles.teamBuilderPanel, styles.centerBlock]}>
-          <ActivityIndicator color={colors.brand.blue} />
+          <ActivityIndicator color={fantasyTheme.primaryColor} />
           <Text style={styles.mutedText}>{t("common.loading")}</Text>
         </View>
       ) : !breakdown || !hasContent ? (
@@ -1478,7 +1643,9 @@ function TeamPointsDetailsScreen({
 function TeamChipTokenRail({ t }: { t: (key: TranslationKey) => string }) {
   return (
     <View style={styles.teamChipTokenRail}>
-      <View style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}>
+      <View
+        style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}
+      >
         <Shirt color={colors.text.muted} size={22} strokeWidth={2.4} />
         <Text
           adjustsFontSizeToFit
@@ -1489,12 +1656,17 @@ function TeamChipTokenRail({ t }: { t: (key: TranslationKey) => string }) {
           {t("team.overview.benchBoost")}
         </Text>
         <Text
-          style={[styles.teamChipTokenStatus, styles.teamChipTokenStatusDisabled]}
+          style={[
+            styles.teamChipTokenStatus,
+            styles.teamChipTokenStatusDisabled,
+          ]}
         >
           {t("team.chips.soon")}
         </Text>
       </View>
-      <View style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}>
+      <View
+        style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}
+      >
         <Check color={colors.text.muted} size={22} strokeWidth={2.8} />
         <Text
           adjustsFontSizeToFit
@@ -1505,12 +1677,17 @@ function TeamChipTokenRail({ t }: { t: (key: TranslationKey) => string }) {
           {t("team.overview.tripleCaptain")}
         </Text>
         <Text
-          style={[styles.teamChipTokenStatus, styles.teamChipTokenStatusDisabled]}
+          style={[
+            styles.teamChipTokenStatus,
+            styles.teamChipTokenStatusDisabled,
+          ]}
         >
           {t("team.chips.soon")}
         </Text>
       </View>
-      <View style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}>
+      <View
+        style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}
+      >
         <BookOpen color={colors.text.muted} size={22} strokeWidth={2.4} />
         <Text
           adjustsFontSizeToFit
@@ -1521,12 +1698,17 @@ function TeamChipTokenRail({ t }: { t: (key: TranslationKey) => string }) {
           {t("team.overview.wildcard")}
         </Text>
         <Text
-          style={[styles.teamChipTokenStatus, styles.teamChipTokenStatusDisabled]}
+          style={[
+            styles.teamChipTokenStatus,
+            styles.teamChipTokenStatusDisabled,
+          ]}
         >
           {t("team.chips.soon")}
         </Text>
       </View>
-      <View style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}>
+      <View
+        style={[styles.teamChipTokenCard, styles.teamChipTokenCardDisabled]}
+      >
         <Repeat2 color={colors.text.muted} size={22} strokeWidth={2.4} />
         <Text
           adjustsFontSizeToFit
@@ -1537,7 +1719,10 @@ function TeamChipTokenRail({ t }: { t: (key: TranslationKey) => string }) {
           {t("team.overview.freeHit")}
         </Text>
         <Text
-          style={[styles.teamChipTokenStatus, styles.teamChipTokenStatusDisabled]}
+          style={[
+            styles.teamChipTokenStatus,
+            styles.teamChipTokenStatusDisabled,
+          ]}
         >
           {t("team.chips.soon")}
         </Text>
@@ -1565,6 +1750,7 @@ function TeamWorkspaceHeader({
   t: (key: TranslationKey) => string;
   titleOverride?: string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
   const title =
     titleOverride ??
     (mode === "transfers"
@@ -1576,23 +1762,40 @@ function TeamWorkspaceHeader({
       <Pressable
         accessibilityRole="button"
         onPress={onBack}
-        style={styles.teamWorkspaceBackButton}
+        style={[
+          styles.teamWorkspaceBackButton,
+          { backgroundColor: fantasyTheme.softColor },
+        ]}
       >
-        <ArrowLeft color={colors.brand.blueDark} size={22} strokeWidth={2.5} />
+        <ArrowLeft
+          color={fantasyTheme.primaryColor}
+          size={22}
+          strokeWidth={2.5}
+        />
       </Pressable>
       <View style={styles.teamWorkspaceTitleGroup}>
         <Text style={styles.teamWorkspaceTitle}>{title}</Text>
         <Text numberOfLines={1} style={styles.teamWorkspaceDeadline}>
           <Text style={styles.teamWorkspaceGameweek}>{gameweekLabel}</Text>
           <Text>{" · " + t("team.dashboard.deadlineLabel") + ": "}</Text>
-          <Text style={styles.teamWorkspaceDeadlineValue}>{deadlineValue}</Text>
+          <Text
+            style={[
+              styles.teamWorkspaceDeadlineValue,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
+            {deadlineValue}
+          </Text>
         </Text>
       </View>
       {onRightAction && rightActionLabel ? (
         <Pressable
           accessibilityRole="button"
           onPress={onRightAction}
-          style={styles.teamWorkspaceHeaderActionButton}
+          style={[
+            styles.teamWorkspaceHeaderActionButton,
+            { backgroundColor: fantasyTheme.primaryColor },
+          ]}
         >
           <Text style={styles.teamWorkspaceHeaderActionText}>
             {rightActionLabel}
@@ -1618,10 +1821,17 @@ function TransferSummaryBar({
   squadValue: string;
   t: (key: TranslationKey) => string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.teamTransferSummaryBar}>
       <View style={styles.teamTransferSummaryItem}>
-        <Text style={styles.teamTransferSummaryValue}>
+        <Text
+          style={[
+            styles.teamTransferSummaryValue,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
           {freeTransfersValue}
         </Text>
         <Text
@@ -1634,7 +1844,14 @@ function TransferSummaryBar({
         </Text>
       </View>
       <View style={styles.teamTransferSummaryItem}>
-        <Text style={styles.teamTransferSummaryValue}>{squadValue}</Text>
+        <Text
+          style={[
+            styles.teamTransferSummaryValue,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
+          {squadValue}
+        </Text>
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
@@ -1721,9 +1938,16 @@ function IncomingTransferCard({
   player: FantasyPlayer;
   t: (key: TranslationKey) => string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View style={styles.incomingTransferPanel}>
-      <View style={styles.incomingTransferHeader}>
+      <View
+        style={[
+          styles.incomingTransferHeader,
+          { backgroundColor: fantasyTheme.primaryColor },
+        ]}
+      >
         <Repeat2 color={colors.text.inverse} size={16} strokeWidth={2.4} />
         <Text style={styles.incomingTransferHeaderText}>
           {t("team.transfers.incomingPlayer")}
@@ -1757,7 +1981,10 @@ function IncomingTransferCard({
         <ScrollView
           horizontal
           bounces={false}
+          disableScrollViewPanResponder
+          directionalLockEnabled
           keyboardShouldPersistTaps="always"
+          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           style={styles.squadListStatsScroll}
         >
@@ -1832,13 +2059,24 @@ function TransferReviewScreen({
   pointsSpentValue: string;
   t: (key: TranslationKey) => string;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
   const transferCount = changes.length;
 
   return (
     <>
       <View style={styles.transferReviewCard}>
-        <View style={styles.transferReviewBanner}>
-          <Text style={styles.transferReviewBannerText}>
+        <View
+          style={[
+            styles.transferReviewBanner,
+            { backgroundColor: fantasyTheme.softColor },
+          ]}
+        >
+          <Text
+            style={[
+              styles.transferReviewBannerText,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
             {t("team.transfers.reviewBanner").replace(
               "{count}",
               String(transferCount),
@@ -1850,7 +2088,11 @@ function TransferReviewScreen({
           <Text style={styles.transferReviewColumnTitle}>
             {t("team.transfers.transferOut")}
           </Text>
-          <Repeat2 color={colors.brand.blueDark} size={22} strokeWidth={2.4} />
+          <Repeat2
+            color={fantasyTheme.primaryColor}
+            size={22}
+            strokeWidth={2.4}
+          />
           <Text style={styles.transferReviewColumnTitle}>
             {t("team.transfers.transferIn")}
           </Text>
@@ -2191,10 +2433,16 @@ function normalizePlayerShortLabel(label: string) {
     .trim();
 }
 
+function getBracketAliasLabel(displayName: string) {
+  const aliasMatch = displayName.match(/\(([^()]*)\)\s*$/);
+  return aliasMatch?.[1]?.trim() ?? null;
+}
+
 function getPlayerSurnameLabel(displayName: string) {
   const fallbackLabel = displayName.trim();
-  const nameParts = fallbackLabel.split(/\s+/).filter(Boolean);
-  const rawLabel = nameParts.at(-1) ?? fallbackLabel;
+  const labelSource = getBracketAliasLabel(fallbackLabel) ?? fallbackLabel;
+  const nameParts = labelSource.split(/\s+/).filter(Boolean);
+  const rawLabel = nameParts.at(-1) ?? labelSource;
   return normalizePlayerShortLabel(rawLabel) || fallbackLabel;
 }
 
@@ -2218,6 +2466,7 @@ function FutsalSquadSlotCircle({
   size = "field",
   swapState,
 }: FutsalSquadSlotCircleProps) {
+  const fantasyTheme = useFantasySeasonTheme();
   const leadershipLabel =
     leadershipRole === "captain"
       ? "C"
@@ -2251,8 +2500,12 @@ function FutsalSquadSlotCircle({
         <Text
           style={[
             styles.futsalSquadLeadershipBadge,
+            { backgroundColor: fantasyTheme.primaryColor },
             leadershipRole === "viceCaptain"
-              ? styles.futsalSquadLeadershipBadgeVice
+              ? [
+                  styles.futsalSquadLeadershipBadgeVice,
+                  { backgroundColor: fantasyTheme.secondaryColor },
+                ]
               : null,
           ]}
         >
@@ -2295,7 +2548,28 @@ function FutsalSquadSlotCircle({
           variant="slot"
         />
       ) : (
-        <Text style={styles.futsalSquadSlotPosition}>{positionShortLabel}</Text>
+        <View style={styles.futsalSquadSlotPlaceholder}>
+          <View
+            style={[
+              styles.futsalSquadSlotAddBadge,
+              { backgroundColor: fantasyTheme.primaryColor },
+            ]}
+          >
+            <Plus
+              color={colors.text.inverse}
+              size={size === "side" ? 13 : 15}
+              strokeWidth={3}
+            />
+          </View>
+          <Text
+            style={[
+              styles.futsalSquadSlotPosition,
+              { color: fantasyTheme.primaryColor },
+            ]}
+          >
+            {positionShortLabel}
+          </Text>
+        </View>
       )}
       {player ? (
         <Text
@@ -2369,7 +2643,15 @@ function FutsalRosterLayout({
 
   return (
     <View style={styles.futsalRosterLayout}>
-      <View style={styles.futsalRosterFieldFrame}>
+      <View
+        style={[
+          styles.futsalRosterFieldFrame,
+          {
+            backgroundColor: colors.brand.blueSoft,
+            borderColor: colors.brand.blueDark,
+          },
+        ]}
+      >
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
           contentFit="cover"
@@ -2467,7 +2749,15 @@ function FutsalSquadLayout({
   return (
     <View style={styles.futsalSquadLayout}>
       <View style={styles.futsalSquadMainRow}>
-        <View style={styles.futsalFieldFrame}>
+        <View
+          style={[
+            styles.futsalFieldFrame,
+            {
+              backgroundColor: colors.brand.blueSoft,
+              borderColor: colors.brand.blueDark,
+            },
+          ]}
+        >
           <Image
             {...FANTASY_STATIC_IMAGE_PROPS}
             contentFit="cover"
@@ -2487,7 +2777,12 @@ function FutsalSquadLayout({
           )}
         </View>
 
-        <View style={styles.futsalBenchRail}>
+        <View
+          style={[
+            styles.futsalBenchRail,
+            { backgroundColor: colors.brand.blueDark },
+          ]}
+        >
           {bench.map((slot) => (
             <View key={slot.rosterSlot} style={styles.futsalBenchSlotWrap}>
               {renderSlot(slot, "side")}
@@ -2496,7 +2791,12 @@ function FutsalSquadLayout({
         </View>
       </View>
 
-      <View style={styles.futsalReserveRail}>
+      <View
+        style={[
+          styles.futsalReserveRail,
+          { backgroundColor: colors.brand.blueDark },
+        ]}
+      >
         {reserve.map((slot) => (
           <View key={slot.rosterSlot} style={styles.futsalReserveSlotWrap}>
             {renderSlot(slot, "side")}
@@ -2598,8 +2898,8 @@ function FutsalSquadListLayout({
             isHighlighted={isIncomingTransfer}
             onPress={() => onSlotPress(slot)}
             player={player}
-            stateLabel={leadershipLabel ?? undefined}
-            stateTone={leadershipLabel ? "success" : undefined}
+            showStatsMarkerColumn
+            statsMarkerLabel={leadershipLabel}
             t={t}
             variant="pickerStats"
           />
@@ -2634,6 +2934,7 @@ function FutsalSquadListLayout({
               </Text>
             </View>
           </Pressable>
+          <View style={styles.playerPickerStatsMarkerCell} />
           {renderEmptyMetrics()}
         </View>
       </View>
@@ -2645,14 +2946,16 @@ function FutsalSquadListLayout({
       <ScrollView
         horizontal
         bounces={false}
+        disableScrollViewPanResponder
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
+        directionalLockEnabled
         showsHorizontalScrollIndicator
         contentContainerStyle={styles.squadListHorizontalScrollContent}
         style={styles.squadListHorizontalScroll}
       >
         <View style={styles.squadListStatsTable}>
-          <FantasyPlayerPickerStatsHeader t={t} />
+          <FantasyPlayerPickerStatsHeader showStatsMarkerColumn t={t} />
           {sections.map((section) => (
             <View key={section.key} style={styles.squadListSection}>
               <View style={styles.squadSectionHeader}>
@@ -2677,6 +2980,7 @@ function CompactSquadCard({
   title,
 }: CompactSquadCardProps) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const leadershipLabel =
     leadershipRole === "captain"
       ? t("team.leadership.captainShort")
@@ -2692,7 +2996,12 @@ function CompactSquadCard({
       style={[
         styles.compactSquadCard,
         player ? null : styles.compactSquadCardEmpty,
-        leadershipRole ? styles.compactSquadCardLeader : null,
+        leadershipRole
+          ? [
+              styles.compactSquadCardLeader,
+              { borderColor: fantasyTheme.primaryColor },
+            ]
+          : null,
         isIncomingTransfer ? styles.compactSquadCardIncoming : null,
         swapState === "source" ? styles.squadSlotSwapSource : null,
         swapState === "candidate" ? styles.squadSlotSwapCandidate : null,
@@ -2712,8 +3021,12 @@ function CompactSquadCard({
             <Text
               style={[
                 styles.compactLeadershipBadge,
+                { backgroundColor: fantasyTheme.primaryColor },
                 leadershipRole === "viceCaptain"
-                  ? styles.compactLeadershipBadgeVice
+                  ? [
+                      styles.compactLeadershipBadgeVice,
+                      { backgroundColor: fantasyTheme.secondaryColor },
+                    ]
                   : null,
               ]}
             >
@@ -2811,14 +3124,12 @@ export function MyTeamScreen({
   fantasyPlayers,
   fantasyTeam,
   fantasyTeams,
+  fantasySeason,
   fantasyGameweeks,
-  gameweekPointsBreakdown,
-  seasonPointsBreakdown,
   isActive = true,
   managerName,
   onBottomTabsHiddenChange,
   onHeaderActionOverlayChange,
-  onPointsDetailsVisibleChange,
   onShellHeaderHiddenChange,
   onTopEdgeToEdgeChange,
 }: {
@@ -2827,29 +3138,60 @@ export function MyTeamScreen({
   fantasyPlayers: FantasyPlayers;
   fantasyTeam: FantasyTeam;
   fantasyTeams: FantasyLeagueTeam[] | undefined;
+  fantasySeason?: FantasySeasonVisualSource | null;
   fantasyGameweeks: FantasyGameweek[] | undefined;
-  gameweekPointsBreakdown: GameweekPointsBreakdown;
-  seasonPointsBreakdown: SeasonPointsBreakdown;
   isActive?: boolean;
   managerName: string;
   onBottomTabsHiddenChange?: (isHidden: boolean) => void;
   onHeaderActionOverlayChange?: (
     config: HeaderActionOverlayConfig | null,
   ) => void;
-  onPointsDetailsVisibleChange?: (isVisible: boolean) => void;
   onShellHeaderHiddenChange?: (isHidden: boolean) => void;
   onTopEdgeToEdgeChange?: (isEnabled: boolean) => void;
 }) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const shouldUseTeamOverviewWideLayout = isDesktopWeb;
+  const themedMarketFilterButtonActiveStyle = [
+    styles.marketFilterButtonActive,
+    {
+      backgroundColor: fantasyTheme.primaryColor,
+      borderColor: fantasyTheme.primaryColor,
+    },
+  ];
+  const themedSeasonPickerOptionSelectedStyle = [
+    styles.seasonPickerOptionSelected,
+    {
+      backgroundColor: fantasyTheme.softColor,
+      borderColor: fantasyTheme.borderColor,
+    },
+  ];
+  const themedClubPickerOptionSelectedStyle = [
+    styles.clubPickerOptionSelected,
+    {
+      backgroundColor: fantasyTheme.softColor,
+      borderColor: fantasyTheme.borderColor,
+    },
+  ];
+  const themedFooterPrimaryButtonStyle = [
+    styles.teamBuilderFooterPrimaryButton,
+    { backgroundColor: fantasyTheme.primaryColor },
+  ];
+  const themedFooterSecondaryButtonStyle = [
+    styles.teamBuilderFooterSecondaryButton,
+    { borderColor: fantasyTheme.borderColor },
+  ];
+  const themedFooterSecondaryTextStyle = [
+    styles.teamBuilderFooterSecondaryText,
+    { color: fantasyTheme.primaryColor },
+  ];
   const saveMyTeam = useMutation(api.fantasy.saveMyTeam);
   const updateFavoriteFantasyClub = useMutation(
     api.users.updateFavoriteFantasyClub,
   );
-  const pointsBreakdown = gameweekPointsBreakdown;
   const cancelDraftChangesRef = useRef<() => void>(() => undefined);
   const saveTeamRef = useRef<() => void>(() => undefined);
   const playerPickerListRef = useRef<FlashListRef<FantasyPlayer> | null>(null);
@@ -2929,6 +3271,10 @@ export function MyTeamScreen({
     useState<PlayerPickerDropdown>(null);
   const [showSaveHint, setShowSaveHint] = useState(false);
   const [teamName, setTeamName] = useState(() => initialDraftState.teamName);
+  const [pointsViewerTeamId, setPointsViewerTeamId] =
+    useState<Id<"fantasyTeams"> | null>(null);
+  const [pointsViewerGameweekId, setPointsViewerGameweekId] =
+    useState<Id<"fantasyGameweeks"> | null>(null);
 
   const resetPlayerPickerScroll = useCallback(() => {
     const scrollToStart = () => {
@@ -3138,13 +3484,81 @@ export function MyTeamScreen({
     : null;
   const dashboardTeamName =
     trimmedTeamName || fantasyTeam?.name || t("team.overview.unnamedTeam");
-  const totalPointsText = formatWholeNumber(fantasyTeam?.totalPoints);
-  const gameweekPointsText = formatFantasyPointsValue(
-    fantasyTeam?.lastGameweekPoints,
+  const dashboardLeagueTeam = fantasyTeam
+    ? ((fantasyTeams ?? []).find((team) => team.id === fantasyTeam.id) ?? null)
+    : null;
+  const dashboardCurrentGameweekId = dashboardLeagueTeam?.currentGameweekId
+    ? (dashboardLeagueTeam.currentGameweekId as Id<"fantasyGameweeks">)
+    : null;
+  const dashboardCurrentGameweekNumber =
+    dashboardLeagueTeam?.currentGameweekNumber ??
+    liveGameweek?.number ??
+    currentGameweek?.number ??
+    null;
+  const dashboardSortedGameweeks = (fantasyGameweeks ?? [])
+    .slice()
+    .sort((a, b) => a.number - b.number);
+  const dashboardGameweekTeams =
+    dashboardCurrentGameweekNumber === null
+      ? (fantasyTeams ?? [])
+      : (fantasyTeams ?? []).filter(
+          (team) =>
+            (team.currentGameweekNumber ?? dashboardCurrentGameweekNumber) ===
+            dashboardCurrentGameweekNumber,
+        );
+  const dashboardMetricTeams =
+    dashboardGameweekTeams.length > 0
+      ? dashboardGameweekTeams
+      : (fantasyTeams ?? []);
+  const dashboardGameweekPoints = getFiniteFantasyNumber(
+    dashboardLeagueTeam?.currentGameweekPoints ??
+      fantasyTeam?.lastGameweekPoints,
   );
-  const formPointsText = gameweekPointsText;
+  const dashboardAveragePoints =
+    dashboardMetricTeams.length > 0
+      ? dashboardMetricTeams.reduce(
+          (sum, team) =>
+            sum + getFiniteFantasyNumber(team.currentGameweekPoints),
+          0,
+        ) / dashboardMetricTeams.length
+      : 0;
+  const dashboardHighestTeam =
+    dashboardMetricTeams.reduce<FantasyLeagueTeam | null>((highest, team) => {
+      if (!highest) return team;
+      const pointsDiff =
+        getFiniteFantasyNumber(team.currentGameweekPoints) -
+        getFiniteFantasyNumber(highest.currentGameweekPoints);
+      if (pointsDiff !== 0) return pointsDiff > 0 ? team : highest;
+
+      const totalDiff =
+        getFiniteFantasyNumber(team.totalPoints) -
+        getFiniteFantasyNumber(highest.totalPoints);
+      if (totalDiff !== 0) return totalDiff > 0 ? team : highest;
+
+      return team.name.localeCompare(highest.name) < 0 ? team : highest;
+    }, null);
+  const now = Date.now();
+  const dashboardActionGameweek =
+    dashboardSortedGameweeks
+      .filter(
+        (gameweek) =>
+          typeof gameweek.deadlineAt === "number" && gameweek.deadlineAt > now,
+      )
+      .sort((a, b) => (a.deadlineAt ?? 0) - (b.deadlineAt ?? 0))[0] ??
+    dashboardSortedGameweeks.find(
+      (gameweek) => gameweek.status !== "completed",
+    ) ??
+    null;
+  const dashboardActionDeadlineValue = formatDeadline(
+    dashboardActionGameweek?.deadlineAt ?? fantasyOverview?.nextDeadlineAt,
+    language,
+    t("team.dashboard.deadlineValue"),
+  );
+  const totalPointsText = formatWholeNumber(fantasyTeam?.totalPoints);
+  const gameweekPointsText = formatFantasyPointsValue(dashboardGameweekPoints);
+  const averagePointsText = formatFantasyPointsValue(dashboardAveragePoints);
   const highestPointsText = formatFantasyPointsValue(
-    fantasyTeam?.bestGameweekPoints,
+    dashboardHighestTeam?.currentGameweekPoints,
   );
   const overallRank = fantasyTeam
     ? [...(fantasyTeams ?? [])]
@@ -3179,7 +3593,10 @@ export function MyTeamScreen({
     () => ({
       goalkeeper: (fantasyPlayers ?? [])
         .filter(
-          (player) => player.clubId !== null && player.position === "goalkeeper",
+          (player) =>
+            player.clubId !== null &&
+            player.status !== "left" &&
+            player.position === "goalkeeper",
         )
         .sort(
           (a, b) =>
@@ -3187,7 +3604,10 @@ export function MyTeamScreen({
         ),
       universal: (fantasyPlayers ?? [])
         .filter(
-          (player) => player.clubId !== null && player.position === "universal",
+          (player) =>
+            player.clubId !== null &&
+            player.status !== "left" &&
+            player.position === "universal",
         )
         .sort(
           (a, b) =>
@@ -3214,6 +3634,14 @@ export function MyTeamScreen({
   const playerPickerClubLabel = playerPickerClub
     ? (playerPickerClub.shortName ?? playerPickerClub.name)
     : t("team.playerPicker.allClubs");
+
+  useEffect(() => {
+    if (!playerPickerClubId) return;
+    if (clubsById.has(playerPickerClubId)) return;
+
+    setPlayerPickerClubId(null);
+  }, [clubsById, playerPickerClubId]);
+
   const playerPickerSortOptionLabel = t(
     PLAYER_PICKER_SORT_OPTIONS.find(
       (option) => option.id === playerPickerSortMode,
@@ -3349,7 +3777,10 @@ export function MyTeamScreen({
     const sourcePlayers =
       playerPickerPurpose === "incomingTransfer"
         ? [...(fantasyPlayers ?? [])]
-            .filter((player) => player.clubId !== null)
+            .filter(
+              (player) =>
+                player.clubId !== null && player.status !== "left",
+            )
             .sort(
               (a, b) =>
                 b.price - a.price || a.displayName.localeCompare(b.displayName),
@@ -3410,6 +3841,7 @@ export function MyTeamScreen({
       <FantasyPlayerListRow
         club={player.clubId ? (clubsById.get(player.clubId) ?? null) : null}
         onPress={handleWarmupPlayerPress}
+        pickerNameFormat="initialLastName"
         player={player}
         t={t}
         variant="pickerStats"
@@ -3431,6 +3863,7 @@ export function MyTeamScreen({
           isDisabled={isDisabled}
           isSelected={isCurrent || incomingTransferPlayer?.id === player.id}
           onPress={handleSelectPlayer}
+          pickerNameFormat="initialLastName"
           player={player}
           stateLabel={isCurrent ? t("team.currentPick") : disabledReason}
           stateTone={disabledReason ? "danger" : "success"}
@@ -3684,8 +4117,6 @@ export function MyTeamScreen({
     setPlayerPickerPurpose("slot");
     setActiveSlot(slot);
     setPlayerSearchQuery("");
-    setPlayerPickerClubId(null);
-    setPlayerPickerSortMode("default");
     setPlayerPickerDropdown(null);
     setIsPlayerPickerOpen(true);
     resetPlayerPickerScroll();
@@ -3696,8 +4127,6 @@ export function MyTeamScreen({
     setPlayerPickerPurpose("incomingTransfer");
     setActiveSlot(null);
     setPlayerSearchQuery("");
-    setPlayerPickerClubId(null);
-    setPlayerPickerSortMode("default");
     setPlayerPickerDropdown(null);
     setIsPlayerPickerOpen(true);
     resetPlayerPickerScroll();
@@ -3709,8 +4138,6 @@ export function MyTeamScreen({
     setSwapSourceSlot(null);
     setActiveSlot(null);
     setPlayerPickerPurpose("slot");
-    setPlayerPickerClubId(null);
-    setPlayerPickerSortMode("default");
     setPlayerPickerDropdown(null);
   }
 
@@ -3761,6 +4188,13 @@ export function MyTeamScreen({
   function handleWorkspaceBack() {
     Keyboard.dismiss();
     setSwapSourceSlot(null);
+    if (teamWorkspaceMode === "pointsDetails") {
+      setPointsViewerTeamId(null);
+      setPointsViewerGameweekId(null);
+      setTeamWorkspaceMode("overview");
+      return;
+    }
+
     if (teamWorkspaceMode === "transfers" && transferStep === "review") {
       setTransferStep("edit");
       return;
@@ -4235,17 +4669,13 @@ export function MyTeamScreen({
   }, [isActive, isPlayerPickerOpen, teamWorkspaceMode, transferStep]);
 
   useEffect(() => {
-    onPointsDetailsVisibleChange?.(
-      Boolean(isActive && teamWorkspaceMode === "pointsDetails"),
-    );
-  }, [isActive, onPointsDetailsVisibleChange, teamWorkspaceMode]);
-
-  useEffect(() => {
     if (!isActive || teamWorkspaceMode !== "pointsDetails") return undefined;
 
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        setPointsViewerTeamId(null);
+        setPointsViewerGameweekId(null);
         setTeamWorkspaceMode("overview");
         return true;
       },
@@ -4268,6 +4698,8 @@ export function MyTeamScreen({
       setPlayerSearchQuery("");
       setSwapSourceSlot(null);
       setIsFavoriteClubPickerOpen(false);
+      setPointsViewerTeamId(null);
+      setPointsViewerGameweekId(null);
       clearTransferState();
     }
   }, [isActive]);
@@ -4354,9 +4786,9 @@ export function MyTeamScreen({
         <Pressable
           accessibilityRole="button"
           onPress={() => setTransferStep("edit")}
-          style={styles.teamBuilderFooterSecondaryButton}
+          style={themedFooterSecondaryButtonStyle}
         >
-          <Text style={styles.teamBuilderFooterSecondaryText}>
+          <Text style={themedFooterSecondaryTextStyle}>
             {t("team.transfers.editTransfers")}
           </Text>
         </Pressable>
@@ -4365,7 +4797,7 @@ export function MyTeamScreen({
           disabled={isSaving}
           onPress={() => void handleConfirmTransfers()}
           style={[
-            styles.teamBuilderFooterPrimaryButton,
+            themedFooterPrimaryButtonStyle,
             isSaving ? styles.teamBuilderFooterButtonDisabled : null,
           ]}
         >
@@ -4384,9 +4816,9 @@ export function MyTeamScreen({
         <Pressable
           accessibilityRole="button"
           onPress={handleResetDraft}
-          style={styles.teamBuilderFooterSecondaryButton}
+          style={themedFooterSecondaryButtonStyle}
         >
-          <Text style={styles.teamBuilderFooterSecondaryText}>
+          <Text style={themedFooterSecondaryTextStyle}>
             {t("team.resetButton")}
           </Text>
         </Pressable>
@@ -4395,7 +4827,7 @@ export function MyTeamScreen({
           disabled={!canSave}
           onPress={() => void handleSaveTeam()}
           style={[
-            styles.teamBuilderFooterPrimaryButton,
+            themedFooterPrimaryButtonStyle,
             canSave ? null : styles.teamBuilderFooterButtonDisabled,
           ]}
         >
@@ -4421,7 +4853,7 @@ export function MyTeamScreen({
           <Pressable
             accessibilityRole="button"
             onPress={handleAddTransferPlayer}
-            style={styles.teamBuilderFooterPrimaryButton}
+            style={themedFooterPrimaryButtonStyle}
           >
             <Text style={styles.teamBuilderFooterPrimaryText}>
               {t("team.transfers.addPlayer")}
@@ -4432,7 +4864,7 @@ export function MyTeamScreen({
             disabled={!canProceedTransfers}
             onPress={() => setTransferStep("review")}
             style={[
-              styles.teamBuilderFooterPrimaryButton,
+              themedFooterPrimaryButtonStyle,
               canProceedTransfers
                 ? null
                 : styles.teamBuilderFooterButtonDisabled,
@@ -4458,11 +4890,14 @@ export function MyTeamScreen({
     transferStep === "edit" &&
     teamViewMode === "list";
   const shouldPlaceTransferTabsBeforeSummary =
-    isDesktopWeb && teamWorkspaceMode === "transfers" && transferStep === "edit";
+    isDesktopWeb &&
+    teamWorkspaceMode === "transfers" &&
+    transferStep === "edit";
   const shouldPlacePickTabsBeforeLeadContent =
     isDesktopWeb && teamWorkspaceMode === "pick" && !isInitialTeamCreation;
   const shouldPlaceTeamViewSwitchBeforeLeadContent =
-    shouldPlaceTransferTabsBeforeSummary || shouldPlacePickTabsBeforeLeadContent;
+    shouldPlaceTransferTabsBeforeSummary ||
+    shouldPlacePickTabsBeforeLeadContent;
 
   function renderTransferSummaryBar() {
     return (
@@ -4577,21 +5012,40 @@ export function MyTeamScreen({
     }
 
     return (
-      <View style={styles.teamViewSwitch}>
+      <View
+        style={[
+          styles.teamViewSwitch,
+          {
+            backgroundColor: fantasyTheme.softColor,
+            borderColor: fantasyTheme.borderColor,
+          },
+        ]}
+      >
         <Pressable
           accessibilityRole="button"
           onPress={handleShowPitchView}
           style={[
             styles.teamViewSwitchButton,
-            teamViewMode === "pitch" ? styles.teamViewSwitchButtonActive : null,
+            teamViewMode === "pitch"
+              ? [
+                  styles.teamViewSwitchButtonActive,
+                  {
+                    backgroundColor: fantasyTheme.primaryColor,
+                    borderColor: fantasyTheme.primaryColor,
+                  },
+                ]
+              : null,
           ]}
         >
           <Text
-            style={
+            style={[
               teamViewMode === "pitch"
                 ? styles.teamViewSwitchTextActive
-                : styles.teamViewSwitchText
-            }
+                : styles.teamViewSwitchText,
+              teamViewMode !== "pitch"
+                ? { color: fantasyTheme.primaryColor }
+                : null,
+            ]}
           >
             {t("team.view.pitch")}
           </Text>
@@ -4601,15 +5055,24 @@ export function MyTeamScreen({
           onPress={handleShowListView}
           style={[
             styles.teamViewSwitchButton,
-            teamViewMode === "list" ? styles.teamViewSwitchButtonActive : null,
+            teamViewMode === "list"
+              ? [
+                  styles.teamViewSwitchButtonActive,
+                  {
+                    backgroundColor: fantasyTheme.primaryColor,
+                    borderColor: fantasyTheme.primaryColor,
+                  },
+                ]
+              : null,
           ]}
         >
           <Text
-            style={
+            style={[
               teamViewMode === "list"
                 ? styles.teamViewSwitchTextActive
-                : styles.teamViewSwitchText
-            }
+                : styles.teamViewSwitchText,
+              teamViewMode !== "list" ? { color: fantasyTheme.primaryColor } : null,
+            ]}
           >
             {t("team.view.list")}
           </Text>
@@ -4739,9 +5202,7 @@ export function MyTeamScreen({
           autoCorrect={false}
           clearAccessibilityLabel={t("common.clearInput")}
           containerStyle={
-            isDesktopWeb
-              ? styles.playerPickerSearchInputContainerDesktop
-              : null
+            isDesktopWeb ? styles.playerPickerSearchInputContainerDesktop : null
           }
           onChangeText={setPlayerSearchQuery}
           placeholder={t("team.playerSearchPlaceholder")}
@@ -4761,238 +5222,244 @@ export function MyTeamScreen({
           ]}
         >
           <View style={styles.playerPickerSelectRow}>
-          {isDesktopWeb ? (
-            <>
-              <DesktopSelect
-                accessibilityLabel={t("team.playerPicker.allClubs")}
-                onValueChange={(value) => {
-                  setPlayerPickerClubId(
-                    value === PLAYER_PICKER_ALL_CLUBS_VALUE
-                      ? null
-                      : (value as Id<"fantasyClubs">),
-                  );
-                  setPlayerPickerDropdown(null);
-                }}
-                options={playerPickerClubOptions}
-                style={styles.playerPickerDesktopSelect}
-                value={playerPickerClubId ?? PLAYER_PICKER_ALL_CLUBS_VALUE}
-              />
-              <DesktopSelect
-                accessibilityLabel={t("team.playerPicker.sortFilter")}
-                onValueChange={(value) => {
-                  setPlayerPickerSortMode(value as PlayerPickerSortMode);
-                  setPlayerPickerDropdown(null);
-                }}
-                options={playerPickerSortOptions}
-                style={styles.playerPickerDesktopSelect}
-                value={playerPickerSortMode}
-              />
-            </>
-          ) : (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setPlayerPickerDropdown((current) =>
-                    current === "club" ? null : "club",
-                  );
-                }}
-                style={[
-                  styles.marketFilterButton,
-                  styles.playerPickerSelectButton,
-                  playerPickerClubId !== null ? styles.marketFilterButtonActive : null,
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={
-                    playerPickerClubId !== null
-                      ? styles.marketFilterTextActive
-                      : styles.marketFilterText
-                  }
-                >
-                  {playerPickerClubLabel}
-                </Text>
-                <ChevronDown
-                  color={
-                    playerPickerClubId !== null
-                      ? colors.text.inverse
-                      : colors.text.secondary
-                  }
-                  size={18}
-                  strokeWidth={2.4}
+            {isDesktopWeb ? (
+              <>
+                <DesktopSelect
+                  accessibilityLabel={t("team.playerPicker.allClubs")}
+                  onValueChange={(value) => {
+                    setPlayerPickerClubId(
+                      value === PLAYER_PICKER_ALL_CLUBS_VALUE
+                        ? null
+                        : (value as Id<"fantasyClubs">),
+                    );
+                    setPlayerPickerDropdown(null);
+                  }}
+                  options={playerPickerClubOptions}
+                  style={styles.playerPickerDesktopSelect}
+                  value={playerPickerClubId ?? PLAYER_PICKER_ALL_CLUBS_VALUE}
                 />
-              </Pressable>
+                <DesktopSelect
+                  accessibilityLabel={t("team.playerPicker.sortFilter")}
+                  onValueChange={(value) => {
+                    setPlayerPickerSortMode(value as PlayerPickerSortMode);
+                    setPlayerPickerDropdown(null);
+                  }}
+                  options={playerPickerSortOptions}
+                  style={styles.playerPickerDesktopSelect}
+                  value={playerPickerSortMode}
+                />
+              </>
+            ) : (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setPlayerPickerDropdown((current) =>
+                      current === "club" ? null : "club",
+                    );
+                  }}
+                  style={[
+                    styles.marketFilterButton,
+                    styles.playerPickerSelectButton,
+                    playerPickerClubId !== null
+                      ? themedMarketFilterButtonActiveStyle
+                      : null,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={
+                      playerPickerClubId !== null
+                        ? styles.marketFilterTextActive
+                        : styles.marketFilterText
+                    }
+                  >
+                    {playerPickerClubLabel}
+                  </Text>
+                  <ChevronDown
+                    color={
+                      playerPickerClubId !== null
+                        ? colors.text.inverse
+                        : colors.text.secondary
+                    }
+                    size={18}
+                    strokeWidth={2.4}
+                  />
+                </Pressable>
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setPlayerPickerDropdown((current) =>
-                    current === "sort" ? null : "sort",
-                  );
-                }}
-                style={[
-                  styles.marketFilterButton,
-                  styles.playerPickerSelectButton,
-                  playerPickerSortMode !== "default"
-                    ? styles.marketFilterButtonActive
-                    : null,
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setPlayerPickerDropdown((current) =>
+                      current === "sort" ? null : "sort",
+                    );
+                  }}
+                  style={[
+                    styles.marketFilterButton,
+                    styles.playerPickerSelectButton,
                     playerPickerSortMode !== "default"
-                      ? styles.marketFilterTextActive
-                      : styles.marketFilterText
-                  }
+                      ? themedMarketFilterButtonActiveStyle
+                      : null,
+                  ]}
                 >
-                  {playerPickerSortLabel}
-                </Text>
-                <ChevronDown
-                  color={
-                    playerPickerSortMode !== "default"
-                      ? colors.text.inverse
-                      : colors.text.secondary
-                  }
-                  size={18}
-                  strokeWidth={2.4}
-                />
-              </Pressable>
-            </>
-          )}
+                  <Text
+                    numberOfLines={1}
+                    style={
+                      playerPickerSortMode !== "default"
+                        ? styles.marketFilterTextActive
+                        : styles.marketFilterText
+                    }
+                  >
+                    {playerPickerSortLabel}
+                  </Text>
+                  <ChevronDown
+                    color={
+                      playerPickerSortMode !== "default"
+                        ? colors.text.inverse
+                        : colors.text.secondary
+                    }
+                    size={18}
+                    strokeWidth={2.4}
+                  />
+                </Pressable>
+              </>
+            )}
           </View>
 
           {!isDesktopWeb && playerPickerDropdown === "club" ? (
-          <View style={styles.playerPickerDropdown}>
-            <ScrollView
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-              style={styles.playerPickerDropdownScroll}
-              contentContainerStyle={styles.playerPickerDropdownOptions}
-            >
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setPlayerPickerClubId(null);
-                  setPlayerPickerDropdown(null);
-                }}
-                style={[
-                  styles.seasonPickerOption,
-                  playerPickerClubId === null
-                    ? styles.seasonPickerOptionSelected
-                    : null,
-                ]}
+            <View style={styles.playerPickerDropdown}>
+              <ScrollView
+                keyboardShouldPersistTaps="always"
+                showsVerticalScrollIndicator={false}
+                style={styles.playerPickerDropdownScroll}
+                contentContainerStyle={styles.playerPickerDropdownOptions}
               >
-                <View style={styles.seasonPickerOptionBody}>
-                  <View style={styles.seasonPickerOptionTextGroup}>
-                    <Text
-                      numberOfLines={1}
-                      style={styles.seasonPickerOptionText}
-                    >
-                      {t("team.playerPicker.allClubs")}
-                    </Text>
-                  </View>
-                </View>
-                {playerPickerClubId === null ? (
-                  <Check
-                    color={colors.brand.blue}
-                    size={22}
-                    strokeWidth={2.8}
-                  />
-                ) : (
-                  <View style={styles.seasonPickerOptionRadio} />
-                )}
-              </Pressable>
-
-              {activeClubs.map((club) => {
-                const isSelectedClub = playerPickerClubId === club.id;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={club.id}
-                    onPress={() => {
-                      setPlayerPickerClubId(club.id);
-                      setPlayerPickerDropdown(null);
-                    }}
-                    style={[
-                      styles.seasonPickerOption,
-                      isSelectedClub ? styles.seasonPickerOptionSelected : null,
-                    ]}
-                  >
-                    <View style={styles.seasonPickerOptionBody}>
-                      <FantasyClubLogo club={club} size="sm" />
-                      <View style={styles.seasonPickerOptionTextGroup}>
-                        <Text
-                          numberOfLines={1}
-                          style={styles.seasonPickerOptionText}
-                        >
-                          {club.name}
-                        </Text>
-                      </View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setPlayerPickerClubId(null);
+                    setPlayerPickerDropdown(null);
+                  }}
+                  style={[
+                    styles.seasonPickerOption,
+                    playerPickerClubId === null
+                      ? themedSeasonPickerOptionSelectedStyle
+                      : null,
+                  ]}
+                >
+                  <View style={styles.seasonPickerOptionBody}>
+                    <View style={styles.seasonPickerOptionTextGroup}>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.seasonPickerOptionText}
+                      >
+                        {t("team.playerPicker.allClubs")}
+                      </Text>
                     </View>
-                    {isSelectedClub ? (
-                      <Check
-                        color={colors.brand.blue}
-                        size={22}
-                        strokeWidth={2.8}
-                      />
-                    ) : (
-                      <View style={styles.seasonPickerOptionRadio} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
+                  </View>
+                  {playerPickerClubId === null ? (
+                    <Check
+                      color={fantasyTheme.primaryColor}
+                      size={22}
+                      strokeWidth={2.8}
+                    />
+                  ) : (
+                    <View style={styles.seasonPickerOptionRadio} />
+                  )}
+                </Pressable>
+
+                {activeClubs.map((club) => {
+                  const isSelectedClub = playerPickerClubId === club.id;
+
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={club.id}
+                      onPress={() => {
+                        setPlayerPickerClubId(club.id);
+                        setPlayerPickerDropdown(null);
+                      }}
+                      style={[
+                        styles.seasonPickerOption,
+                        isSelectedClub
+                          ? themedSeasonPickerOptionSelectedStyle
+                          : null,
+                      ]}
+                    >
+                      <View style={styles.seasonPickerOptionBody}>
+                        <FantasyClubLogo club={club} size="sm" />
+                        <View style={styles.seasonPickerOptionTextGroup}>
+                          <Text
+                            numberOfLines={1}
+                            style={styles.seasonPickerOptionText}
+                          >
+                            {club.name}
+                          </Text>
+                        </View>
+                      </View>
+                      {isSelectedClub ? (
+                        <Check
+                          color={fantasyTheme.primaryColor}
+                          size={22}
+                          strokeWidth={2.8}
+                        />
+                      ) : (
+                        <View style={styles.seasonPickerOptionRadio} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
           ) : null}
 
           {!isDesktopWeb && playerPickerDropdown === "sort" ? (
-          <View style={styles.playerPickerDropdown}>
-            <View style={styles.playerPickerDropdownOptions}>
-              {PLAYER_PICKER_SORT_OPTIONS.map((option) => {
-                const isSelectedSort = playerPickerSortMode === option.id;
+            <View style={styles.playerPickerDropdown}>
+              <View style={styles.playerPickerDropdownOptions}>
+                {PLAYER_PICKER_SORT_OPTIONS.map((option) => {
+                  const isSelectedSort = playerPickerSortMode === option.id;
 
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={option.id}
-                    onPress={() => {
-                      setPlayerPickerSortMode(option.id);
-                      setPlayerPickerDropdown(null);
-                    }}
-                    style={[
-                      styles.seasonPickerOption,
-                      isSelectedSort ? styles.seasonPickerOptionSelected : null,
-                    ]}
-                  >
-                    <View style={styles.seasonPickerOptionBody}>
-                      <View style={styles.seasonPickerOptionTextGroup}>
-                        <Text
-                          numberOfLines={1}
-                          style={styles.seasonPickerOptionText}
-                        >
-                          {t(option.labelKey)}
-                        </Text>
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={option.id}
+                      onPress={() => {
+                        setPlayerPickerSortMode(option.id);
+                        setPlayerPickerDropdown(null);
+                      }}
+                      style={[
+                        styles.seasonPickerOption,
+                        isSelectedSort
+                          ? themedSeasonPickerOptionSelectedStyle
+                          : null,
+                      ]}
+                    >
+                      <View style={styles.seasonPickerOptionBody}>
+                        <View style={styles.seasonPickerOptionTextGroup}>
+                          <Text
+                            numberOfLines={1}
+                            style={styles.seasonPickerOptionText}
+                          >
+                            {t(option.labelKey)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    {isSelectedSort ? (
-                      <Check
-                        color={colors.brand.blue}
-                        size={22}
-                        strokeWidth={2.8}
-                      />
-                    ) : (
-                      <View style={styles.seasonPickerOptionRadio} />
-                    )}
-                  </Pressable>
-                );
-              })}
+                      {isSelectedSort ? (
+                        <Check
+                          color={fantasyTheme.primaryColor}
+                          size={22}
+                          strokeWidth={2.8}
+                        />
+                      ) : (
+                        <View style={styles.seasonPickerOptionRadio} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </View>
           ) : null}
         </View>
       </View>
@@ -5017,6 +5484,8 @@ export function MyTeamScreen({
               ref={playerPickerHorizontalScrollRef}
               horizontal
               bounces={false}
+              disableScrollViewPanResponder
+              directionalLockEnabled
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled
               showsHorizontalScrollIndicator
@@ -5085,6 +5554,7 @@ export function MyTeamScreen({
                 setTeamWorkspaceMode("setup");
               }}
               onRules={() => setLegalSheetKind("rules")}
+              season={fantasySeason}
               t={t}
             />
           ) : (
@@ -5112,20 +5582,42 @@ export function MyTeamScreen({
                   }
                 >
                   <TeamDashboardCard
-                    formPoints={formPointsText}
-                    currentGameweekNumber={currentGameweek?.number ?? null}
-                    deadlineValue={deadlineValue}
-                    highestPoints={highestPointsText}
-                    onOpenPointsDetails={() =>
-                      setTeamWorkspaceMode("pointsDetails")
+                    actionDeadlineValue={dashboardActionDeadlineValue}
+                    actionGameweekNumber={
+                      dashboardActionGameweek?.number ?? null
                     }
+                    averagePoints={averagePointsText}
+                    currentGameweekNumber={dashboardCurrentGameweekNumber}
+                    highestPoints={highestPointsText}
+                    onOpenHighestDetails={
+                      dashboardHighestTeam?.id
+                        ? () => {
+                            setPointsViewerTeamId(
+                              dashboardHighestTeam.id as Id<"fantasyTeams">,
+                            );
+                            setPointsViewerGameweekId(
+                              (dashboardHighestTeam.currentGameweekId ??
+                                dashboardCurrentGameweekId) as Id<"fantasyGameweeks"> | null,
+                            );
+                            setTeamWorkspaceMode("pointsDetails");
+                          }
+                        : undefined
+                    }
+                    onOpenPointsDetails={() => {
+                      if (fantasyTeam?.id) {
+                        setPointsViewerTeamId(fantasyTeam.id);
+                      }
+                      setPointsViewerGameweekId(dashboardCurrentGameweekId);
+                      setTeamWorkspaceMode("pointsDetails");
+                    }}
                     onPickTeam={() => setTeamWorkspaceMode("pick")}
                     onTransfers={() => {
                       handleResetTransferDraft();
                       setTeamViewMode("pitch");
                       setTeamWorkspaceMode("transfers");
                     }}
-                    points={totalPointsText}
+                    points={gameweekPointsText}
+                    season={fantasySeason}
                     teamName={dashboardTeamName}
                   />
                 </View>
@@ -5151,12 +5643,50 @@ export function MyTeamScreen({
             </>
           )
         ) : teamWorkspaceMode === "pointsDetails" ? (
-          <TeamPointsDetailsScreen
-            breakdown={seasonPointsBreakdown}
-            onBack={() => setTeamWorkspaceMode("overview")}
-            playersById={fantasyPlayersById}
-            totalPointsFallback={totalPointsText}
-          />
+          pointsViewerTeamId || fantasyTeam?.id ? (
+            <GameweekTeamViewer
+              clubs={fantasyClubs}
+              fantasyTeamId={
+                (pointsViewerTeamId ?? fantasyTeam?.id) as Id<"fantasyTeams">
+              }
+              gameweekId={pointsViewerGameweekId ?? dashboardCurrentGameweekId}
+              highestPointsOverride={
+                dashboardHighestTeam
+                  ? getFiniteFantasyNumber(
+                      dashboardHighestTeam.currentGameweekPoints,
+                    )
+                  : undefined
+              }
+              highestTeamIdOverride={
+                dashboardHighestTeam?.id
+                  ? (dashboardHighestTeam.id as Id<"fantasyTeams">)
+                  : undefined
+              }
+              key={`${pointsViewerTeamId ?? fantasyTeam?.id}:${
+                pointsViewerGameweekId ??
+                dashboardCurrentGameweekId ??
+                "current"
+              }`}
+              onBack={() => {
+                setPointsViewerTeamId(null);
+                setPointsViewerGameweekId(null);
+                setTeamWorkspaceMode("overview");
+              }}
+              onOpenTeam={(teamId) => {
+                setPointsViewerTeamId(teamId);
+                setPointsViewerGameweekId(
+                  pointsViewerGameweekId ?? dashboardCurrentGameweekId,
+                );
+              }}
+              seasonSlug={fantasyOverview?.season?.slug ?? null}
+            />
+          ) : (
+            <View style={styles.teamBuilderPanel}>
+              <Text style={styles.sectionTitle}>
+                {t("team.viewer.teamUnavailable")}
+              </Text>
+            </View>
+          )
         ) : teamWorkspaceMode === "setup" ? (
           <TeamCreateSetup
             canContinue={setupCanContinue}
@@ -5173,6 +5703,7 @@ export function MyTeamScreen({
               setFeedbackText(null);
               setShowSaveHint(false);
             }}
+            season={fantasySeason}
             shouldHighlightTeamName={shouldHighlightTeamName}
             t={t}
             teamName={teamName}
@@ -5381,7 +5912,7 @@ export function MyTeamScreen({
                 style={[
                   styles.clubPickerOption,
                   favoriteClubId === null
-                    ? styles.clubPickerOptionSelected
+                    ? themedClubPickerOptionSelectedStyle
                     : null,
                 ]}
               >
@@ -5395,7 +5926,7 @@ export function MyTeamScreen({
                 </View>
                 {favoriteClubId === null ? (
                   <Check
-                    color={colors.brand.blueDark}
+                    color={fantasyTheme.primaryColor}
                     size={20}
                     strokeWidth={3}
                   />
@@ -5411,9 +5942,9 @@ export function MyTeamScreen({
                     setIsFavoriteClubPickerOpen(false);
                   }}
                   style={[
-                    styles.clubPickerOption,
-                    favoriteClubId === club.id
-                      ? styles.clubPickerOptionSelected
+                  styles.clubPickerOption,
+                  favoriteClubId === club.id
+                      ? themedClubPickerOptionSelectedStyle
                       : null,
                   ]}
                 >
@@ -5433,7 +5964,7 @@ export function MyTeamScreen({
                   </View>
                   {favoriteClubId === club.id ? (
                     <Check
-                      color={colors.brand.blueDark}
+                      color={fantasyTheme.primaryColor}
                       size={20}
                       strokeWidth={3}
                     />

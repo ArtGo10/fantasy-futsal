@@ -27,10 +27,14 @@ const TAB_ICONS: Record<FantasyTabId, TabIconComponent> = {
 };
 
 export function FantasyBottomTabs({
+  activeBackgroundColor = colors.brand.blueSoft,
+  activeColor = colors.brand.blueDark,
   activeTab,
   onChange,
   tabs,
 }: {
+  activeBackgroundColor?: string;
+  activeColor?: string;
   activeTab: FantasyTabId;
   onChange: (tab: FantasyTabId) => void;
   tabs: FantasyTab[];
@@ -43,7 +47,7 @@ export function FantasyBottomTabs({
         const isActive = activeTab === tab.id;
         const label = t(TAB_LABEL_KEYS[tab.id]);
         const Icon = TAB_ICONS[tab.id];
-        const iconColor = isActive ? colors.brand.blue : colors.text.muted;
+        const iconColor = isActive ? activeColor : colors.text.muted;
 
         return (
           <Pressable
@@ -51,10 +55,26 @@ export function FantasyBottomTabs({
             accessibilityRole="button"
             key={tab.id}
             onPress={() => onChange(tab.id)}
-            style={[styles.fantasyBottomTabButton, isActive ? styles.fantasyBottomTabButtonActive : null]}
+            style={[
+              styles.fantasyBottomTabButton,
+              isActive
+                ? [
+                    styles.fantasyBottomTabButtonActive,
+                    { backgroundColor: activeBackgroundColor },
+                  ]
+                : null,
+            ]}
           >
             <Icon color={iconColor} size={22} strokeWidth={2.4} />
-            <Text numberOfLines={1} style={isActive ? styles.fantasyBottomTabTextActive : styles.fantasyBottomTabText}>
+            <Text
+              numberOfLines={1}
+              style={[
+                isActive
+                  ? styles.fantasyBottomTabTextActive
+                  : styles.fantasyBottomTabText,
+                isActive ? { color: activeColor } : null,
+              ]}
+            >
               {label}
             </Text>
           </Pressable>

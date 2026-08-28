@@ -324,6 +324,122 @@ const COPY: Record<LanguageCode, PublicCopy> = {
     footer: "Fantasy Futsal — розважальний fantasy-застосунок для спорту.",
     updatedAt: "Оновлено",
   },
+  pl: {
+    nav: {
+      "/": "Strona główna",
+      "/privacy": "Prywatność",
+      "/terms": "Regulamin",
+      "/rules": "Zasady",
+      "/support": "Pomoc",
+      "/account-deletion": "Usunięcie konta",
+    },
+    landing: {
+      eyebrow: "Platforma fantasy dla futsalu",
+      title: "Fantasy Futsal",
+      description:
+        "Buduj skład fantasy z zawodników futsalu, śledź wspierane ligi i rywalizuj o punkty z prawdziwych meczów.",
+      appCta: "Otwórz aplikację",
+      primaryCta: "Przeczytaj zasady",
+      secondaryCta: "Kontakt z pomocą",
+      statusLabel: "Aktualna liga",
+      statusText:
+        "Extra-liga jest pierwszą wspieraną ligą fantasy. Kolejne ligi mogą zostać dodane na tej samej platformie.",
+      cardsTitle: "Informacje publiczne",
+      cardsDescription:
+        "Dokumenty i strony pomocy wymagane dla Fantasy Futsal oraz sklepów z aplikacjami.",
+      cards: [
+        {
+          path: "/privacy",
+          title: "Polityka prywatności",
+          description:
+            "Jak wykorzystywane są dane konta, fantasy i powiadomień.",
+        },
+        {
+          path: "/terms",
+          title: "Regulamin",
+          description: "Warunki korzystania z Fantasy Futsal.",
+        },
+        {
+          path: "/rules",
+          title: "Zasady gry",
+          description: "Składy, deadline'y, transfery i punktacja.",
+        },
+        {
+          path: "/support",
+          title: "Pomoc",
+          description: "Jak skontaktować się z nami w sprawie aplikacji lub konta.",
+        },
+        {
+          path: "/account-deletion",
+          title: "Usunięcie konta",
+          description: "Jak usunąć konto i dane aplikacji.",
+        },
+      ],
+    },
+    legal: {
+      terms: {
+        eyebrow: "Dokumenty",
+        title: "Regulamin",
+        description: "Warunki korzystania z Fantasy Futsal.",
+      },
+      privacy: {
+        eyebrow: "Dokumenty",
+        title: "Polityka prywatności",
+        description: "Jak Fantasy Futsal wykorzystuje dane konta i gry.",
+      },
+      rules: {
+        eyebrow: "Gra",
+        title: "Zasady gry",
+        description: "Skład, transfery, deadline'y i punktacja.",
+      },
+    },
+    support: {
+      eyebrow: "Pomoc",
+      title: "Potrzebujesz pomocy?",
+      description:
+        "W sprawach konta, aplikacji, danych albo punktacji fantasy napisz na email pomocy Fantasy Futsal.",
+      emailLabel: "Email pomocy",
+      emailDescription:
+        "Tego adresu używamy w sklepach z aplikacjami i do obsługi użytkowników.",
+      responseTitle: "Czas odpowiedzi",
+      responseDescription:
+        "Staramy się odpowiadać w ciągu kilku dni roboczych. Pilne prośby o usunięcie konta powinny zawierać email używany w aplikacji.",
+      includeTitle: "Co warto dodać",
+      includeItems: [
+        "Email Twojego konta",
+        "Platformę urządzenia: iOS, Android albo web",
+        "Krótki opis sprawy",
+      ],
+    },
+    deletion: {
+      eyebrow: "Konto",
+      title: "Usunięcie konta i danych",
+      description:
+        "Możesz usunąć konto Fantasy Futsal i dane aplikacji w samej aplikacji. Jeśli nie masz do niej dostępu, skontaktuj się z pomocą z emaila używanego dla konta.",
+      inAppTitle: "Usunięcie w aplikacji",
+      inAppSteps: [
+        "Otwórz Fantasy Futsal i zaloguj się.",
+        "Przejdź do Profilu.",
+        "Wybierz usunięcie konta i potwierdź akcję.",
+      ],
+      emailTitle: "Usunięcie przez pomoc",
+      emailDescription:
+        "Jeśli nie możesz się zalogować, napisz do pomocy i podaj email konta. Przed usunięciem możemy poprosić o weryfikację.",
+      deletedTitle: "Usuwane dane",
+      deletedItems: [
+        "Profil aplikacji i powiązanie z logowaniem",
+        "Drużyna fantasy, skład, kapitanowie, transfery i ulubieni zawodnicy",
+        "Punkty fantasy oraz tokeny powiadomień push zapisane przez aplikację",
+      ],
+    },
+    notFound: {
+      title: "Nie znaleziono strony",
+      description: "Ta publiczna strona Fantasy Futsal nie istnieje.",
+      cta: "Wróć na stronę główną",
+    },
+    footer: "Fantasy Futsal to rozrywkowa aplikacja fantasy sports.",
+    updatedAt: "Zaktualizowano",
+  },
 };
 
 function getTitleForRoute(copy: PublicCopy, route: PublicWebRoute) {

@@ -5,6 +5,7 @@ import { useI18n } from "../../../i18n/I18nProvider";
 import type { LanguageCode } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 export type FantasyGameweekFixtureProfile = {
   hasBlankTeams: boolean;
@@ -52,6 +53,7 @@ export type FixturesScreenProps = {
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
   en: "en-US",
+  pl: "pl-PL",
   uk: "uk-UA",
 };
 
@@ -89,6 +91,7 @@ function formatFixtureCenter(fixture: FantasyFixture, language: LanguageCode) {
 
 export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenProps) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const isLoading = fixtures === undefined || gameweeks === undefined;
   const fixturesByGameweekId = useMemo(() => {
     const result = new Map<string, FantasyFixture[]>();
@@ -136,14 +139,26 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
 
             return (
               <View key={gameweek.id} style={styles.fixtureGameweekCard}>
-                <View style={styles.fixtureGameweekHeader}>
+                <View
+                  style={[
+                    styles.fixtureGameweekHeader,
+                    { backgroundColor: fantasyTheme.softColor },
+                  ]}
+                >
                   <View style={styles.fixtureGameweekTitleGroup}>
                     <Text style={styles.fixtureGameweekTitle}>{gameweek.name}</Text>
                     <Text style={styles.fixtureGameweekDeadline}>
                       {t("fixtures.deadlineLabel")}: {formatDateTime(gameweek.deadlineAt, language, t("fixtures.dateUnknown"))}
                     </Text>
                   </View>
-                  <Text style={styles.fixtureGameweekDate}>{formatDate(fallbackDate, language, t("fixtures.dateUnknown"))}</Text>
+                  <Text
+                    style={[
+                      styles.fixtureGameweekDate,
+                      { color: fantasyTheme.primaryColor },
+                    ]}
+                  >
+                    {formatDate(fallbackDate, language, t("fixtures.dateUnknown"))}
+                  </Text>
                 </View>
 
                 <View style={styles.fixtureRows}>
@@ -170,6 +185,9 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                           <Text
                             style={[
                               styles.fixtureCenterText,
+                              !isCompleted
+                                ? { color: fantasyTheme.primaryColor }
+                                : null,
                               isCompleted ? styles.fixtureCenterTextCompleted : null,
                             ]}
                           >
@@ -205,4 +223,3 @@ export function FixturesScreen(props: FixturesScreenProps) {
     </FantasyScreenFrame>
   );
 }
-

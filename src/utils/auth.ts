@@ -129,6 +129,46 @@ const AUTH_ERROR_MESSAGES: Record<
     verification:
       "Не вдалося підтвердити код. Перевірте код і спробуйте ще раз.",
   },
+  pl: {
+    accountExists:
+      "Konto z tym adresem email już istnieje. Zaloguj się zamiast rejestracji.",
+    actionFailed:
+      "Nie udało się wykonać tej akcji. Sprawdź dane i spróbuj ponownie.",
+    deleteAppDataFailed:
+      "Konto logowania zostało usunięte, ale czyszczenie danych aplikacji nie zakończyło się. Skontaktuj się z pomocą.",
+    deleteAuthRequired: "Zaloguj się ponownie przed usunięciem konta.",
+    deleteCleanupQueueFailed:
+      "Nie udało się bezpiecznie przygotować usunięcia konta. Dane aplikacji nie zostały usunięte. Spróbuj ponownie za chwilę.",
+    deleteNotConfigured:
+      "Usuwanie konta nie jest jeszcze skonfigurowane. Skontaktuj się z pomocą.",
+    deleteProviderFailed:
+      "Nie udało się jeszcze usunąć konta logowania. Dane aplikacji nie zostały usunięte. Spróbuj ponownie za chwilę albo skontaktuj się z pomocą.",
+    deleteUnknown:
+      "Nie udało się usunąć konta. Dane aplikacji nie zostały usunięte. Spróbuj ponownie.",
+    emailInvalid: "Wprowadź poprawny adres email.",
+    identifierNotFound: "Nie znaleziono użytkownika z tymi danymi.",
+    incompleteDefault:
+      "Logowanie nie zostało zakończone. Spróbuj ponownie albo skontaktuj się z organizatorem.",
+    incorrectPassword: "Nieprawidłowy email albo hasło.",
+    missingField: "Uzupełnij wszystkie wymagane pola i spróbuj ponownie.",
+    needsClientTrust:
+      "Clerk musi zweryfikować to urządzenie, ale nie znaleziono obsługiwanej metody weryfikacji.",
+    needsFirstFactor:
+      "Clerk czeka na pierwszy krok logowania. Spróbuj ponownie albo skontaktuj się z organizatorem.",
+    needsIdentifier: "Podaj email użyty do utworzenia konta.",
+    needsNewPassword: "To konto wymaga aktualizacji hasła przez Clerk.",
+    needsSecondFactor:
+      "To konto wymaga dodatkowego kroku logowania, który nie jest jeszcze obsługiwany.",
+    network: "Problem z połączeniem. Spróbuj ponownie.",
+    passwordPwned:
+      "To hasło pojawiło się w publicznym wycieku danych. Wybierz inne hasło.",
+    passwordTooShort: "Hasło musi mieć co najmniej 8 znaków.",
+    passwordWeak: "Wybierz silniejsze hasło.",
+    rateLimited: "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.",
+    unknown: "Coś poszło nie tak. Spróbuj ponownie.",
+    verification:
+      "Nie udało się zweryfikować kodu. Sprawdź kod i spróbuj ponownie.",
+  },
 };
 
 export function getWebAppRedirectUrl() {

@@ -18,6 +18,8 @@ import {
 } from "react-native";
 
 import { colors, radii, spacing, typography } from "../../../theme/tokens";
+import { colorWithAlpha } from "../utils/seasonVisuals";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 export type DesktopSelectOption = {
   disabled?: boolean;
@@ -195,6 +197,7 @@ export function DesktopSelect({
   style,
   value,
 }: DesktopSelectProps) {
+  const fantasyTheme = useFantasySeasonTheme();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<View>(null);
   const [menuPlacement, setMenuPlacement] = useState<"down" | "up">("down");
@@ -306,8 +309,24 @@ export function DesktopSelect({
         }}
         style={({ pressed }) => [
           SELECT_BUTTON_STYLE,
-          isOpen ? SELECT_BUTTON_OPEN_STYLE : null,
-          pressed ? SELECT_BUTTON_PRESSED_STYLE : null,
+          isOpen
+            ? [
+                SELECT_BUTTON_OPEN_STYLE,
+                {
+                  borderColor: fantasyTheme.primaryColor,
+                  boxShadow: `0px 0px 0px 3px ${colorWithAlpha(
+                    fantasyTheme.primaryColor,
+                    0.12,
+                  )}`,
+                },
+              ]
+            : null,
+          pressed
+            ? [
+                SELECT_BUTTON_PRESSED_STYLE,
+                { backgroundColor: fantasyTheme.softColor },
+              ]
+            : null,
         ]}
       >
         <View style={SELECT_LABEL_ROW_STYLE}>
@@ -324,11 +343,12 @@ export function DesktopSelect({
           pointerEvents="none"
           style={[
             SELECT_CHEVRON_STYLE,
+            { backgroundColor: fantasyTheme.softColor },
             isOpen ? SELECT_CHEVRON_OPEN_STYLE : null,
           ]}
         >
           <ChevronDown
-            color={colors.brand.blueDark}
+            color={fantasyTheme.primaryColor}
             size={18}
             strokeWidth={3}
           />
@@ -366,9 +386,22 @@ export function DesktopSelect({
                   }}
                   style={({ pressed }) => [
                     SELECT_OPTION_STYLE,
-                    isSelected ? SELECT_OPTION_SELECTED_STYLE : null,
+                    isSelected
+                      ? [
+                          SELECT_OPTION_SELECTED_STYLE,
+                          { backgroundColor: fantasyTheme.softColor },
+                        ]
+                      : null,
                     pressed && !option.disabled
-                      ? SELECT_OPTION_PRESSED_STYLE
+                      ? [
+                          SELECT_OPTION_PRESSED_STYLE,
+                          {
+                            backgroundColor: colorWithAlpha(
+                              fantasyTheme.primaryColor,
+                              0.14,
+                            ),
+                          },
+                        ]
                       : null,
                     option.disabled ? SELECT_OPTION_DISABLED_STYLE : null,
                   ]}
@@ -383,6 +416,7 @@ export function DesktopSelect({
                     style={[
                       SELECT_OPTION_TEXT_STYLE,
                       isSelected ? SELECT_OPTION_TEXT_SELECTED_STYLE : null,
+                      isSelected ? { color: fantasyTheme.primaryColor } : null,
                     ]}
                   >
                     {option.label}
@@ -391,6 +425,9 @@ export function DesktopSelect({
                     style={[
                       SELECT_OPTION_CHECK_STYLE,
                       isSelected ? SELECT_OPTION_CHECK_ACTIVE_STYLE : null,
+                      isSelected
+                        ? { backgroundColor: fantasyTheme.primaryColor }
+                        : null,
                     ]}
                   >
                     {isSelected ? (

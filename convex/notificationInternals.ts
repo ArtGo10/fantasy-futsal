@@ -10,17 +10,18 @@ declare const process: {
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
+type NotificationLanguage = "en" | "uk" | "pl";
+
 type ExpoPushRecipient = {
+  preferredLanguage: NotificationLanguage;
   tokens: string[];
   userId: Id<"users">;
 };
 
 type DeadlineReminderWindow = {
-  body: (gameweekName: string) => string;
   keySuffix: string;
   maxMs: number;
   minExclusiveMs: number;
-  title: string;
   type: string;
 };
 
@@ -28,22 +29,22 @@ const DEADLINE_REMINDER_WINDOWS: DeadlineReminderWindow[] = [
   {
     keySuffix: "day-before",
     type: "deadline_reminder_day",
-    title: "Дедлайн завтра",
-    body: (gameweekName) =>
-      `${gameweekName}: дедлайн уже завтра. Не забудьте сохранить состав.`,
     maxMs: DAY_MS,
     minExclusiveMs: HOUR_MS,
   },
   {
     keySuffix: "hour-before",
     type: "deadline_reminder_hour",
-    title: "Дедлайн через час",
-    body: (gameweekName) =>
-      `${gameweekName}: остался примерно час, чтобы сохранить состав.`,
     maxMs: HOUR_MS,
     minExclusiveMs: 0,
   },
 ];
+
+function normalizePreferredLanguage(
+  language: string | undefined,
+): NotificationLanguage {
+  return language === "uk" || language === "pl" ? language : "en";
+}
 
 function getEnvList(name: string) {
   return (process.env[name] ?? "")
@@ -117,14 +118,22 @@ export const enabledExpoPushRecipientForClerkUser = internalQuery({
       ),
     );
 
-    return { tokens: enabledTokens, userId: user._id };
+    return {
+      preferredLanguage: normalizePreferredLanguage(user.preferredLanguage),
+      tokens: enabledTokens,
+      userId: user._id,
+    };
   },
 });
 
 export const enabledExpoPushRecipientsForAllUsers = internalQuery({
   args: {},
   handler: async (ctx): Promise<ExpoPushRecipient[]> => {
-    const tokens = await ctx.db.query("pushNotificationTokens").collect();
+    const [users, tokens] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("pushNotificationTokens").collect(),
+    ]);
+    const usersById = new Map(users.map((user) => [user._id, user]));
     const recipients = new Map<
       string,
       ExpoPushRecipient & { tokenSet: Set<string> }
@@ -141,6 +150,9 @@ export const enabledExpoPushRecipientsForAllUsers = internalQuery({
       }
 
       recipients.set(key, {
+        preferredLanguage: normalizePreferredLanguage(
+          usersById.get(token.userId)?.preferredLanguage,
+        ),
         tokenSet: new Set([token.token]),
         tokens: [],
         userId: token.userId,
@@ -148,6 +160,7 @@ export const enabledExpoPushRecipientsForAllUsers = internalQuery({
     }
 
     return Array.from(recipients.values()).map((recipient) => ({
+      preferredLanguage: recipient.preferredLanguage,
       tokens: Array.from(recipient.tokenSet),
       userId: recipient.userId,
     }));
@@ -176,6 +189,7 @@ export const pushNotificationRecipientsForAllUsers = internalQuery({
     }
 
     return users.map((user) => ({
+      preferredLanguage: normalizePreferredLanguage(user.preferredLanguage),
       tokens: Array.from(tokensByUserId.get(user._id) ?? []),
       userId: user._id,
     }));
@@ -214,7 +228,11 @@ export const gameweekPushState = internalQuery({
     const gameweek = await ctx.db.get(args.gameweekId);
     if (!gameweek) return null;
 
-    return { status: gameweek.status };
+    return {
+      name: gameweek.name,
+      number: gameweek.number,
+      status: gameweek.status,
+    };
   },
 });
 export const pushNotificationEventExists = internalQuery({
@@ -241,9 +259,9 @@ export const pendingDeadlineReminders = internalQuery({
       (season) => season.status !== "archived" && season.status !== "completed",
     );
     const reminders: Array<{
-      body: string;
+      gameweekName: string;
+      gameweekNumber: number;
       key: string;
-      title: string;
       type: string;
     }> = [];
 
@@ -285,16 +303,75 @@ export const pendingDeadlineReminders = internalQuery({
           }
 
           reminders.push({
+            gameweekName: gameweek.name,
+            gameweekNumber: gameweek.number,
             key,
             type: reminderWindow.type,
-            title: reminderWindow.title,
-            body: reminderWindow.body(gameweek.name),
           });
         }
       }
     }
 
     return reminders;
+  },
+});
+
+export const claimPushNotificationEvent = internalMutation({
+  args: {
+    key: v.string(),
+    type: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("pushNotificationEvents")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+    if (existing) return { claimed: false, id: existing._id };
+
+    const now = Date.now();
+    const id = await ctx.db.insert("pushNotificationEvents", {
+      key: args.key,
+      type: args.type,
+      tokensCount: 0,
+      sentAt: now,
+      createdAt: now,
+    });
+
+    return { claimed: true, id };
+  },
+});
+
+export const completePushNotificationEvent = internalMutation({
+  args: {
+    key: v.string(),
+    tokensCount: v.number(),
+    type: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("pushNotificationEvents")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        sentAt: now,
+        tokensCount: args.tokensCount,
+        type: args.type,
+      });
+      return { created: false, id: existing._id };
+    }
+
+    const id = await ctx.db.insert("pushNotificationEvents", {
+      key: args.key,
+      type: args.type,
+      tokensCount: args.tokensCount,
+      sentAt: now,
+      createdAt: now,
+    });
+
+    return { created: true, id };
   },
 });
 

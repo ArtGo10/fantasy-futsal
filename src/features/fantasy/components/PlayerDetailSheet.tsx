@@ -15,6 +15,7 @@ import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { formatFantasyMoney, formatFantasyMoneyDelta } from "../utils/money";
 import { getPlayerPhoto } from "../utils/playerStats";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import { BottomSheet } from "./BottomSheet";
 import { CheckBoxMark } from "./CheckBoxMark";
 import { PlayerAvatar } from "./PlayerAvatar";
@@ -28,7 +29,7 @@ type PlayerStatus =
   | "unavailable"
   | "left";
 
-type PlayerDetail = {
+export type PlayerDetail = {
   clubName: string | null;
   displayName: string;
   photoThumbnailUrl?: string | null;
@@ -36,10 +37,13 @@ type PlayerDetail = {
   appearances?: number | null;
   assists?: number | null;
   averagePointsPerGameweek?: number | null;
+  cleanSheets?: number | null;
   goals?: number | null;
+  goalsConceded?: number | null;
   managerAveragePointsPerGameweek?: number | null;
   managerLastGameweekPoints?: number | null;
   managerSeasonPoints?: number | null;
+  ownGoals?: number | null;
   penaltiesMissed?: number | null;
   penaltiesSaved?: number | null;
   position: PlayerPosition;
@@ -48,6 +52,7 @@ type PlayerDetail = {
   priceChangedAt?: number | null;
   priceDelta?: number | null;
   redCards?: number | null;
+  saves?: number | null;
   seasonPoints?: number | null;
   selectedPercent?: number | null;
   status: PlayerStatus;
@@ -58,6 +63,23 @@ type PlayerDetail = {
     updatedAt?: number | null;
   } | null;
   statusMessage?: string | null;
+  yellowCards?: number | null;
+};
+
+export type PlayerDetailSeasonStatsPlayer = {
+  appearances?: number | null;
+  assists?: number | null;
+  averagePointsPerGameweek?: number | null;
+  cleanSheets?: number | null;
+  goals?: number | null;
+  goalsConceded?: number | null;
+  ownGoals?: number | null;
+  penaltiesMissed?: number | null;
+  penaltiesSaved?: number | null;
+  position: PlayerPosition;
+  redCards?: number | null;
+  saves?: number | null;
+  seasonPoints?: number | null;
   yellowCards?: number | null;
 };
 
@@ -88,6 +110,86 @@ function formatPlayerDetailNumber(value: number | null | undefined) {
   return Number.isInteger(normalized)
     ? String(normalized)
     : normalized.toFixed(1);
+}
+
+export function getPlayerDetailSeasonStatItems(
+  player: PlayerDetailSeasonStatsPlayer,
+  t: (key: TranslationKey) => string,
+) {
+  const items = [
+    {
+      key: "seasonPoints",
+      label: t("playerDetails.totalPoints"),
+      value: formatPlayerDetailNumber(player.seasonPoints),
+    },
+    {
+      key: "averagePoints",
+      label: t("playerDetails.averagePoints"),
+      value: formatPlayerDetailNumber(player.averagePointsPerGameweek),
+    },
+    {
+      key: "goals",
+      label: t("players.stats.goals"),
+      value: formatPlayerDetailNumber(player.goals),
+    },
+    {
+      key: "assists",
+      label: t("players.stats.assists"),
+      value: formatPlayerDetailNumber(player.assists),
+    },
+    {
+      key: "appearances",
+      label: t("players.stats.matches"),
+      value: formatPlayerDetailNumber(player.appearances),
+    },
+    {
+      key: "yellowCards",
+      label: t("playerDetails.yellowCards"),
+      value: formatPlayerDetailNumber(player.yellowCards),
+    },
+    {
+      key: "redCards",
+      label: t("playerDetails.redCards"),
+      value: formatPlayerDetailNumber(player.redCards),
+    },
+    {
+      key: "ownGoals",
+      label: t("playerDetails.ownGoals"),
+      value: formatPlayerDetailNumber(player.ownGoals),
+    },
+    {
+      key: "penaltiesMissed",
+      label: t("playerDetails.penaltiesMissed"),
+      value: formatPlayerDetailNumber(player.penaltiesMissed),
+    },
+  ];
+
+  if (player.position === "goalkeeper") {
+    items.push(
+      {
+        key: "cleanSheets",
+        label: t("playerDetails.cleanSheets"),
+        value: formatPlayerDetailNumber(player.cleanSheets),
+      },
+      {
+        key: "goalsConceded",
+        label: t("playerDetails.goalsConceded"),
+        value: formatPlayerDetailNumber(player.goalsConceded),
+      },
+      {
+        key: "saves",
+        label: t("playerDetails.saves"),
+        value: formatPlayerDetailNumber(player.saves),
+      },
+      {
+        key: "penaltiesSaved",
+        label: t("playerDetails.penaltiesSaved"),
+        value: formatPlayerDetailNumber(player.penaltiesSaved),
+      },
+    );
+  }
+
+  return items;
 }
 
 const STATUS_LABEL_KEYS: Record<
@@ -133,10 +235,13 @@ function PlayerDetailHero({
   player,
   t,
 }: PlayerDetailHeroProps) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View
       style={[
         styles.playerDetailHero,
+        { backgroundColor: fantasyTheme.primaryColor },
         isDesktopWeb ? styles.playerDetailHeroDesktop : null,
       ]}
     >
@@ -203,21 +308,18 @@ export function PlayerDetailSheet({
   visible,
 }: PlayerDetailSheetProps) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
 
   if (!player) return null;
 
-  const seasonPoints = formatPlayerDetailNumber(player.seasonPoints);
-  const averagePoints = formatPlayerDetailNumber(
-    player.averagePointsPerGameweek,
-  );
   const selectedPercent = formatPlayerDetailNumber(player.selectedPercent);
   const priceDelta = Number((player.priceDelta ?? 0).toFixed(1));
   const hasPriceTrend = Math.abs(priceDelta) >= 0.1;
   const formattedPriceDelta = formatFantasyMoneyDelta(priceDelta);
-  const cardCount = (player.yellowCards ?? 0) + (player.redCards ?? 0);
+  const seasonStatItems = getPlayerDetailSeasonStatItems(player, t);
   const publicStatus = getPublicPlayerStatus(player.status);
   const statusLabel = t(STATUS_LABEL_KEYS[publicStatus]);
   const statusMessage =
@@ -247,6 +349,9 @@ export function PlayerDetailSheet({
         <Text
           style={[
             styles.playerDetailQuickValue,
+            !hasPriceTrend
+              ? { color: fantasyTheme.primaryColor }
+              : null,
             hasPriceTrend && priceDelta > 0
               ? styles.playerDetailQuickValueUp
               : null,
@@ -273,7 +378,14 @@ export function PlayerDetailSheet({
         <Text style={styles.playerDetailQuickLabel}>
           {t("playerDetails.selectedPercent")}
         </Text>
-        <Text style={styles.playerDetailQuickValue}>{selectedPercent}%</Text>
+        <Text
+          style={[
+            styles.playerDetailQuickValue,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
+          {selectedPercent}%
+        </Text>
       </View>
       <View style={styles.playerDetailQuickStat}>
         <Text style={styles.playerDetailQuickLabel}>
@@ -394,104 +506,25 @@ export function PlayerDetailSheet({
               isDesktopWeb ? styles.playerDetailStatsGridDesktop : null,
             ]}
           >
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>{seasonPoints}</Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("playerDetails.totalPoints")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>{averagePoints}</Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("playerDetails.averagePoints")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>
-                {player.goals ?? 0}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("players.stats.goals")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>
-                {player.assists ?? 0}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("players.stats.assists")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>
-                {player.penaltiesMissed ?? 0}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("playerDetails.penaltiesMissed")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>
-                {player.penaltiesSaved ?? 0}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("playerDetails.penaltiesSaved")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>
-                {player.appearances ?? 0}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("players.stats.matches")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text style={styles.playerDetailStatValue}>{cardCount}</Text>
-              <Text style={styles.playerDetailStatLabel}>
-                {t("players.stats.cards")}
-              </Text>
-            </View>
+            {seasonStatItems.map((item) => (
+              <View
+                key={item.key}
+                style={[
+                  styles.playerDetailStatCell,
+                  isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.playerDetailStatValue,
+                    { color: fantasyTheme.primaryColor },
+                  ]}
+                >
+                  {item.value}
+                </Text>
+                <Text style={styles.playerDetailStatLabel}>{item.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -515,11 +548,17 @@ export function PlayerDetailSheet({
               <Pressable
                 accessibilityRole="button"
                 onPress={onReplace}
-                style={styles.playerDetailActionSecondary}
+                style={[
+                  styles.playerDetailActionSecondary,
+                  { borderColor: fantasyTheme.borderColor },
+                ]}
               >
                 <Text
                   numberOfLines={1}
-                  style={styles.playerDetailActionSecondaryText}
+                  style={[
+                    styles.playerDetailActionSecondaryText,
+                    { color: fantasyTheme.primaryColor },
+                  ]}
                 >
                   {t("playerDetails.replace")}
                 </Text>
@@ -529,7 +568,10 @@ export function PlayerDetailSheet({
               <Pressable
                 accessibilityRole="button"
                 onPress={onSwap}
-                style={styles.playerDetailActionPrimary}
+                style={[
+                  styles.playerDetailActionPrimary,
+                  { backgroundColor: fantasyTheme.primaryColor },
+                ]}
               >
                 <Text
                   numberOfLines={1}
