@@ -1580,8 +1580,9 @@ export function GameweekTeamViewer({
   const totalPoints = data.score?.participated ? data.score.points : 0;
   const highestPoints = highestPointsOverride ?? data.highestTeam?.points ?? 0;
   const highestTeamId = highestTeamIdOverride ?? data.highestTeam?.id ?? null;
+  const canOpenHighestTeam = highestTeamId && highestTeamId !== fantasyTeamId;
   const handleHighestPress =
-    highestTeamId && onOpenTeam
+    canOpenHighestTeam && onOpenTeam
       ? () => {
           setSelectedFixtureId(null);
           setSelectedFixtureFallback(null);

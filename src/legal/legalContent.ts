@@ -96,7 +96,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: LEGAL_EFFECTIVE_DATE,
+      updatedAt: "August 28, 2026",
       sections: [
         {
           title: "How the game works",
@@ -157,12 +157,11 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           title: "Scoring",
           body: [
             "Appearance: +1 point.",
-            "Universal player personal actions: goal +3, assist +2, missed penalty -2, yellow card -1, two-yellow send-off -3, direct red card -4, own goal -2.",
-            "Universal player team goals scored: 0 = -1, 1-2 = 0, 3-4 = +1, 5-6 = +2, 7+ = +3.",
-            "Universal player team goals conceded: 0 = +3, 1 = +2, 2 = +1, 3 = 0, 4 = -1, 5 = -2, 6+ = -3.",
-            "Goalkeeper personal actions: goal +6, assist +4, yellow card -1, two-yellow send-off -3, direct red card -4, own goal -2.",
-            "Goalkeeper team goals conceded: 0 = +4, 1 = +3, 2 = +1, 3 = 0, 4 = -1, 5 = -3, 6+ = -4.",
-            "Team-based points apply only to players who appeared in the match. Negative player points are supported.",
+            "Universal player actions: goal +4, assist +3, missed 6-meter penalty -2, yellow card -1, red card -3, own goal -2.",
+            "Goalkeeper actions: goal +7, assist +5, saved 6-meter penalty +2, missed 6-meter penalty -2, yellow card -1, red card -3, own goal -2.",
+            "Goals conceded by the player's team apply to every player who appeared: 0 conceded = +4, 1 conceded = +2, 2-3 conceded = 0.",
+            "Starting from the fourth goal conceded, players lose 1 point for every 2 goals conceded: 4-5 = -1, 6-7 = -2, 8-9 = -3, and so on.",
+            "No fantasy points are awarded for the player's team winning, drawing, losing, or scoring team goals. Negative player points are supported.",
           ],
         },
         {
@@ -254,7 +253,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "11 серпня 2026",
+      updatedAt: "28 серпня 2026",
       sections: [
         {
           title: "Як працює гра",
@@ -315,12 +314,11 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           title: "Нарахування очок",
           body: [
             "Вихід на майданчик: +1 очко.",
-            "Особисті дії універсала: гол +3, асист +2, незабитий пенальті -2, жовта картка -1, вилучення за дві жовті -3, пряма червона -4, автогол -2.",
-            "Голи, забиті командою універсала: 0 = -1, 1-2 = 0, 3-4 = +1, 5-6 = +2, 7+ = +3.",
-            "Голи, пропущені командою універсала: 0 = +3, 1 = +2, 2 = +1, 3 = 0, 4 = -1, 5 = -2, 6+ = -3.",
-            "Особисті дії воротаря: гол +6, асист +4, жовта картка -1, вилучення за дві жовті -3, пряма червона -4, автогол -2.",
-            "Голи, пропущені командою воротаря: 0 = +4, 1 = +3, 2 = +1, 3 = 0, 4 = -1, 5 = -3, 6+ = -4.",
-            "Командні очки застосовуються лише до гравців, які вийшли на майданчик у матчі. Від'ємні очки гравця підтримуються.",
+            "Дії універсала: гол +4, асист +3, незабитий 6-метровий -2, жовта картка -1, червона картка -3, автогол -2.",
+            "Дії воротаря: гол +7, асист +5, відбитий 6-метровий +2, незабитий 6-метровий -2, жовта картка -1, червона картка -3, автогол -2.",
+            "Пропущені голи команди застосовуються до кожного гравця, який вийшов на майданчик: 0 пропущених = +4, 1 пропущений = +2, 2-3 пропущені = 0.",
+            "Починаючи з четвертого пропущеного гола, гравці втрачають 1 очко за кожні 2 пропущені голи: 4-5 = -1, 6-7 = -2, 8-9 = -3 і так далі.",
+            "Fantasy-очки не нараховуються за перемогу, нічию, поразку або забиті командою голи. Від'ємні очки гравця підтримуються.",
           ],
         },
         {
@@ -412,7 +410,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "13 sierpnia 2026",
+      updatedAt: "28 sierpnia 2026",
       sections: [
         {
           title: "Jak działa gra",
@@ -473,12 +471,11 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           title: "Punktacja",
           body: [
             "Występ: +1 punkt.",
-            "Akcje osobiste zawodnika uniwersalnego: gol +3, asysta +2, niewykorzystany karny -2, żółta kartka -1, czerwona po dwóch żółtych -3, bezpośrednia czerwona -4, gol samobójczy -2.",
-            "Gole zdobyte przez drużynę zawodnika uniwersalnego: 0 = -1, 1-2 = 0, 3-4 = +1, 5-6 = +2, 7+ = +3.",
-            "Gole stracone przez drużynę zawodnika uniwersalnego: 0 = +3, 1 = +2, 2 = +1, 3 = 0, 4 = -1, 5 = -2, 6+ = -3.",
-            "Akcje osobiste bramkarza: gol +6, asysta +4, żółta kartka -1, czerwona po dwóch żółtych -3, bezpośrednia czerwona -4, gol samobójczy -2.",
-            "Gole stracone przez drużynę bramkarza: 0 = +4, 1 = +3, 2 = +1, 3 = 0, 4 = -1, 5 = -3, 6+ = -4.",
-            "Punkty drużynowe dotyczą tylko zawodników, którzy wystąpili w meczu. Ujemne punkty zawodnika są obsługiwane.",
+            "Akcje zawodnika uniwersalnego: gol +4, asysta +3, niewykorzystany rzut karny z 6 metrów -2, żółta kartka -1, czerwona kartka -3, gol samobójczy -2.",
+            "Akcje bramkarza: gol +7, asysta +5, obroniony rzut karny z 6 metrów +2, niewykorzystany rzut karny z 6 metrów -2, żółta kartka -1, czerwona kartka -3, gol samobójczy -2.",
+            "Gole stracone przez drużynę zawodnika dotyczą każdego zawodnika, który wystąpił: 0 straconych = +4, 1 stracony = +2, 2-3 stracone = 0.",
+            "Od czwartego straconego gola zawodnicy tracą 1 punkt za każde 2 stracone gole: 4-5 = -1, 6-7 = -2, 8-9 = -3 i dalej według tej samej zasady.",
+            "Punkty fantasy nie są przyznawane za zwycięstwo, remis, porażkę ani gole zdobyte przez drużynę zawodnika. Ujemne punkty zawodnika są obsługiwane.",
           ],
         },
         {

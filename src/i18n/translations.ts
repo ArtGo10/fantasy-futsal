@@ -610,7 +610,7 @@ const en = {
   "team.pointsLine.penalty_missed": "Penalties missed",
   "team.pointsLine.penalty_saved": "Penalties saved",
   "team.pointsLine.team_goals_scored": "Team goals scored",
-  "team.pointsLine.team_goals_conceded": "Team goals conceded",
+  "team.pointsLine.team_goals_conceded": "Goals conceded",
   "team.overview.wildcard": "Wildcard",
   "team.dashboard.title": "Build your team",
   "team.emptyDescription":
@@ -1330,7 +1330,7 @@ const uk: Record<TranslationKey, string> = {
   "team.pointsLine.penalty_missed": "Незабиті пенальті",
   "team.pointsLine.penalty_saved": "Відбиті пенальті",
   "team.pointsLine.team_goals_scored": "Голи команди забиті",
-  "team.pointsLine.team_goals_conceded": "Голи команди пропущені",
+  "team.pointsLine.team_goals_conceded": "Пропущені голи",
   "team.overview.wildcard": "Wildcard",
   "team.dashboard.title": "Зберіть команду",
   "team.emptyDescription": "Тут з’являться основа, друга четвірка та резерв.",
@@ -2054,7 +2054,7 @@ const pl: Record<TranslationKey, string> = {
   "team.pointsLine.penalty_missed": "Niewykorzystane karne",
   "team.pointsLine.penalty_saved": "Obronione karne",
   "team.pointsLine.team_goals_scored": "Gole drużyny zdobyte",
-  "team.pointsLine.team_goals_conceded": "Gole drużyny stracone",
+  "team.pointsLine.team_goals_conceded": "Gole stracone",
   "team.overview.wildcard": "Wildcard",
   "team.dashboard.title": "Zbuduj drużynę",
   "team.emptyDescription":
