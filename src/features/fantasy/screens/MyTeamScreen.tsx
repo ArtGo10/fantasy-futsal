@@ -3560,6 +3560,10 @@ export function MyTeamScreen({
   const highestPointsText = formatFantasyPointsValue(
     dashboardHighestTeam?.currentGameweekPoints,
   );
+  const canOpenDashboardHighestTeam =
+    Boolean(dashboardHighestTeam?.id) &&
+    Boolean(fantasyTeam?.id) &&
+    dashboardHighestTeam?.id !== fantasyTeam?.id;
   const overallRank = fantasyTeam
     ? [...(fantasyTeams ?? [])]
         .sort(
@@ -5590,13 +5594,15 @@ export function MyTeamScreen({
                     currentGameweekNumber={dashboardCurrentGameweekNumber}
                     highestPoints={highestPointsText}
                     onOpenHighestDetails={
-                      dashboardHighestTeam?.id
+                      canOpenDashboardHighestTeam
                         ? () => {
+                            const highestTeam = dashboardHighestTeam;
+                            if (!highestTeam?.id) return;
                             setPointsViewerTeamId(
-                              dashboardHighestTeam.id as Id<"fantasyTeams">,
+                              highestTeam.id as Id<"fantasyTeams">,
                             );
                             setPointsViewerGameweekId(
-                              (dashboardHighestTeam.currentGameweekId ??
+                              (highestTeam.currentGameweekId ??
                                 dashboardCurrentGameweekId) as Id<"fantasyGameweeks"> | null,
                             );
                             setTeamWorkspaceMode("pointsDetails");

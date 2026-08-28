@@ -138,38 +138,38 @@ const sendPushToAllUsersInternal = makeFunctionReference<
   PushToAllUsersResult
 >;
 const FANTASY_DEFAULT_SCORING_RULES = {
-  version: "futsal-fantasy-v2",
+  version: "futsal-fantasy-v3",
   appearance: 1,
-  outfieldGoal: 3,
-  goalkeeperGoal: 6,
-  outfieldAssist: 2,
-  goalkeeperAssist: 4,
+  outfieldGoal: 4,
+  goalkeeperGoal: 7,
+  outfieldAssist: 3,
+  goalkeeperAssist: 5,
   goalkeeperConcededZero: 4,
-  goalkeeperConcededOne: 3,
-  goalkeeperConcededTwo: 1,
+  goalkeeperConcededOne: 2,
+  goalkeeperConcededTwo: 0,
   goalkeeperConcededThree: 0,
   goalkeeperConcededFour: -1,
-  goalkeeperConcededFive: -3,
-  goalkeeperConcededSixPlus: -4,
-  goalkeeperConcededExtra: 0,
-  outfieldTeamGoalsScoredZero: -1,
+  goalkeeperConcededFive: -1,
+  goalkeeperConcededSixPlus: -2,
+  goalkeeperConcededExtra: -1,
+  outfieldTeamGoalsScoredZero: 0,
   outfieldTeamGoalsScoredOneTwo: 0,
-  outfieldTeamGoalsScoredThreeFour: 1,
-  outfieldTeamGoalsScoredFiveSix: 2,
-  outfieldTeamGoalsScoredSevenPlus: 3,
-  outfieldConcededZero: 3,
+  outfieldTeamGoalsScoredThreeFour: 0,
+  outfieldTeamGoalsScoredFiveSix: 0,
+  outfieldTeamGoalsScoredSevenPlus: 0,
+  outfieldConcededZero: 4,
   outfieldConcededOne: 2,
-  outfieldConcededTwo: 1,
+  outfieldConcededTwo: 0,
   outfieldConcededThree: 0,
   outfieldConcededFour: -1,
-  outfieldConcededFive: -2,
-  outfieldConcededSixPlus: -3,
+  outfieldConcededFive: -1,
+  outfieldConcededSixPlus: -2,
   yellowCard: -1,
   secondYellowRedCard: -3,
-  redCard: -4,
+  redCard: -3,
   ownGoal: -2,
   penaltyMissed: -2,
-  penaltySaved: 0,
+  penaltySaved: 2,
 };
 
 async function schedulePushToAllUsers(
@@ -1958,41 +1958,60 @@ function getFixtureEventPoints(
   return 0;
 }
 
-function getOutfieldTeamGoalsScoredPoints(
-  teamGoalsScored: number,
-  rules: ScoringRuleValues,
+function getConcededPointsFromScale(
+  goalsConceded: number,
+  scale: {
+    zero: number;
+    one: number;
+    two: number;
+    three: number;
+    four: number;
+    five: number;
+    sixPlus: number;
+    extra: number;
+  },
 ) {
-  if (teamGoalsScored <= 0) return rules.outfieldTeamGoalsScoredZero;
-  if (teamGoalsScored <= 2) return rules.outfieldTeamGoalsScoredOneTwo;
-  if (teamGoalsScored <= 4) return rules.outfieldTeamGoalsScoredThreeFour;
-  if (teamGoalsScored <= 6) return rules.outfieldTeamGoalsScoredFiveSix;
-  return rules.outfieldTeamGoalsScoredSevenPlus;
+  if (goalsConceded <= 0) return scale.zero;
+  if (goalsConceded === 1) return scale.one;
+  if (goalsConceded === 2) return scale.two;
+  if (goalsConceded === 3) return scale.three;
+  if (goalsConceded === 4) return scale.four;
+  if (goalsConceded === 5) return scale.five;
+
+  const extraSteps = Math.floor((goalsConceded - 6) / 2);
+  return scale.sixPlus + extraSteps * scale.extra;
 }
 
 function getOutfieldConcededPoints(
   goalsConceded: number,
   rules: ScoringRuleValues,
 ) {
-  if (goalsConceded <= 0) return rules.outfieldConcededZero;
-  if (goalsConceded === 1) return rules.outfieldConcededOne;
-  if (goalsConceded === 2) return rules.outfieldConcededTwo;
-  if (goalsConceded === 3) return rules.outfieldConcededThree;
-  if (goalsConceded === 4) return rules.outfieldConcededFour;
-  if (goalsConceded === 5) return rules.outfieldConcededFive;
-  return rules.outfieldConcededSixPlus;
+  return getConcededPointsFromScale(goalsConceded, {
+    zero: rules.outfieldConcededZero,
+    one: rules.outfieldConcededOne,
+    two: rules.outfieldConcededTwo,
+    three: rules.outfieldConcededThree,
+    four: rules.outfieldConcededFour,
+    five: rules.outfieldConcededFive,
+    sixPlus: rules.outfieldConcededSixPlus,
+    extra: rules.goalkeeperConcededExtra,
+  });
 }
 
 function getGoalkeeperConcededPoints(
   goalsConceded: number,
   rules: ScoringRuleValues,
 ) {
-  if (goalsConceded <= 0) return rules.goalkeeperConcededZero;
-  if (goalsConceded === 1) return rules.goalkeeperConcededOne;
-  if (goalsConceded === 2) return rules.goalkeeperConcededTwo;
-  if (goalsConceded === 3) return rules.goalkeeperConcededThree;
-  if (goalsConceded === 4) return rules.goalkeeperConcededFour;
-  if (goalsConceded === 5) return rules.goalkeeperConcededFive;
-  return rules.goalkeeperConcededSixPlus;
+  return getConcededPointsFromScale(goalsConceded, {
+    zero: rules.goalkeeperConcededZero,
+    one: rules.goalkeeperConcededOne,
+    two: rules.goalkeeperConcededTwo,
+    three: rules.goalkeeperConcededThree,
+    four: rules.goalkeeperConcededFour,
+    five: rules.goalkeeperConcededFive,
+    sixPlus: rules.goalkeeperConcededSixPlus,
+    extra: rules.goalkeeperConcededExtra,
+  });
 }
 
 function getMutablePlayerGameweekStats(
@@ -2518,27 +2537,12 @@ async function recalculateGameweekScoresInternal(
       playerStats.teamGoalsScored += teamGoalsScored;
       if (goalsConceded === 0) playerStats.cleanSheets += 1;
 
-      if (position === "goalkeeper") {
-        const concededPoints = getGoalkeeperConcededPoints(
-          goalsConceded,
-          scoringRules,
-        );
-        playerStats.teamGoalsConcededPoints += concededPoints;
-        playerStats.points += concededPoints;
-        continue;
-      }
-
-      const scoredPoints = getOutfieldTeamGoalsScoredPoints(
-        teamGoalsScored,
-        scoringRules,
-      );
-      const concededPoints = getOutfieldConcededPoints(
-        goalsConceded,
-        scoringRules,
-      );
-      playerStats.teamGoalsScoredPoints += scoredPoints;
+      const concededPoints =
+        position === "goalkeeper"
+          ? getGoalkeeperConcededPoints(goalsConceded, scoringRules)
+          : getOutfieldConcededPoints(goalsConceded, scoringRules);
       playerStats.teamGoalsConcededPoints += concededPoints;
-      playerStats.points += scoredPoints + concededPoints;
+      playerStats.points += concededPoints;
     }
   }
 
@@ -3151,34 +3155,18 @@ function buildPlayerPointLines(
   );
 
   const explicitLinePoints = lines.reduce((sum, line) => sum + line.points, 0);
-  const storedTeamGoalsScoredPoints = stat.teamGoalsScoredPoints ?? 0;
   const storedTeamGoalsConcededPoints =
     stat.teamGoalsConcededPoints ??
     (position === "goalkeeper"
       ? roundFantasyPoints(stat.points - explicitLinePoints)
       : 0);
 
-  if (position === "goalkeeper") {
-    addPlayerPointLine(
-      lines,
-      "team_goals_conceded",
-      stat.goalsConceded ?? null,
-      storedTeamGoalsConcededPoints,
-    );
-  } else {
-    addPlayerPointLine(
-      lines,
-      "team_goals_scored",
-      stat.teamGoalsScored ?? null,
-      storedTeamGoalsScoredPoints,
-    );
-    addPlayerPointLine(
-      lines,
-      "team_goals_conceded",
-      stat.goalsConceded ?? null,
-      storedTeamGoalsConcededPoints,
-    );
-  }
+  addPlayerPointLine(
+    lines,
+    "team_goals_conceded",
+    stat.goalsConceded ?? null,
+    storedTeamGoalsConcededPoints,
+  );
 
   return lines;
 }
@@ -3745,34 +3733,18 @@ function buildFixturePlayerPointsBreakdown({
     const isHomePlayer = fixture.homeClubId === player.clubId;
     const isAwayPlayer = fixture.awayClubId === player.clubId;
     if (isHomePlayer || isAwayPlayer) {
-      const teamGoalsScored = isHomePlayer
-        ? fixture.homeScore
-        : fixture.awayScore;
       const goalsConceded = isHomePlayer
         ? fixture.awayScore
         : fixture.homeScore;
 
-      if (position === "goalkeeper") {
-        addPlayerPointLine(
-          lines,
-          "team_goals_conceded",
-          goalsConceded,
-          getGoalkeeperConcededPoints(goalsConceded, rules),
-        );
-      } else {
-        addPlayerPointLine(
-          lines,
-          "team_goals_scored",
-          teamGoalsScored,
-          getOutfieldTeamGoalsScoredPoints(teamGoalsScored, rules),
-        );
-        addPlayerPointLine(
-          lines,
-          "team_goals_conceded",
-          goalsConceded,
-          getOutfieldConcededPoints(goalsConceded, rules),
-        );
-      }
+      addPlayerPointLine(
+        lines,
+        "team_goals_conceded",
+        goalsConceded,
+        position === "goalkeeper"
+          ? getGoalkeeperConcededPoints(goalsConceded, rules)
+          : getOutfieldConcededPoints(goalsConceded, rules),
+      );
     }
   }
 

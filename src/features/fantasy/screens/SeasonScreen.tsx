@@ -1550,9 +1550,6 @@ function SeasonCalendar({
           <View key={group.key} style={styles.seasonMatchDayGroup}>
             <View style={styles.seasonMatchDayTitleRow}>
               <Text style={styles.seasonMatchDayTitle}>{group.title}</Text>
-              {group.status === "live" ? (
-                <Text style={styles.seasonLiveBadge}>{t("common.live")}</Text>
-              ) : null}
             </View>
             <View style={styles.seasonMatchList}>
               {group.fixtures.map((fixture) => {
