@@ -2,7 +2,7 @@ import "react-native-url-polyfill/auto";
 
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { ConvexReactClient } from "convex/react";
+import { ConvexReactClient, useMutation } from "convex/react";
 import {
   Component,
   type ErrorInfo,
@@ -41,10 +41,10 @@ import {
 import { I18nProvider, useI18n } from "./src/i18n/I18nProvider";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
 import { isPublicWebPath, isWebAppPath } from "./src/web/publicSiteConfig";
+import { api } from "./src/lib/convexApi";
 import { styles } from "./src/styles";
 import {
   clearStoredCrashReport,
-  formatCrashReport,
   getStoredCrashReport,
   installGlobalCrashReporter,
   storeCrashReportForError,
@@ -63,6 +63,7 @@ const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
 const AUTH_BOOT_TIMEOUT_MS = 15000;
 const AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT = 1;
+const CRASH_REPORT_SUBMISSION_TIMEOUT_MS = 3000;
 const WEB_SCROLLBAR_STYLE_ID = "fantasy-futsal-scrollbar-styles";
 
 const DEFAULT_SAFE_AREA_EDGES = ["top", "right", "bottom", "left"] as const;
@@ -158,16 +159,22 @@ function useStoredCrashReportNotice() {
 }
 
 function CrashReportNoticeScreen({
+  isContinuing = false,
   onContinue,
   report,
 }: {
+  isContinuing?: boolean;
   onContinue: () => void;
   report: StoredCrashReport;
 }) {
-  const reportText = useMemo(() => formatCrashReport(report), [report]);
+  const { language, t } = useI18n();
   const occurredAt = useMemo(
-    () => new Date(report.timestamp).toLocaleString(),
-    [report.timestamp],
+    () =>
+      new Intl.DateTimeFormat(language === "uk" ? "uk-UA" : "en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(report.timestamp)),
+    [language, report.timestamp],
   );
 
   useEffect(() => {
@@ -175,31 +182,93 @@ function CrashReportNoticeScreen({
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.page}>
-          <View style={styles.panel}>
-            <Text style={styles.title}>Previous crash detected</Text>
-            <Text style={styles.bodyText}>
-              The app saved details from the last startup/runtime crash. Send
-              this screen or the text below so we can see what failed.
-            </Text>
-            <View style={styles.panel}>
-              <Text style={styles.label}>Time</Text>
-              <Text style={styles.bodyText}>{occurredAt}</Text>
-              <Text style={styles.label}>Source</Text>
-              <Text style={styles.bodyText}>{report.source}</Text>
-            </View>
-            <Text selectable style={styles.input}>
-              {reportText}
-            </Text>
-            <Pressable onPress={onContinue} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Clear and continue</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+    <ScrollView contentContainerStyle={[styles.page, styles.crashNoticePage]}>
+      <View style={styles.crashNoticePanel}>
+        <View style={styles.crashNoticeIcon}>
+          <Text style={styles.crashNoticeIconText}>!</Text>
+        </View>
+        <View style={styles.crashNoticeCopy}>
+          <Text style={styles.title}>{t("crashNotice.title")}</Text>
+          <Text style={styles.bodyText}>{t("crashNotice.description")}</Text>
+        </View>
+        <View style={styles.crashNoticeMeta}>
+          <Text style={styles.label}>{t("crashNotice.occurredAt")}</Text>
+          <Text style={styles.bodyText}>{occurredAt}</Text>
+          <Text style={styles.mutedText}>{t("crashNotice.note")}</Text>
+        </View>
+        <Pressable
+          disabled={isContinuing}
+          onPress={onContinue}
+          style={[
+            styles.primaryButton,
+            isContinuing ? styles.disabledButton : null,
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>
+            {isContinuing
+              ? t("crashNotice.continuing")
+              : t("crashNotice.continue")}
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+function CrashReportNoticeProvider({
+  onContinue,
+  report,
+}: {
+  onContinue: () => Promise<void>;
+  report: StoredCrashReport;
+}) {
+  const submitCrashReport = useMutation(api.appDiagnostics.submitCrashReport);
+  const [isContinuing, setIsContinuing] = useState(false);
+
+  const handleContinue = useCallback(() => {
+    if (isContinuing) return;
+
+    setIsContinuing(true);
+    const submitRequest = submitCrashReport({ report }).catch((error) => {
+      console.warn("[crash-report-submit-failed]", error);
+    });
+    const timeoutRequest = new Promise<void>((resolve) => {
+      setTimeout(resolve, CRASH_REPORT_SUBMISSION_TIMEOUT_MS);
+    });
+
+    void Promise.race([submitRequest, timeoutRequest])
+      .then(onContinue)
+      .finally(() => {
+        setIsContinuing(false);
+      });
+  }, [isContinuing, onContinue, report, submitCrashReport]);
+
+  return (
+    <CrashReportNoticeScreen
+      isContinuing={isContinuing}
+      onContinue={handleContinue}
+      report={report}
+    />
+  );
+}
+
+function StandaloneCrashReportNotice({
+  onContinue,
+  report,
+}: {
+  onContinue: () => void;
+  report: StoredCrashReport;
+}) {
+  return (
+    <I18nProvider>
+      <NativeSplashAutoHide />
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <CrashReportNoticeScreen onContinue={onContinue} report={report} />
+          <StatusBar style="dark" />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </I18nProvider>
   );
 }
 
@@ -447,9 +516,13 @@ function ClerkSessionGate({
 function ConfiguredApp({
   clerkPublishableKey,
   convexUrl,
+  initialCrashReport,
+  onClearCrashReport,
 }: {
   clerkPublishableKey: string;
   convexUrl: string;
+  initialCrashReport?: StoredCrashReport | null;
+  onClearCrashReport?: () => Promise<void>;
 }) {
   const convexClient = useMemo(
     () => new ConvexReactClient(convexUrl),
@@ -517,29 +590,36 @@ function ConfiguredApp({
                 keyboardVerticalOffset={0}
                 style={styles.keyboardAvoidingRoot}
               >
-                <AppRuntimeErrorBoundary>
-                  {isCompletingOAuthRedirect ? (
-                    <AppContent
-                      isOffline={isOffline}
-                      isCompletingOAuthRedirect={isCompletingOAuthRedirect}
-                      onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
-                      redirectUrlComplete={redirectUrlComplete}
-                    />
-                  ) : (
-                    <ClerkSessionGate
-                      authBootRecoveryAttempts={authBootRecoveryAttempts}
-                      isOffline={isOffline}
-                      onRecoverAuthBoot={handleRecoverAuthBoot}
-                    >
+                {initialCrashReport && onClearCrashReport ? (
+                  <CrashReportNoticeProvider
+                    onContinue={onClearCrashReport}
+                    report={initialCrashReport}
+                  />
+                ) : (
+                  <AppRuntimeErrorBoundary>
+                    {isCompletingOAuthRedirect ? (
                       <AppContent
                         isOffline={isOffline}
                         isCompletingOAuthRedirect={isCompletingOAuthRedirect}
                         onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
                         redirectUrlComplete={redirectUrlComplete}
                       />
-                    </ClerkSessionGate>
-                  )}
-                </AppRuntimeErrorBoundary>
+                    ) : (
+                      <ClerkSessionGate
+                        authBootRecoveryAttempts={authBootRecoveryAttempts}
+                        isOffline={isOffline}
+                        onRecoverAuthBoot={handleRecoverAuthBoot}
+                      >
+                        <AppContent
+                          isOffline={isOffline}
+                          isCompletingOAuthRedirect={isCompletingOAuthRedirect}
+                          onTopEdgeToEdgeChange={setIsTopEdgeToEdge}
+                          redirectUrlComplete={redirectUrlComplete}
+                        />
+                      </ClerkSessionGate>
+                    )}
+                  </AppRuntimeErrorBoundary>
+                )}
               </KeyboardAvoidingView>
 
               <StatusBar style={statusBarStyle} />
@@ -557,9 +637,21 @@ export default function App() {
   const appResumeResetKey = useAppResumeResetKey();
   const { clearCrashReport, storedCrashReport } = useStoredCrashReportNotice();
 
+  if (storedCrashReport && publishableKey && convexUrl) {
+    return (
+      <ConfiguredApp
+        clerkPublishableKey={publishableKey}
+        convexUrl={convexUrl}
+        initialCrashReport={storedCrashReport}
+        key={`crash-${appResumeResetKey}-${storedCrashReport.id}`}
+        onClearCrashReport={clearCrashReport}
+      />
+    );
+  }
+
   if (storedCrashReport) {
     return (
-      <CrashReportNoticeScreen
+      <StandaloneCrashReportNotice
         onContinue={() => void clearCrashReport()}
         report={storedCrashReport}
       />

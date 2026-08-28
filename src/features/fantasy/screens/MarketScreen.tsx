@@ -29,6 +29,7 @@ import {
 } from "../components/FantasyPlayerListRow";
 import { PlayerDetailSheet } from "../components/PlayerDetailSheet";
 import { formatFantasyMoney } from "../utils/money";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
@@ -62,8 +63,11 @@ type FantasyPlayer = {
   appearances: number;
   assists: number;
   averagePointsPerGameweek: number;
+  cleanSheets: number;
   goals: number;
+  goalsConceded: number;
   lastGameweekPoints: number;
+  ownGoals: number;
   penaltiesMissed: number;
   penaltiesSaved: number;
   position: PlayerPosition;
@@ -72,6 +76,7 @@ type FantasyPlayer = {
   priceChangedAt: number | null;
   priceDelta: number;
   redCards: number;
+  saves: number;
   seasonPoints: number;
   selectedByTeams: number;
   selectedPercent: number;
@@ -115,6 +120,7 @@ export function MarketScreen({
   players,
 }: MarketScreenProps) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -155,7 +161,7 @@ export function MarketScreen({
   const sortedPlayers = useMemo(
     () =>
       [...(players ?? [])]
-        .filter((player) => player.clubId !== null)
+        .filter((player) => player.clubId !== null && player.status !== "left")
         .sort(
           (a, b) =>
             b.price - a.price || a.displayName.localeCompare(b.displayName),
@@ -273,7 +279,15 @@ export function MarketScreen({
             style={[
               styles.marketFilterButton,
               isDesktopWeb ? styles.marketFilterButtonDesktop : null,
-              favoritesOnly ? styles.marketFilterButtonActive : null,
+              favoritesOnly
+                ? [
+                    styles.marketFilterButtonActive,
+                    {
+                      backgroundColor: fantasyTheme.primaryColor,
+                      borderColor: fantasyTheme.primaryColor,
+                    },
+                  ]
+                : null,
             ]}
           >
             <Star
@@ -315,7 +329,15 @@ export function MarketScreen({
               onPress={() => setClubPickerOpen(true)}
               style={[
                 styles.marketFilterButton,
-                selectedClubId !== null ? styles.marketFilterButtonActive : null,
+                selectedClubId !== null
+                  ? [
+                      styles.marketFilterButtonActive,
+                      {
+                        backgroundColor: fantasyTheme.primaryColor,
+                        borderColor: fantasyTheme.primaryColor,
+                      },
+                    ]
+                  : null,
               ]}
             >
               <Text
@@ -343,6 +365,9 @@ export function MarketScreen({
     [
       clubFilterOptions,
       favoritesOnly,
+      fantasyTheme.borderColor,
+      fantasyTheme.primaryColor,
+      fantasyTheme.softColor,
       handleToggleFavoritesOnly,
       isDesktopWeb,
       searchQuery,
@@ -412,7 +437,13 @@ export function MarketScreen({
                 style={[
                   styles.seasonPickerOption,
                   selectedClubId === null
-                    ? styles.seasonPickerOptionSelected
+                    ? [
+                        styles.seasonPickerOptionSelected,
+                        {
+                          backgroundColor: fantasyTheme.softColor,
+                          borderColor: fantasyTheme.borderColor,
+                        },
+                      ]
                     : null,
                 ]}
               >
@@ -430,16 +461,23 @@ export function MarketScreen({
                   style={[
                     styles.seasonPickerOptionRadio,
                     selectedClubId === null
-                      ? styles.seasonPickerOptionRadioSelected
+                      ? [
+                          styles.seasonPickerOptionRadioSelected,
+                          { borderColor: fantasyTheme.primaryColor },
+                        ]
                       : null,
                   ]}
                 >
                   {selectedClubId === null ? (
-                    <View style={styles.seasonPickerOptionRadioDot} />
+                    <View
+                      style={[
+                        styles.seasonPickerOptionRadioDot,
+                        { backgroundColor: fantasyTheme.primaryColor },
+                      ]}
+                    />
                   ) : null}
                 </View>
               </Pressable>
-
 
               {activeClubs.map((club) => {
                 const isSelected = club.id === selectedClubId;
@@ -453,7 +491,15 @@ export function MarketScreen({
                     }}
                     style={[
                       styles.seasonPickerOption,
-                      isSelected ? styles.seasonPickerOptionSelected : null,
+                      isSelected
+                        ? [
+                            styles.seasonPickerOptionSelected,
+                            {
+                              backgroundColor: fantasyTheme.softColor,
+                              borderColor: fantasyTheme.borderColor,
+                            },
+                          ]
+                        : null,
                     ]}
                   >
                     <View style={styles.seasonPickerOptionBody}>
@@ -469,7 +515,7 @@ export function MarketScreen({
                     </View>
                     {isSelected ? (
                       <Check
-                        color={colors.brand.blue}
+                        color={fantasyTheme.primaryColor}
                         size={22}
                         strokeWidth={2.8}
                       />

@@ -1,5 +1,6 @@
 import { Text } from "react-native";
 
+import { useFantasySeasonTheme } from "../../features/fantasy/utils/seasonThemeContext";
 import { useI18n } from "../../i18n/I18nProvider";
 import { styles } from "../../styles";
 
@@ -13,13 +14,17 @@ export function LegalConsentText({
   onTermsPress,
 }: LegalConsentTextProps) {
   const { t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
 
   return (
     <Text style={styles.legalConsentText}>
       {t("auth.termsConsentPrefix")}
       <Text
         onPress={onTermsPress}
-        style={styles.legalConsentLinkText}
+        style={[
+          styles.legalConsentLinkText,
+          { color: fantasyTheme.primaryColor },
+        ]}
         suppressHighlighting
       >
         {t("auth.termsConsentTerms")}
@@ -27,7 +32,10 @@ export function LegalConsentText({
       {t("auth.termsConsentJoin")}
       <Text
         onPress={onPrivacyPress}
-        style={styles.legalConsentLinkText}
+        style={[
+          styles.legalConsentLinkText,
+          { color: fantasyTheme.primaryColor },
+        ]}
         suppressHighlighting
       >
         {t("auth.termsConsentPrivacy")}

@@ -4,7 +4,12 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { getCurrentUser, requireAdmin } from "./authHelpers";
+import {
+  getCurrentUser,
+  getCurrentUserIfAuthenticated,
+  isAdminUser,
+  requireAdmin,
+} from "./authHelpers";
 import type {
   FantasyFixtureEventType,
   FantasyFixtureSide,
@@ -50,6 +55,11 @@ const STATUS_PRIORITY: Record<SeasonStatus, number> = {
 
 const LEGACY_EXTRA_LEAGUE_2025_26_SLUG = "ukrainian-extra-league-2025-26";
 const EXTRA_LEAGUE_2026_27_SLUG = "ukrainian-extra-league-2026-27";
+const POLISH_FUTSAL_EKSTRAKLASA_2026_27_SLUG =
+  "polish-futsal-ekstraklasa-2026-27";
+const FANTASY_ADMIN_ONLY_SEASON_SLUGS = new Set([
+  POLISH_FUTSAL_EKSTRAKLASA_2026_27_SLUG,
+]);
 const FANTASY_SQUAD_SIZE = 12;
 const FANTASY_ACTIVE_SLOTS = 9;
 const FANTASY_STARTING_SLOTS = 5;
@@ -67,9 +77,22 @@ const FANTASY_MAX_FREE_TRANSFERS = 5;
 const FANTASY_MAX_TRANSFERS_PER_GAMEWEEK = 5;
 const FANTASY_TRANSFER_PENALTY_POINTS = 4;
 const FANTASY_PRICE_MIN = 5.5;
-const FANTASY_PRICE_MAX = 15.0;
+const FANTASY_PRICE_MAX = 30.0;
 const FANTASY_PRICE_STEP = 0.5;
 const FANTASY_PRICE_CHANGE_LIMIT = 0.5;
+const FANTASY_VALUE_PRICE_DEADBAND = 0.75;
+const FANTASY_VALUE_RISE_RATIO = 1.35;
+const FANTASY_VALUE_FALL_RATIO = 0.65;
+const FANTASY_VALUE_MIN_MARKET_PLAYERS = 5;
+const FANTASY_DEFAULT_SEASON_LOGO_KEY = "extra-liga";
+const FANTASY_DEFAULT_SEASON_THEME = {
+  primaryColor: "#004494",
+  secondaryColor: "#2171B8",
+  accentColor: "#FFD500",
+} as const;
+const FANTASY_PRIVATE_LEAGUE_INVITE_CODE_LENGTH = 6;
+const FANTASY_PRIVATE_LEAGUE_INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const FANTASY_PRIVATE_LEAGUE_NAME_MAX_LENGTH = 48;
 const GAMEWEEK_LIVE_PUSH_DELAY_MS = 12 * 60 * 60 * 1000;
 const EXTRA_LEAGUE_ACCIDENTAL_DEV_CLUB_NAMES = new Set([
   "Атлетик Футзал",
@@ -91,6 +114,8 @@ const sendPushToAllUsersInternal = makeFunctionReference<
   {
     body: string;
     gameweekId?: Id<"fantasyGameweeks">;
+    gameweekName?: string;
+    gameweekNumber?: number;
     key: string;
     skipIfGameweekCompleted?: boolean;
     title: string;
@@ -103,6 +128,8 @@ const sendPushToAllUsersInternal = makeFunctionReference<
   {
     body: string;
     gameweekId?: Id<"fantasyGameweeks">;
+    gameweekName?: string;
+    gameweekNumber?: number;
     key: string;
     skipIfGameweekCompleted?: boolean;
     title: string;
@@ -150,6 +177,8 @@ async function schedulePushToAllUsers(
   notification: {
     body: string;
     gameweekId?: Id<"fantasyGameweeks">;
+    gameweekName?: string;
+    gameweekNumber?: number;
     key: string;
     skipIfGameweekCompleted?: boolean;
     title: string;
@@ -157,7 +186,11 @@ async function schedulePushToAllUsers(
   },
   delayMs = 0,
 ) {
-  await ctx.scheduler.runAfter(delayMs, sendPushToAllUsersInternal, notification);
+  await ctx.scheduler.runAfter(
+    delayMs,
+    sendPushToAllUsersInternal,
+    notification,
+  );
 }
 type FixtureProfileDoubleClub = {
   clubId: Id<"fantasyClubs"> | null;
@@ -286,12 +319,89 @@ function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function normalizePrivateLeagueName(value: string) {
+  const name = normalizeText(value);
+  if (name.length < 2) {
+    throw new Error("Назва ліги занадто коротка.");
+  }
+  if (name.length > FANTASY_PRIVATE_LEAGUE_NAME_MAX_LENGTH) {
+    throw new Error(
+      `Назва ліги має бути до ${FANTASY_PRIVATE_LEAGUE_NAME_MAX_LENGTH} символів.`,
+    );
+  }
+  return name;
+}
+
+function normalizePrivateLeagueInviteCode(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function generatePrivateLeagueInviteCode() {
+  let code = "";
+  for (let index = 0; index < FANTASY_PRIVATE_LEAGUE_INVITE_CODE_LENGTH; index += 1) {
+    const randomIndex = Math.floor(
+      Math.random() * FANTASY_PRIVATE_LEAGUE_INVITE_CODE_ALPHABET.length,
+    );
+    code += FANTASY_PRIVATE_LEAGUE_INVITE_CODE_ALPHABET[randomIndex];
+  }
+  return code;
+}
+
 function normalizeSlug(value: string) {
   const slug = value.trim().toLowerCase();
   if (!slug) {
     throw new Error("Slug не может быть пустым.");
   }
   return slug;
+}
+
+function normalizeSeasonAccessValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function isAdminOnlyFantasySeason(
+  season: Pick<
+    Doc<"fantasySeasons">,
+    "displayName" | "leagueName" | "logoKey" | "name" | "slug"
+  >,
+) {
+  const candidates = [
+    season.slug,
+    season.logoKey,
+    season.displayName,
+    season.leagueName,
+    season.name,
+  ]
+    .map(normalizeSeasonAccessValue)
+    .filter(Boolean);
+
+  return candidates.some(
+    (candidate) =>
+      FANTASY_ADMIN_ONLY_SEASON_SLUGS.has(candidate) ||
+      candidate === "polish-ekstraklasa" ||
+      candidate.includes("polish-futsal-ekstraklasa") ||
+      candidate.includes("polish-ekstraklasa") ||
+      candidate.includes("polish ekstraklasa") ||
+      candidate.includes("polska ekstraklasa"),
+  );
+}
+
+async function currentUserCanAccessFantasySeason(
+  ctx: QueryCtx | MutationCtx,
+  season: Pick<
+    Doc<"fantasySeasons">,
+    "displayName" | "leagueName" | "logoKey" | "name" | "slug"
+  >,
+) {
+  if (!isAdminOnlyFantasySeason(season)) return true;
+
+  const currentUser = await getCurrentUserIfAuthenticated(ctx);
+  return currentUser
+    ? isAdminUser(currentUser.identity, currentUser.user)
+    : false;
 }
 
 function toOptionalText(value: string | undefined) {
@@ -402,30 +512,63 @@ function clampFantasyPrice(value: number) {
   return Math.min(FANTASY_PRICE_MAX, Math.max(FANTASY_PRICE_MIN, value));
 }
 
-function getGameweekPriceThresholds(price: number) {
-  if (price <= 6.5) return { rise: 4, fall: 0 };
-  if (price <= 8.5) return { rise: 5, fall: 0.5 };
-  if (price <= 10.5) return { rise: 6.5, fall: 1 };
-  if (price <= 12.5) return { rise: 8, fall: 2 };
-  return { rise: 10, fall: 3 };
+function getFantasyPlayerValueScore(points: number, price: number) {
+  if (price <= 0) return 0;
+  return points / price;
 }
 
-function getGameweekPriceDelta(args: {
+function getMedianFantasyValueScore(values: number[]) {
+  const sortedValues = values
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+  if (sortedValues.length < FANTASY_VALUE_MIN_MARKET_PLAYERS) return null;
+
+  const middleIndex = Math.floor(sortedValues.length / 2);
+  if (sortedValues.length % 2 === 1) return sortedValues[middleIndex];
+
+  return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
+}
+
+function areGameweekFixturesReadyForPriceChanges(
+  fixtures: Doc<"fantasyFixtures">[],
+) {
+  const activeFixtures = fixtures.filter(
+    (fixture) =>
+      fixture.status !== "cancelled" && fixture.status !== "postponed",
+  );
+
+  return (
+    activeFixtures.length > 0 &&
+    activeFixtures.every((fixture) => fixture.status === "completed")
+  );
+}
+
+function getValueBasedGameweekPriceDelta(args: {
   appearances: number;
-  clubMatches: number;
+  medianValueScore: number;
   points: number;
   price: number;
 }) {
-  if (args.clubMatches <= 0) return 0;
+  if (
+    args.appearances <= 0 ||
+    args.medianValueScore <= 0 ||
+    args.price <= 0
+  )
+    return 0;
 
-  const pointsPerClubMatch = args.points / args.clubMatches;
-  if (args.appearances <= 0 || pointsPerClubMatch <= 0) {
+  const valueScore = getFantasyPlayerValueScore(args.points, args.price);
+  const fairPrice = args.points / args.medianValueScore;
+  const fairPriceGap = fairPrice - args.price;
+  if (
+    fairPriceGap >= FANTASY_VALUE_PRICE_DEADBAND &&
+    valueScore >= args.medianValueScore * FANTASY_VALUE_RISE_RATIO
+  )
+    return FANTASY_PRICE_STEP;
+  if (
+    fairPriceGap <= -FANTASY_VALUE_PRICE_DEADBAND &&
+    valueScore <= args.medianValueScore * FANTASY_VALUE_FALL_RATIO
+  )
     return -FANTASY_PRICE_STEP;
-  }
-
-  const thresholds = getGameweekPriceThresholds(args.price);
-  if (pointsPerClubMatch >= thresholds.rise) return FANTASY_PRICE_STEP;
-  if (pointsPerClubMatch <= thresholds.fall) return -FANTASY_PRICE_STEP;
 
   return 0;
 }
@@ -482,13 +625,35 @@ async function upsertDefaultScoringRules(
   return { created: true, id };
 }
 
-function toSeasonView(season: Doc<"fantasySeasons">) {
+function toSeasonView(
+  season: Doc<"fantasySeasons">,
+  options: { isLocked?: boolean } = {},
+) {
+  const isVisible = season.isVisible ?? season.status !== "archived";
+  const isAdminOnly = isAdminOnlyFantasySeason(season);
+
   return {
     id: season._id,
     slug: season.slug,
     name: season.name,
     leagueName: season.leagueName,
     country: season.country,
+    displayName: season.displayName ?? season.leagueName,
+    shortName: season.shortName ?? season.leagueName,
+    description: season.description ?? null,
+    logoKey: season.logoKey ?? FANTASY_DEFAULT_SEASON_LOGO_KEY,
+    theme: {
+      primaryColor:
+        season.primaryColor ?? FANTASY_DEFAULT_SEASON_THEME.primaryColor,
+      secondaryColor:
+        season.secondaryColor ?? FANTASY_DEFAULT_SEASON_THEME.secondaryColor,
+      accentColor: season.accentColor ?? FANTASY_DEFAULT_SEASON_THEME.accentColor,
+    },
+    accessLevel: isAdminOnly ? "admin" : "public",
+    isLocked: options.isLocked ?? false,
+    lockedReason: options.isLocked && isAdminOnly ? "coming_soon" : null,
+    isVisible,
+    sortOrder: season.sortOrder ?? 1000,
     status: season.status,
     budget: season.budget,
     squadSize: season.squadSize,
@@ -629,21 +794,39 @@ async function getPrimarySeason(ctx: QueryCtx | MutationCtx) {
   );
 }
 
-async function getSeason(ctx: QueryCtx | MutationCtx, seasonSlug?: string) {
-  if (!seasonSlug) {
-    return await getPrimarySeason(ctx);
-  }
+async function getSeasonWithoutAccessCheck(
+  ctx: QueryCtx | MutationCtx,
+  seasonSlug?: string,
+) {
+  return seasonSlug
+    ? await ctx.db
+        .query("fantasySeasons")
+        .withIndex("by_slug", (q) => q.eq("slug", normalizeSlug(seasonSlug)))
+        .first()
+    : await getPrimarySeason(ctx);
+}
 
-  return await ctx.db
-    .query("fantasySeasons")
-    .withIndex("by_slug", (q) => q.eq("slug", normalizeSlug(seasonSlug)))
-    .first();
+async function getSeason(ctx: QueryCtx | MutationCtx, seasonSlug?: string) {
+  const season = await getSeasonWithoutAccessCheck(ctx, seasonSlug);
+
+  if (!season) return null;
+  if (await currentUserCanAccessFantasySeason(ctx, season)) return season;
+
+  if (seasonSlug) return null;
+
+  const fallbackSeason = await getPrimarySeason(ctx);
+  if (!fallbackSeason || isAdminOnlyFantasySeason(fallbackSeason)) return null;
+
+  return fallbackSeason;
 }
 
 async function requireSeason(ctx: QueryCtx | MutationCtx, seasonSlug: string) {
-  const season = await getSeason(ctx, seasonSlug);
+  const season = await getSeasonWithoutAccessCheck(ctx, seasonSlug);
   if (!season) {
     throw new Error(`Сезон ${normalizeSlug(seasonSlug)} не найден.`);
+  }
+  if (!(await currentUserCanAccessFantasySeason(ctx, season))) {
+    throw new Error("Ця ліга скоро буде доступна.");
   }
   return season;
 }
@@ -652,11 +835,62 @@ async function requireExistingSeason(
   ctx: QueryCtx | MutationCtx,
   seasonSlug?: string,
 ) {
-  const season = await getSeason(ctx, seasonSlug);
+  const season = await getSeasonWithoutAccessCheck(ctx, seasonSlug);
   if (!season) {
     throw new Error("Сезон не найден.");
   }
+  if (!(await currentUserCanAccessFantasySeason(ctx, season))) {
+    throw new Error("Ця ліга скоро буде доступна.");
+  }
   return season;
+}
+
+async function getFantasyTeamForUser(
+  ctx: QueryCtx | MutationCtx,
+  seasonId: Id<"fantasySeasons">,
+  userId: Id<"users">,
+) {
+  return await ctx.db
+    .query("fantasyTeams")
+    .withIndex("by_user_season", (q) =>
+      q.eq("userId", userId).eq("seasonId", seasonId),
+    )
+    .first();
+}
+
+async function requireFantasyTeamForUser(
+  ctx: QueryCtx | MutationCtx,
+  seasonId: Id<"fantasySeasons">,
+  userId: Id<"users">,
+) {
+  const fantasyTeam = await getFantasyTeamForUser(ctx, seasonId, userId);
+  if (!fantasyTeam) {
+    throw new Error("Спочатку створіть fantasy-команду.");
+  }
+  return fantasyTeam;
+}
+
+async function attachFantasyTeamToPrivateLeagueMemberships(
+  ctx: MutationCtx,
+  seasonId: Id<"fantasySeasons">,
+  userId: Id<"users">,
+  fantasyTeamId: Id<"fantasyTeams">,
+) {
+  const memberships = await ctx.db
+    .query("fantasyPrivateLeagueMembers")
+    .withIndex("by_user_season", (q) =>
+      q.eq("userId", userId).eq("seasonId", seasonId),
+    )
+    .collect();
+
+  for (const membership of memberships) {
+    if (membership.fantasyTeamId === fantasyTeamId) continue;
+
+    await ctx.db.patch(membership._id, {
+      fantasyTeamId,
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 async function getSeasonGameweeks(
@@ -768,6 +1002,13 @@ async function upsertExtraLeague2026_27Season(ctx: MutationCtx, now: number) {
     name: "betking Екстра-ліга 2026/27",
     leagueName: "betking Екстра-ліга",
     country: "Україна",
+    displayName: "Fantasy Extra-liga",
+    shortName: "Extra-liga",
+    description: "Українська futsal fantasy-ліга.",
+    logoKey: FANTASY_DEFAULT_SEASON_LOGO_KEY,
+    ...FANTASY_DEFAULT_SEASON_THEME,
+    isVisible: true,
+    sortOrder: 10,
     status: "setup" as const,
     budget: 100,
     squadSize: FANTASY_SQUAD_SIZE,
@@ -1086,11 +1327,21 @@ async function deleteFantasySeasonCascade(
 export const listSeasons = query({
   args: {},
   handler: async (ctx) => {
+    const currentUser = await getCurrentUserIfAuthenticated(ctx);
+    const viewerIsAdmin = currentUser
+      ? isAdminUser(currentUser.identity, currentUser.user)
+      : false;
     const seasons = await ctx.db.query("fantasySeasons").collect();
     return seasons
-      .map(toSeasonView)
+      .map((season) =>
+        toSeasonView(season, {
+          isLocked: isAdminOnlyFantasySeason(season) && !viewerIsAdmin,
+        }),
+      )
+      .filter((season) => season.isVisible)
       .sort(
         (a, b) =>
+          a.sortOrder - b.sortOrder ||
           STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] ||
           (b.startAt ?? b.createdAt) - (a.startAt ?? a.createdAt),
       );
@@ -1391,13 +1642,17 @@ export const listPlayers = query({
           assists: stats.assists,
           averagePointsPerGameweek: averagePointsPerMatch,
           averagePointsPerMatch,
+          cleanSheets: stats.cleanSheets,
           goals: stats.goals,
+          goalsConceded: stats.goalsConceded,
           lastGameweekPoints: latestGameweekStat
             ? Number(latestGameweekStat.points.toFixed(1))
             : 0,
+          ownGoals: stats.ownGoals,
           penaltiesMissed: stats.penaltiesMissed,
           penaltiesSaved: stats.penaltiesSaved,
           redCards: stats.redCards,
+          saves: stats.saves,
           seasonPoints: Number(stats.points.toFixed(1)),
           selectedByTeams,
           selectedPercent,
@@ -1967,6 +2222,8 @@ async function processSeasonDeadlineRollovers(
         ctx,
         {
           gameweekId: freshGameweek._id,
+          gameweekName: freshGameweek.name,
+          gameweekNumber: freshGameweek.number,
           key: `deadline-passed:${freshGameweek._id}`,
           skipIfGameweekCompleted: true,
           type: "deadline_passed",
@@ -2095,7 +2352,9 @@ function getStoredPlayerStatAppearances(
 }
 
 function didStoredSnapshotPlayerAppear(
-  snapshot: Doc<"fantasyGameweekSquadPicks"> | undefined,
+  snapshot:
+    | Pick<Doc<"fantasyGameweekSquadPicks">, "gameweekId" | "playerId">
+    | undefined,
   statsByGameweekAndPlayerId: Map<string, Doc<"fantasyPlayerGameweekStats">>,
 ) {
   if (!snapshot) return false;
@@ -2415,7 +2674,14 @@ async function applyGameweekPriceChanges(
   gameweek: Doc<"fantasyGameweeks">,
   now: number,
 ) {
-  const [players, playerStats, fixtures, existingPriceHistories] =
+  const [
+    players,
+    currentGameweekStats,
+    seasonPlayerStats,
+    gameweeks,
+    fixtures,
+    existingPriceHistories,
+  ] =
     await Promise.all([
       ctx.db
         .query("fantasyPlayers")
@@ -2424,6 +2690,14 @@ async function applyGameweekPriceChanges(
       ctx.db
         .query("fantasyPlayerGameweekStats")
         .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerGameweekStats")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyGameweeks")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
         .collect(),
       ctx.db
         .query("fantasyFixtures")
@@ -2435,32 +2709,63 @@ async function applyGameweekPriceChanges(
         .collect(),
     ]);
 
+  if (!areGameweekFixturesReadyForPriceChanges(fixtures)) {
+    return {
+      changedPlayers: 0,
+      decreasedPlayers: 0,
+      increasedPlayers: 0,
+      skippedAlreadyApplied: 0,
+      skippedBlankPlayers: 0,
+      skippedGameweekIncomplete: true,
+      skippedValueMarketPlayers: 0,
+      unchangedPlayers: players.length,
+    };
+  }
+
   const alreadyAppliedPlayerIds = new Set(
     existingPriceHistories
       .filter((history) => history.reason === "gameweek_recalculation")
       .map((history) => history.playerId),
   );
+  const currentStatsByPlayerId = new Map(
+    currentGameweekStats.map((stat) => [stat.playerId, stat]),
+  );
+  const gameweekIdsForValue = new Set(
+    gameweeks
+      .filter((item) => item.number <= gameweek.number)
+      .map((item) => item._id),
+  );
+  const seasonStatsByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    { appearances: number; points: number }
+  >();
+  for (const stat of seasonPlayerStats) {
+    if (!gameweekIdsForValue.has(stat.gameweekId)) continue;
 
-  const clubMatchCounts = new Map<Id<"fantasyClubs">, number>();
-  const addClubMatch = (clubId: Id<"fantasyClubs"> | undefined) => {
-    if (!clubId) return;
-    clubMatchCounts.set(clubId, (clubMatchCounts.get(clubId) ?? 0) + 1);
-  };
-
-  for (const fixture of fixtures) {
-    if (fixture.status !== "completed") continue;
-    addClubMatch(fixture.homeClubId);
-    addClubMatch(fixture.awayClubId);
+    const current = seasonStatsByPlayerId.get(stat.playerId) ?? {
+      appearances: 0,
+      points: 0,
+    };
+    current.appearances += getStoredPlayerStatAppearances(stat);
+    current.points += stat.points;
+    seasonStatsByPlayerId.set(stat.playerId, current);
   }
 
-  const statsByPlayerId = new Map(
-    playerStats.map((stat) => [stat.playerId, stat]),
-  );
+  const valueScores = players
+    .map((player) => {
+      if (player.status === "left") return 0;
+      const stats = seasonStatsByPlayerId.get(player._id);
+      if (!stats || stats.appearances <= 0 || stats.points <= 0) return 0;
+      return getFantasyPlayerValueScore(stats.points, player.price);
+    })
+    .filter((value) => value > 0);
+  const medianValueScore = getMedianFantasyValueScore(valueScores);
   const priceChangeLimit = getSeasonPriceChangeLimit(season);
   let changedPlayers = 0;
   let decreasedPlayers = 0;
   let increasedPlayers = 0;
   let skippedBlankPlayers = 0;
+  let skippedValueMarketPlayers = 0;
   let unchangedPlayers = 0;
 
   for (const player of players) {
@@ -2473,25 +2778,27 @@ async function applyGameweekPriceChanges(
       continue;
     }
 
-    const clubMatches = player.clubId
-      ? (clubMatchCounts.get(player.clubId) ?? 0)
-      : 0;
-    if (clubMatches <= 0) {
+    const currentStat = currentStatsByPlayerId.get(player._id);
+    if (!currentStat || getStoredPlayerStatAppearances(currentStat) <= 0) {
       skippedBlankPlayers += 1;
       continue;
     }
 
-    const stat = statsByPlayerId.get(player._id);
-    const appearances = getStoredPlayerStatAppearances(stat);
-    if (!stat || appearances <= 0) {
+    const seasonStats = seasonStatsByPlayerId.get(player._id);
+    if (
+      !seasonStats ||
+      seasonStats.appearances <= 0 ||
+      medianValueScore === null
+    ) {
+      skippedValueMarketPlayers += 1;
       unchangedPlayers += 1;
       continue;
     }
 
-    const rawDelta = getGameweekPriceDelta({
-      appearances,
-      clubMatches,
-      points: stat.points,
+    const rawDelta = getValueBasedGameweekPriceDelta({
+      appearances: seasonStats.appearances,
+      medianValueScore,
+      points: seasonStats.points,
       price: player.price,
     });
     const limitedDelta = Math.max(
@@ -2535,6 +2842,8 @@ async function applyGameweekPriceChanges(
     increasedPlayers,
     skippedAlreadyApplied: alreadyAppliedPlayerIds.size,
     skippedBlankPlayers,
+    skippedGameweekIncomplete: false,
+    skippedValueMarketPlayers,
     unchangedPlayers,
   };
 }
@@ -2570,6 +2879,9 @@ async function completeGameweekIfAllFixturesResolved(
     updatedAt: now,
   });
   await schedulePushToAllUsers(ctx, {
+    gameweekId: gameweek._id,
+    gameweekName: gameweek.name,
+    gameweekNumber: gameweek.number,
     key: `gameweek-results-ready:${gameweek._id}`,
     type: "gameweek_results_ready",
     title: "Підсумки туру готові",
@@ -2626,6 +2938,14 @@ export const fixtureDetails = query({
   handler: async (ctx, args) => {
     const fixture = await ctx.db.get(args.fixtureId);
     if (!fixture) return null;
+
+    const season = await ctx.db.get(fixture.seasonId);
+    if (
+      !season ||
+      !(await currentUserCanAccessFantasySeason(ctx, season))
+    ) {
+      return null;
+    }
 
     const [homeClub, awayClub, gameweek, lineups, events] = await Promise.all([
       fixture.homeClubId
@@ -2718,6 +3038,18 @@ type PlayerPointLineKind =
   | "penalty_saved"
   | "team_goals_scored"
   | "team_goals_conceded";
+
+type TeamGameweekPickForPoints = {
+  gameweekId: Id<"fantasyGameweeks">;
+  isCaptain: boolean;
+  isStarter: boolean;
+  isViceCaptain: boolean;
+  pickKey: string;
+  playerId: Id<"fantasyPlayers">;
+  pointsMultiplier: number;
+  rosterSlot: number;
+  squadRole: FantasySquadRole;
+};
 
 function addPlayerPointLine(
   lines: Array<{
@@ -2858,6 +3190,74 @@ async function findLatestTeamScoreGameweek(
   );
 }
 
+function findCurrentScoringGameweekFromList(
+  season: Doc<"fantasySeasons">,
+  gameweeks: Doc<"fantasyGameweeks">[],
+) {
+  const sortedGameweeks = [...gameweeks].sort((a, b) => a.number - b.number);
+  const configuredGameweek = season.currentGameweekId
+    ? (sortedGameweeks.find(
+        (gameweek) => gameweek._id === season.currentGameweekId,
+      ) ?? null)
+    : null;
+  const liveGameweek =
+    sortedGameweeks.find((gameweek) => gameweek.status === "live") ?? null;
+  const nextOpenGameweek =
+    sortedGameweeks.find(
+      (gameweek) =>
+        gameweek.status !== "completed" && gameweek.status !== "live",
+    ) ?? null;
+  const latestCompletedGameweek =
+    [...sortedGameweeks]
+      .reverse()
+      .find((gameweek) => gameweek.status === "completed") ?? null;
+
+  return (
+    liveGameweek ??
+    configuredGameweek ??
+    nextOpenGameweek ??
+    latestCompletedGameweek ??
+    sortedGameweeks[0] ??
+    null
+  );
+}
+
+function toGameweekSnapshotPickRow(
+  snapshot: Doc<"fantasyGameweekSquadPicks">,
+): TeamGameweekPickForPoints {
+  return {
+    gameweekId: snapshot.gameweekId,
+    isCaptain: snapshot.isCaptain,
+    isStarter: snapshot.isStarter,
+    isViceCaptain: snapshot.isViceCaptain,
+    pickKey: String(snapshot._id),
+    playerId: snapshot.playerId,
+    pointsMultiplier: snapshot.pointsMultiplier,
+    rosterSlot: snapshot.rosterSlot,
+    squadRole: snapshot.squadRole,
+  };
+}
+
+function toCurrentSquadPickRow(
+  pick: Doc<"fantasySquadPicks">,
+  gameweekId: Id<"fantasyGameweeks">,
+): TeamGameweekPickForPoints {
+  const squadRole =
+    pick.squadRole ?? getSquadRoleForRosterSlot(pick.rosterSlot);
+
+  return {
+    gameweekId,
+    isCaptain: pick.isCaptain,
+    isStarter: pick.isStarter,
+    isViceCaptain: pick.isViceCaptain,
+    pickKey: `current:${pick._id}`,
+    playerId: pick.playerId,
+    pointsMultiplier: getPointsMultiplierForSquadRole(squadRole),
+    rosterSlot: pick.rosterSlot,
+    squadRole,
+  };
+}
+
 async function buildFantasyTeamGameweekPointsBreakdown(
   ctx: QueryCtx,
   season: Doc<"fantasySeasons">,
@@ -2876,32 +3276,45 @@ async function buildFantasyTeamGameweekPointsBreakdown(
     };
   }
 
-  const [score, snapshots, stats, resolvedScoringRule] = await Promise.all([
-    scoreOverride !== undefined
-      ? Promise.resolve(scoreOverride)
-      : ctx.db
-          .query("fantasyTeamGameweekScores")
-          .withIndex("by_team_gameweek", (q) =>
-            q
-              .eq("fantasyTeamId", fantasyTeam._id)
-              .eq("gameweekId", gameweek._id),
-          )
-          .first(),
-    ctx.db
-      .query("fantasyGameweekSquadPicks")
-      .withIndex("by_team_gameweek", (q) =>
-        q.eq("fantasyTeamId", fantasyTeam._id).eq("gameweekId", gameweek._id),
-      )
-      .collect(),
-    ctx.db
-      .query("fantasyPlayerGameweekStats")
-      .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
-      .collect(),
-    scoringRule !== undefined
-      ? Promise.resolve(scoringRule)
-      : getSeasonScoringRules(ctx, season._id),
-  ]);
+  const [score, snapshots, stats, clubs, resolvedScoringRule] =
+    await Promise.all([
+      scoreOverride !== undefined
+        ? Promise.resolve(scoreOverride)
+        : ctx.db
+            .query("fantasyTeamGameweekScores")
+            .withIndex("by_team_gameweek", (q) =>
+              q
+                .eq("fantasyTeamId", fantasyTeam._id)
+                .eq("gameweekId", gameweek._id),
+            )
+            .first(),
+      ctx.db
+        .query("fantasyGameweekSquadPicks")
+        .withIndex("by_team_gameweek", (q) =>
+          q.eq("fantasyTeamId", fantasyTeam._id).eq("gameweekId", gameweek._id),
+        )
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerGameweekStats")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyClubs")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      scoringRule !== undefined
+        ? Promise.resolve(scoringRule)
+        : getSeasonScoringRules(ctx, season._id),
+    ]);
+  const currentPicks =
+    snapshots.length > 0
+      ? []
+      : await ctx.db
+          .query("fantasySquadPicks")
+          .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+          .collect();
   const rules = getScoringRuleValues(resolvedScoringRule);
+  const clubsById = new Map(clubs.map((club) => [club._id, club]));
   const statsByPlayerId = new Map(stats.map((stat) => [stat.playerId, stat]));
   const statsByGameweekAndPlayerId = new Map(
     stats.map((stat) => [
@@ -2909,16 +3322,18 @@ async function buildFantasyTeamGameweekPointsBreakdown(
       stat,
     ]),
   );
-  const sortedSnapshots = [...snapshots].sort(
+  const pickRows =
+    snapshots.length > 0
+      ? snapshots.map(toGameweekSnapshotPickRow)
+      : currentPicks.map((pick) => toCurrentSquadPickRow(pick, gameweek._id));
+  const sortedPickRows = [...pickRows].sort(
     (a, b) => a.rosterSlot - b.rosterSlot,
   );
   const players = await Promise.all(
-    sortedSnapshots.map((snapshot) => ctx.db.get(snapshot.playerId)),
+    sortedPickRows.map((pick) => ctx.db.get(pick.playerId)),
   );
-  const captain = sortedSnapshots.find((snapshot) => snapshot.isCaptain);
-  const viceCaptain = sortedSnapshots.find(
-    (snapshot) => snapshot.isViceCaptain,
-  );
+  const captain = sortedPickRows.find((pick) => pick.isCaptain);
+  const viceCaptain = sortedPickRows.find((pick) => pick.isViceCaptain);
   const bonusSnapshot = didStoredSnapshotPlayerAppear(
     captain,
     statsByGameweekAndPlayerId,
@@ -2928,7 +3343,7 @@ async function buildFantasyTeamGameweekPointsBreakdown(
       ? viceCaptain
       : null;
 
-  const playerBreakdowns = sortedSnapshots.map((snapshot, index) => {
+  const playerBreakdowns = sortedPickRows.map((snapshot, index) => {
     const player = players[index] ?? null;
     const stat = statsByPlayerId.get(snapshot.playerId);
     const rawPlayerPoints = roundFantasyPoints(stat?.points ?? 0);
@@ -2936,7 +3351,7 @@ async function buildFantasyTeamGameweekPointsBreakdown(
       rawPlayerPoints * snapshot.pointsMultiplier,
     );
     const captainBonusPoints =
-      bonusSnapshot?._id === snapshot._id ? rolePoints : 0;
+      bonusSnapshot?.pickKey === snapshot.pickKey ? rolePoints : 0;
     const managerPoints = roundFantasyPoints(rolePoints + captainBonusPoints);
 
     return {
@@ -2944,11 +3359,18 @@ async function buildFantasyTeamGameweekPointsBreakdown(
         ? {
             id: player._id,
             clubId: player.clubId ?? null,
-            clubName: null,
+            clubName: player.clubId
+              ? (clubsById.get(player.clubId)?.name ?? null)
+              : null,
             displayName: player.displayName,
             firstName: player.firstName ?? null,
             lastName: player.lastName,
+            photoThumbnailUrl: player.photoThumbnailUrl ?? null,
+            photoUrl: player.photoUrl ?? null,
             position: toPublicFantasyPlayerPosition(player.position),
+            price: player.price,
+            status: getEffectiveFantasyPlayerStatus(player),
+            statusDetails: toFantasyPlayerStatusDetailsView(player),
           }
         : null,
       rosterSlot: snapshot.rosterSlot,
@@ -3092,6 +3514,512 @@ export const mySeasonPointsBreakdown = query({
         sourceId: deduction.sourceId ?? null,
         createdAt: deduction.createdAt,
       })),
+    };
+  },
+});
+
+export const fantasyTeamGameweekView = query({
+  args: {
+    fantasyTeamId: v.id("fantasyTeams"),
+    gameweekId: v.optional(v.id("fantasyGameweeks")),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { identity, user: currentUser } = await getCurrentUser(ctx);
+    if (!currentUser) return null;
+
+    const fantasyTeam = await ctx.db.get(args.fantasyTeamId);
+    if (!fantasyTeam) return null;
+
+    const season = args.seasonSlug
+      ? await getSeason(ctx, args.seasonSlug)
+      : await ctx.db.get(fantasyTeam.seasonId);
+    if (!season || fantasyTeam.seasonId !== season._id) return null;
+    if (
+      isAdminOnlyFantasySeason(season) &&
+      !isAdminUser(identity, currentUser)
+    ) {
+      return null;
+    }
+
+    const [manager, gameweeks, fantasyTeams, teamScores] = await Promise.all([
+      ctx.db.get(fantasyTeam.userId),
+      getSeasonGameweeks(ctx, season._id),
+      ctx.db
+        .query("fantasyTeams")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyTeamGameweekScores")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+    ]);
+    const gameweek = args.gameweekId
+      ? ((await ctx.db.get(args.gameweekId)) ?? null)
+      : findCurrentScoringGameweekFromList(season, gameweeks);
+    if (!gameweek || gameweek.seasonId !== season._id) {
+      return {
+        averagePoints: 0,
+        gameweek: null,
+        highestTeam: null,
+        players: [],
+        score: null,
+        team: {
+          id: fantasyTeam._id,
+          managerName: manager?.name ?? null,
+          name: fantasyTeam.name,
+        },
+        transferPenaltyPoints: 0,
+      };
+    }
+
+    const scoreByTeamId = new Map<Id<"fantasyTeams">, number>();
+    for (const score of teamScores) {
+      if (score.gameweekId !== gameweek._id || !score.participated) continue;
+      scoreByTeamId.set(score.fantasyTeamId, score.points);
+    }
+    const averagePoints =
+      fantasyTeams.length > 0
+        ? roundFantasyPoints(
+            fantasyTeams.reduce(
+              (sum, team) => sum + (scoreByTeamId.get(team._id) ?? 0),
+              0,
+            ) / fantasyTeams.length,
+          )
+        : 0;
+    const highestTeam =
+      [...fantasyTeams].sort((a, b) => {
+        const pointsDiff =
+          (scoreByTeamId.get(b._id) ?? 0) - (scoreByTeamId.get(a._id) ?? 0);
+        if (pointsDiff !== 0) return pointsDiff;
+        const totalDiff = b.totalPoints - a.totalPoints;
+        if (totalDiff !== 0) return totalDiff;
+        return a.name.localeCompare(b.name);
+      })[0] ?? null;
+    const highestManager = highestTeam
+      ? await ctx.db.get(highestTeam.userId)
+      : null;
+    const overallLeaderTeam = args.gameweekId
+      ? null
+      : ([...fantasyTeams].sort(
+          (a, b) =>
+            b.totalPoints - a.totalPoints || a.name.localeCompare(b.name),
+        )[0] ?? null);
+    const canViewTeam =
+      fantasyTeam.userId === currentUser._id ||
+      highestTeam?._id === fantasyTeam._id ||
+      overallLeaderTeam?._id === fantasyTeam._id ||
+      isAdminUser(identity, currentUser);
+    if (!canViewTeam) return null;
+
+    const breakdown = await buildFantasyTeamGameweekPointsBreakdown(
+      ctx,
+      season,
+      fantasyTeam,
+      gameweek,
+    );
+
+    return {
+      ...breakdown,
+      averagePoints,
+      highestTeam: highestTeam
+        ? {
+            id: highestTeam._id,
+            managerName: highestManager?.name ?? null,
+            name: highestTeam.name,
+            points: roundFantasyPoints(scoreByTeamId.get(highestTeam._id) ?? 0),
+          }
+        : null,
+      team: {
+        id: fantasyTeam._id,
+        managerName: manager?.name ?? null,
+        name: fantasyTeam.name,
+      },
+    };
+  },
+});
+
+type FixturePlayerPointsBreakdown = {
+  appeared: boolean;
+  lines: Array<{
+    count: number | null;
+    kind: PlayerPointLineKind;
+    points: number;
+  }>;
+  points: number;
+};
+
+function buildFixturePlayerPointsBreakdown({
+  events,
+  fixture,
+  lineups,
+  player,
+  rules,
+}: {
+  events: Doc<"fantasyFixtureEvents">[];
+  fixture: Doc<"fantasyFixtures">;
+  lineups: Doc<"fantasyFixtureLineups">[];
+  player: Doc<"fantasyPlayers">;
+  rules: ScoringRuleValues;
+}): FixturePlayerPointsBreakdown {
+  const playerEvents = events.filter((event) => event.playerId === player._id);
+  const appeared =
+    lineups.some((lineup) => lineup.playerId === player._id) ||
+    playerEvents.length > 0;
+  const lines: FixturePlayerPointsBreakdown["lines"] = [];
+  if (!appeared) {
+    return { appeared, lines, points: 0 };
+  }
+
+  const position = toPublicFantasyPlayerPosition(player.position);
+  const goalPoints =
+    position === "goalkeeper" ? rules.goalkeeperGoal : rules.outfieldGoal;
+  const assistPoints =
+    position === "goalkeeper" ? rules.goalkeeperAssist : rules.outfieldAssist;
+  const eventCounts = new Map<FantasyFixtureEventType, number>();
+  for (const event of playerEvents) {
+    eventCounts.set(event.type, (eventCounts.get(event.type) ?? 0) + 1);
+  }
+  const goals = eventCounts.get("goal") ?? 0;
+  const assists = eventCounts.get("assist") ?? 0;
+  const yellowCards = eventCounts.get("yellow_card") ?? 0;
+  const secondYellowRedCards = eventCounts.get("second_yellow_red") ?? 0;
+  const redCards = eventCounts.get("red_card") ?? 0;
+  const ownGoals = eventCounts.get("own_goal") ?? 0;
+  const penaltiesMissed = eventCounts.get("penalty_missed") ?? 0;
+  const penaltiesSaved = eventCounts.get("penalty_saved") ?? 0;
+
+  addPlayerPointLine(lines, "appearance", 1, rules.appearance);
+  addPlayerPointLine(lines, "goal", goals, goals * goalPoints);
+  addPlayerPointLine(lines, "assist", assists, assists * assistPoints);
+  addPlayerPointLine(
+    lines,
+    "yellow_card",
+    yellowCards,
+    yellowCards * rules.yellowCard,
+  );
+  addPlayerPointLine(
+    lines,
+    "second_yellow_red",
+    secondYellowRedCards,
+    secondYellowRedCards * rules.secondYellowRedCard,
+  );
+  addPlayerPointLine(lines, "red_card", redCards, redCards * rules.redCard);
+  addPlayerPointLine(lines, "own_goal", ownGoals, ownGoals * rules.ownGoal);
+  addPlayerPointLine(
+    lines,
+    "penalty_missed",
+    penaltiesMissed,
+    penaltiesMissed * rules.penaltyMissed,
+  );
+  addPlayerPointLine(
+    lines,
+    "penalty_saved",
+    penaltiesSaved,
+    penaltiesSaved * rules.penaltySaved,
+  );
+
+  if (
+    fixture.homeScore !== undefined &&
+    fixture.awayScore !== undefined &&
+    player.clubId
+  ) {
+    const isHomePlayer = fixture.homeClubId === player.clubId;
+    const isAwayPlayer = fixture.awayClubId === player.clubId;
+    if (isHomePlayer || isAwayPlayer) {
+      const teamGoalsScored = isHomePlayer
+        ? fixture.homeScore
+        : fixture.awayScore;
+      const goalsConceded = isHomePlayer
+        ? fixture.awayScore
+        : fixture.homeScore;
+
+      if (position === "goalkeeper") {
+        addPlayerPointLine(
+          lines,
+          "team_goals_conceded",
+          goalsConceded,
+          getGoalkeeperConcededPoints(goalsConceded, rules),
+        );
+      } else {
+        addPlayerPointLine(
+          lines,
+          "team_goals_scored",
+          teamGoalsScored,
+          getOutfieldTeamGoalsScoredPoints(teamGoalsScored, rules),
+        );
+        addPlayerPointLine(
+          lines,
+          "team_goals_conceded",
+          goalsConceded,
+          getOutfieldConcededPoints(goalsConceded, rules),
+        );
+      }
+    }
+  }
+
+  return {
+    appeared,
+    lines,
+    points: roundFantasyPoints(
+      lines.reduce((sum, line) => sum + line.points, 0),
+    ),
+  };
+}
+
+function getFixtureResultKind(
+  fixture: Doc<"fantasyFixtures">,
+  clubId: Id<"fantasyClubs"> | undefined,
+) {
+  if (
+    !clubId ||
+    fixture.homeScore === undefined ||
+    fixture.awayScore === undefined
+  ) {
+    return null;
+  }
+
+  const isHomeClub = fixture.homeClubId === clubId;
+  const isAwayClub = fixture.awayClubId === clubId;
+  if (!isHomeClub && !isAwayClub) return null;
+
+  const goalsFor = isHomeClub ? fixture.homeScore : fixture.awayScore;
+  const goalsAgainst = isHomeClub ? fixture.awayScore : fixture.homeScore;
+  if (goalsFor > goalsAgainst) return "win" as const;
+  if (goalsFor < goalsAgainst) return "loss" as const;
+  return "draw" as const;
+}
+
+export const playerProfile = query({
+  args: {
+    playerId: v.id("fantasyPlayers"),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const player = await ctx.db.get(args.playerId);
+    if (!player) return null;
+
+    const season = args.seasonSlug
+      ? await getSeason(ctx, args.seasonSlug)
+      : await ctx.db.get(player.seasonId);
+    if (!season || player.seasonId !== season._id) return null;
+    if (!(await currentUserCanAccessFantasySeason(ctx, season))) return null;
+
+    const [
+      club,
+      clubs,
+      gameweeks,
+      gameweekStats,
+      fantasyTeams,
+      playerPriceHistory,
+      fixtures,
+      scoringRule,
+    ] = await Promise.all([
+      player.clubId ? ctx.db.get(player.clubId) : Promise.resolve(null),
+      ctx.db
+        .query("fantasyClubs")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      getSeasonGameweeks(ctx, season._id),
+      ctx.db
+        .query("fantasyPlayerGameweekStats")
+        .withIndex("by_season_player", (q) =>
+          q.eq("seasonId", season._id).eq("playerId", player._id),
+        )
+        .collect(),
+      ctx.db
+        .query("fantasyTeams")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerPriceHistory")
+        .withIndex("by_season_player", (q) =>
+          q.eq("seasonId", season._id).eq("playerId", player._id),
+        )
+        .collect(),
+      player.clubId
+        ? ctx.db
+            .query("fantasyFixtures")
+            .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+            .collect()
+        : Promise.resolve([]),
+      getSeasonScoringRules(ctx, season._id),
+    ]);
+    const rules = getScoringRuleValues(scoringRule);
+    const clubsById = new Map(clubs.map((item) => [item._id, item]));
+    const stats = gameweekStats.reduce((current, stat) => {
+      current.appearances += getStoredPlayerStatAppearances(stat);
+      current.assists += stat.assists ?? 0;
+      current.cleanSheets += stat.cleanSheets ?? (stat.cleanSheet ? 1 : 0);
+      current.goals += stat.goals ?? 0;
+      current.goalsConceded += stat.goalsConceded ?? 0;
+      current.ownGoals += stat.ownGoals ?? 0;
+      current.penaltiesMissed += stat.penaltiesMissed ?? 0;
+      current.penaltiesSaved += stat.penaltiesSaved ?? 0;
+      current.points += stat.points;
+      current.redCards += stat.redCards ?? 0;
+      current.saves += stat.saves ?? 0;
+      current.secondYellowRedCards += stat.secondYellowRedCards ?? 0;
+      current.teamGoalsConcededPoints += stat.teamGoalsConcededPoints ?? 0;
+      current.teamGoalsScored += stat.teamGoalsScored ?? 0;
+      current.teamGoalsScoredPoints += stat.teamGoalsScoredPoints ?? 0;
+      current.yellowCards += stat.yellowCards ?? 0;
+      return current;
+    }, getEmptyPlayerStats());
+    const pickedByTeamCount = await Promise.all(
+      fantasyTeams.map(async (team) => {
+        const picks = await ctx.db
+          .query("fantasySquadPicks")
+          .withIndex("by_team", (q) => q.eq("fantasyTeamId", team._id))
+          .collect();
+        return picks.some((pick) => pick.playerId === player._id) ? 1 : 0;
+      }),
+    );
+    const selectedByTeams = pickedByTeamCount.reduce<number>(
+      (sum, count) => sum + count,
+      0,
+    );
+    const selectedPercent =
+      fantasyTeams.length > 0
+        ? Number(((selectedByTeams / fantasyTeams.length) * 100).toFixed(1))
+        : 0;
+    const latestPriceHistory =
+      playerPriceHistory
+        .filter(shouldExposePlayerPriceTrend)
+        .sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
+    const priceDelta = latestPriceHistory
+      ? Number(latestPriceHistory.delta.toFixed(1))
+      : 0;
+    const teamFixtures = fixtures
+      .filter(
+        (fixture) =>
+          player.clubId &&
+          (fixture.homeClubId === player.clubId ||
+            fixture.awayClubId === player.clubId) &&
+          fixture.status === "completed" &&
+          fixture.homeScore !== undefined &&
+          fixture.awayScore !== undefined,
+      )
+      .sort((a, b) => b.scheduledAt - a.scheduledAt);
+    const fixtureLineupLists = await Promise.all(
+      teamFixtures.map((fixture) =>
+        ctx.db
+          .query("fantasyFixtureLineups")
+          .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+          .collect(),
+      ),
+    );
+    const fixtureEventLists = await Promise.all(
+      teamFixtures.map((fixture) =>
+        ctx.db
+          .query("fantasyFixtureEvents")
+          .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+          .collect(),
+      ),
+    );
+    const gameweeksById = new Map(
+      gameweeks.map((gameweek) => [gameweek._id, gameweek]),
+    );
+    const matches = teamFixtures
+      .map((fixture, index) => {
+        const isHome = player.clubId
+          ? fixture.homeClubId === player.clubId
+          : false;
+        const opponentClubId = isHome ? fixture.awayClubId : fixture.homeClubId;
+        const opponentClub = opponentClubId
+          ? (clubsById.get(opponentClubId) ?? null)
+          : null;
+        const pointsBreakdown = buildFixturePlayerPointsBreakdown({
+          events: fixtureEventLists[index] ?? [],
+          fixture,
+          lineups: fixtureLineupLists[index] ?? [],
+          player,
+          rules,
+        });
+        if (!pointsBreakdown.appeared) return null;
+
+        const gameweek = fixture.gameweekId
+          ? (gameweeksById.get(fixture.gameweekId) ?? null)
+          : null;
+
+        return {
+          id: fixture._id,
+          gameweek: gameweek ? toGameweekView(gameweek) : null,
+          fixture: {
+            id: fixture._id,
+            seasonId: fixture.seasonId,
+            gameweekId: fixture.gameweekId ?? null,
+            externalId: fixture.externalId ?? null,
+            sourceUrl: fixture.sourceUrl ?? null,
+            homeClubId: fixture.homeClubId ?? null,
+            awayClubId: fixture.awayClubId ?? null,
+            homeClubName: fixture.homeClubName,
+            awayClubName: fixture.awayClubName,
+            scheduledAt: fixture.scheduledAt,
+            status: fixture.status,
+            homeScore: fixture.homeScore ?? null,
+            awayScore: fixture.awayScore ?? null,
+            venue: fixture.venue ?? null,
+          },
+          isHome,
+          lines: pointsBreakdown.lines,
+          opponent: opponentClub
+            ? toClubView(opponentClub)
+            : {
+                id: opponentClubId,
+                name: isHome ? fixture.awayClubName : fixture.homeClubName,
+                shortName: null,
+                logoUrl: null,
+                logoThumbnailUrl: null,
+              },
+          points: pointsBreakdown.points,
+          resultKind: getFixtureResultKind(fixture, player.clubId),
+        };
+      })
+      .filter((match) => match !== null);
+    const averagePointsPerMatch =
+      stats.appearances > 0
+        ? Number((stats.points / stats.appearances).toFixed(1))
+        : 0;
+
+    return {
+      player: {
+        id: player._id,
+        seasonId: player.seasonId,
+        clubId: player.clubId ?? null,
+        clubName: club?.name ?? null,
+        displayName: player.displayName,
+        firstName: player.firstName ?? null,
+        lastName: player.lastName,
+        photoThumbnailUrl: player.photoThumbnailUrl ?? null,
+        photoUrl: player.photoUrl ?? null,
+        position: toPublicFantasyPlayerPosition(player.position),
+        price: player.price,
+        previousPrice:
+          latestPriceHistory && Math.abs(priceDelta) >= 0.1
+            ? latestPriceHistory.oldPrice
+            : null,
+        priceChangedAt: latestPriceHistory?.createdAt ?? null,
+        priceDelta,
+        status: getEffectiveFantasyPlayerStatus(player),
+        statusDetails: toFantasyPlayerStatusDetailsView(player),
+        appearances: stats.appearances,
+        assists: stats.assists,
+        averagePointsPerGameweek: averagePointsPerMatch,
+        cleanSheets: stats.cleanSheets,
+        goals: stats.goals,
+        goalsConceded: stats.goalsConceded,
+        ownGoals: stats.ownGoals,
+        penaltiesMissed: stats.penaltiesMissed,
+        penaltiesSaved: stats.penaltiesSaved,
+        redCards: stats.redCards,
+        saves: stats.saves,
+        seasonPoints: Number(stats.points.toFixed(1)),
+        selectedByTeams,
+        selectedPercent,
+        yellowCards: stats.yellowCards,
+      },
+      matches,
     };
   },
 });
@@ -3711,7 +4639,9 @@ export const myTeam = query({
                   activeGameweeks: managerStats.activeGameweeks,
                   averagePointsPerGameweek: averagePointsPerMatch,
                   averagePointsPerMatch,
+                  cleanSheets: stats.cleanSheets,
                   goals: stats.goals,
+                  goalsConceded: stats.goalsConceded,
                   lastGameweekPoints: latestGameweekStat
                     ? Number(latestGameweekStat.points.toFixed(1))
                     : 0,
@@ -3719,9 +4649,11 @@ export const myTeam = query({
                   managerLastGameweekPoints:
                     managerStats.managerLastGameweekPoints,
                   managerSeasonPoints: managerStats.managerSeasonPoints,
+                  ownGoals: stats.ownGoals,
                   penaltiesMissed: stats.penaltiesMissed,
                   penaltiesSaved: stats.penaltiesSaved,
                   redCards: stats.redCards,
+                  saves: stats.saves,
                   seasonPoints: Number(stats.points.toFixed(1)),
                   selectedByTeams,
                   selectedPercent,
@@ -3822,25 +4754,58 @@ export const listFantasyTeams = query({
           : latest,
       0,
     );
+    const sortedGameweeks = [...gameweeks].sort((a, b) => a.number - b.number);
+    const configuredGameweek = season.currentGameweekId
+      ? (sortedGameweeks.find(
+          (gameweek) => gameweek._id === season.currentGameweekId,
+        ) ?? null)
+      : null;
+    const liveGameweek =
+      sortedGameweeks.find((gameweek) => gameweek.status === "live") ?? null;
+    const nextOpenGameweek =
+      sortedGameweeks.find(
+        (gameweek) =>
+          gameweek.status !== "completed" && gameweek.status !== "live",
+      ) ?? null;
+    const latestCompletedGameweek =
+      [...sortedGameweeks]
+        .reverse()
+        .find((gameweek) => gameweek.status === "completed") ?? null;
+    const currentScoringGameweek =
+      liveGameweek ??
+      configuredGameweek ??
+      nextOpenGameweek ??
+      latestCompletedGameweek ??
+      sortedGameweeks[0] ??
+      null;
 
     const scoresByTeamId = new Map<
       string,
-      Array<{ gameweekNumber: number; participated: boolean; points: number }>
+      Array<{
+        gameweekId: Id<"fantasyGameweeks">;
+        gameweekNumber: number;
+        participated: boolean;
+        points: number;
+        totalPointsAfterGameweek: number | null;
+      }>
     >();
     for (const score of teamGameweekScores) {
       const current = scoresByTeamId.get(score.fantasyTeamId) ?? [];
       current.push({
+        gameweekId: score.gameweekId,
         gameweekNumber: gameweekNumberById.get(score.gameweekId) ?? 0,
         participated: score.participated,
         points: Number.isFinite(score.points) ? score.points : 0,
+        totalPointsAfterGameweek: score.totalPointsAfterGameweek ?? null,
       });
       scoresByTeamId.set(score.fantasyTeamId, current);
     }
 
     const getTeamGameweekMetrics = (fantasyTeam: Doc<"fantasyTeams">) => {
-      const participatedScores = (
-        scoresByTeamId.get(fantasyTeam._id) ?? []
-      ).filter((score) => score.participated);
+      const teamScores = scoresByTeamId.get(fantasyTeam._id) ?? [];
+      const participatedScores = teamScores.filter(
+        (score) => score.participated,
+      );
       const totalFromGameweeks = participatedScores.reduce(
         (sum, score) => sum + score.points,
         0,
@@ -3859,13 +4824,32 @@ export const listFantasyTeams = query({
               (score) => score.gameweekNumber === latestScoredGameweekNumber,
             )?.points ?? 0)
           : 0;
+      const currentGameweekScore = currentScoringGameweek
+        ? teamScores.find(
+            (score) => score.gameweekId === currentScoringGameweek._id,
+          )
+        : null;
+      const currentGameweekPoints =
+        currentGameweekScore?.participated === true
+          ? currentGameweekScore.points
+          : 0;
 
-      return { averagePoints, bestGameweekPoints, lastGameweekPoints };
+      return {
+        averagePoints,
+        bestGameweekPoints,
+        currentGameweekParticipated:
+          currentGameweekScore?.participated ?? false,
+        currentGameweekPoints,
+        lastGameweekPoints,
+      };
     };
 
     return fantasyTeams
       .map((fantasyTeam, index) => {
         const gameweekMetrics = getTeamGameweekMetrics(fantasyTeam);
+        const teamGameweekScores = [
+          ...(scoresByTeamId.get(fantasyTeam._id) ?? []),
+        ].sort((a, b) => a.gameweekNumber - b.gameweekNumber);
 
         return {
           id: fantasyTeam._id,
@@ -3874,6 +4858,19 @@ export const listFantasyTeams = query({
           totalPoints: fantasyTeam.totalPoints,
           averagePoints: gameweekMetrics.averagePoints,
           bestGameweekPoints: gameweekMetrics.bestGameweekPoints,
+          currentGameweekId: currentScoringGameweek?._id ?? null,
+          currentGameweekNumber: currentScoringGameweek?.number ?? null,
+          currentGameweekParticipated:
+            gameweekMetrics.currentGameweekParticipated,
+          currentGameweekPoints: gameweekMetrics.currentGameweekPoints,
+          currentGameweekStatus: currentScoringGameweek?.status ?? null,
+          gameweekScores: teamGameweekScores.map((score) => ({
+            gameweekId: score.gameweekId,
+            gameweekNumber: score.gameweekNumber,
+            participated: score.participated,
+            points: score.participated ? roundFantasyPoints(score.points) : 0,
+            totalPointsAfterGameweek: score.totalPointsAfterGameweek,
+          })),
           lastGameweekPoints: gameweekMetrics.lastGameweekPoints,
           budgetRemaining: fantasyTeam.budgetRemaining,
           teamValue: teamValueById.get(fantasyTeam._id) ?? 0,
@@ -3882,6 +4879,288 @@ export const listFantasyTeams = query({
       .sort(
         (a, b) => b.totalPoints - a.totalPoints || a.name.localeCompare(b.name),
       );
+  },
+});
+
+export const listMyPrivateLeagues = query({
+  args: {
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) return [];
+
+    const season = await getSeason(ctx, args.seasonSlug);
+    if (!season) return [];
+
+    const memberships = (
+      await ctx.db
+        .query("fantasyPrivateLeagueMembers")
+        .withIndex("by_user_season", (q) =>
+          q.eq("userId", user._id).eq("seasonId", season._id),
+        )
+        .collect()
+    ).filter((membership) => Boolean(membership.fantasyTeamId));
+    const leagues = await Promise.all(
+      memberships.map((membership) => ctx.db.get(membership.privateLeagueId)),
+    );
+    const leagueMembers = await Promise.all(
+      memberships.map((membership) =>
+        ctx.db
+          .query("fantasyPrivateLeagueMembers")
+          .withIndex("by_league", (q) =>
+            q.eq("privateLeagueId", membership.privateLeagueId),
+          )
+          .collect(),
+      ),
+    );
+
+    return leagues
+      .map((league, index) => {
+        if (!league || league.seasonId !== season._id) return null;
+
+        const members = leagueMembers[index].filter(
+          (member) =>
+            member.seasonId === season._id && Boolean(member.fantasyTeamId),
+        );
+
+        return {
+          id: league._id,
+          inviteCode: league.inviteCode,
+          isOwner: league.ownerUserId === user._id,
+          memberCount: members.length,
+          memberTeamIds: members.flatMap((member) =>
+            member.fantasyTeamId ? [member.fantasyTeamId] : [],
+          ),
+          name: league.name,
+          ownerUserId: league.ownerUserId,
+        };
+      })
+      .filter(
+        (league): league is NonNullable<typeof league> => league !== null,
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+export const createPrivateLeague = mutation({
+  args: {
+    name: v.string(),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const name = normalizePrivateLeagueName(args.name);
+    const fantasyTeam = await requireFantasyTeamForUser(
+      ctx,
+      season._id,
+      user._id,
+    );
+    const now = Date.now();
+    let inviteCode: string | null = null;
+
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const candidate = generatePrivateLeagueInviteCode();
+      const existing = await ctx.db
+        .query("fantasyPrivateLeagues")
+        .withIndex("by_season_invite_code", (q) =>
+          q.eq("seasonId", season._id).eq("inviteCode", candidate),
+        )
+        .first();
+      if (!existing) {
+        inviteCode = candidate;
+        break;
+      }
+    }
+
+    if (!inviteCode) {
+      throw new Error("Не удалось создать код приглашения. Попробуйте ещё раз.");
+    }
+
+    const privateLeagueId = await ctx.db.insert("fantasyPrivateLeagues", {
+      seasonId: season._id,
+      ownerUserId: user._id,
+      name,
+      inviteCode,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.insert("fantasyPrivateLeagueMembers", {
+      seasonId: season._id,
+      privateLeagueId,
+      userId: user._id,
+      fantasyTeamId: fantasyTeam._id,
+      role: "owner",
+      joinedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      id: privateLeagueId,
+      inviteCode,
+      isOwner: true,
+      memberCount: 1,
+      memberTeamIds: [fantasyTeam._id],
+      name,
+      ownerUserId: user._id,
+    };
+  },
+});
+
+export const joinPrivateLeague = mutation({
+  args: {
+    inviteCode: v.string(),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const inviteCode = normalizePrivateLeagueInviteCode(args.inviteCode);
+    if (!inviteCode) {
+      throw new Error("Введіть код запрошення.");
+    }
+
+    const privateLeague = await ctx.db
+      .query("fantasyPrivateLeagues")
+      .withIndex("by_season_invite_code", (q) =>
+        q.eq("seasonId", season._id).eq("inviteCode", inviteCode),
+      )
+      .first();
+    if (!privateLeague) {
+      throw new Error("Лігу з таким кодом не знайдено.");
+    }
+
+    const fantasyTeam = await requireFantasyTeamForUser(
+      ctx,
+      season._id,
+      user._id,
+    );
+    const now = Date.now();
+    const existingMembership = await ctx.db
+      .query("fantasyPrivateLeagueMembers")
+      .withIndex("by_user_league", (q) =>
+        q.eq("userId", user._id).eq("privateLeagueId", privateLeague._id),
+      )
+      .first();
+    if (existingMembership) {
+      if (existingMembership.fantasyTeamId !== fantasyTeam._id) {
+        await ctx.db.patch(existingMembership._id, {
+          fantasyTeamId: fantasyTeam._id,
+          updatedAt: now,
+        });
+      }
+    } else {
+      await ctx.db.insert("fantasyPrivateLeagueMembers", {
+        seasonId: season._id,
+        privateLeagueId: privateLeague._id,
+        userId: user._id,
+        fantasyTeamId: fantasyTeam._id,
+        role: privateLeague.ownerUserId === user._id ? "owner" : "member",
+        joinedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const members = await ctx.db
+      .query("fantasyPrivateLeagueMembers")
+      .withIndex("by_league", (q) =>
+        q.eq("privateLeagueId", privateLeague._id),
+      )
+      .collect();
+
+    return {
+      id: privateLeague._id,
+      inviteCode: privateLeague.inviteCode,
+      isOwner: privateLeague.ownerUserId === user._id,
+      memberCount: members.length,
+      memberTeamIds: members.flatMap((member) =>
+        member.fantasyTeamId ? [member.fantasyTeamId] : [],
+      ),
+      name: privateLeague.name,
+      ownerUserId: privateLeague.ownerUserId,
+    };
+  },
+});
+
+export const updatePrivateLeague = mutation({
+  args: {
+    name: v.string(),
+    privateLeagueId: v.id("fantasyPrivateLeagues"),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const privateLeague = await ctx.db.get(args.privateLeagueId);
+    if (!privateLeague) {
+      throw new Error("Лігу не знайдено.");
+    }
+    if (privateLeague.ownerUserId !== user._id) {
+      throw new Error("Редагувати лігу може тільки її власник.");
+    }
+
+    const name = normalizePrivateLeagueName(args.name);
+    await ctx.db.patch(privateLeague._id, {
+      name,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      id: privateLeague._id,
+      name,
+    };
+  },
+});
+
+export const deletePrivateLeague = mutation({
+  args: {
+    privateLeagueId: v.id("fantasyPrivateLeagues"),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("User profile is not ready yet.");
+    }
+
+    const privateLeague = await ctx.db.get(args.privateLeagueId);
+    if (!privateLeague) {
+      return {
+        deleted: false,
+        id: args.privateLeagueId,
+      };
+    }
+    if (privateLeague.ownerUserId !== user._id) {
+      throw new Error("Видалити лігу може тільки її власник.");
+    }
+
+    const memberships = await ctx.db
+      .query("fantasyPrivateLeagueMembers")
+      .withIndex("by_league", (q) =>
+        q.eq("privateLeagueId", privateLeague._id),
+      )
+      .collect();
+    for (const membership of memberships) {
+      await ctx.db.delete(membership._id);
+    }
+    await ctx.db.delete(privateLeague._id);
+
+    return {
+      deleted: true,
+      id: privateLeague._id,
+    };
   },
 });
 
@@ -3994,6 +5273,15 @@ export const upsertSeason = mutation({
     name: v.string(),
     leagueName: v.string(),
     country: v.string(),
+    displayName: v.optional(v.string()),
+    shortName: v.optional(v.string()),
+    description: v.optional(v.string()),
+    logoKey: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+    isVisible: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
     status: v.optional(fantasySeasonStatusValidator),
     budget: v.optional(v.number()),
     squadSize: v.optional(v.number()),
@@ -4022,6 +5310,16 @@ export const upsertSeason = mutation({
       name: normalizeText(args.name),
       leagueName: normalizeText(args.leagueName),
       country: normalizeText(args.country),
+      displayName: toOptionalText(args.displayName) ?? existing?.displayName,
+      shortName: toOptionalText(args.shortName) ?? existing?.shortName,
+      description: toOptionalText(args.description) ?? existing?.description,
+      logoKey: toOptionalText(args.logoKey) ?? existing?.logoKey,
+      primaryColor: toOptionalText(args.primaryColor) ?? existing?.primaryColor,
+      secondaryColor:
+        toOptionalText(args.secondaryColor) ?? existing?.secondaryColor,
+      accentColor: toOptionalText(args.accentColor) ?? existing?.accentColor,
+      isVisible: args.isVisible ?? existing?.isVisible ?? true,
+      sortOrder: args.sortOrder ?? existing?.sortOrder ?? 1000,
       status: args.status ?? "draft",
       budget: args.budget ?? 100,
       squadSize: args.squadSize ?? FANTASY_SQUAD_SIZE,
@@ -5048,6 +6346,9 @@ export const completeGameweekAndGrantTransfers = mutation({
       updatedAt: now,
     });
     await schedulePushToAllUsers(ctx, {
+      gameweekId: gameweek._id,
+      gameweekName: gameweek.name,
+      gameweekNumber: gameweek.number,
       key: `gameweek-results-ready:${gameweek._id}`,
       type: "gameweek_results_ready",
       title: "Підсумки туру готові",
@@ -5373,7 +6674,9 @@ export const applyPlayerRosterCorrections = mutation({
         return player;
       }
 
-      const normalizedName = normalizeText(update.playerName ?? "").toLowerCase();
+      const normalizedName = normalizeText(
+        update.playerName ?? "",
+      ).toLowerCase();
       if (!normalizedName) {
         throw new Error("Нужно передать playerId или playerName.");
       }
@@ -5759,6 +7062,12 @@ export const createMyTeam = mutation({
         name,
         updatedAt: now,
       });
+      await attachFantasyTeamToPrivateLeagueMemberships(
+        ctx,
+        season._id,
+        user._id,
+        existing._id,
+      );
       return { id: existing._id, created: false };
     }
 
@@ -5772,6 +7081,13 @@ export const createMyTeam = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    await attachFantasyTeamToPrivateLeagueMemberships(
+      ctx,
+      season._id,
+      user._id,
+      id,
+    );
 
     return { id, created: true };
   },
@@ -6047,6 +7363,13 @@ export const saveMyTeam = mutation({
         createdAt: now,
         updatedAt: now,
       }));
+
+    await attachFantasyTeamToPrivateLeagueMemberships(
+      ctx,
+      season._id,
+      user._id,
+      fantasyTeamId,
+    );
 
     if (existing) {
       await ctx.db.patch(existing._id, {

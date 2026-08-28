@@ -8,11 +8,12 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
-import { Bell, Check } from "lucide-react-native";
+import { Bell, Check, ChevronDown } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthScreen } from "../../components/auth/AuthScreen";
@@ -53,6 +54,7 @@ import {
   HeaderActionOverlay,
   type HeaderActionOverlayConfig,
 } from "./components/HeaderActionOverlay";
+import { BottomSheet } from "./components/BottomSheet";
 import { SeasonScreen } from "./screens/SeasonScreen";
 import { LeagueScreen } from "./screens/LeagueScreen";
 import { MarketScreen } from "./screens/MarketScreen";
@@ -60,9 +62,9 @@ import { MyTeamScreen } from "./screens/MyTeamScreen";
 import { NotificationsScreen } from "./screens/NotificationsScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import {
-  EXTRA_LIGA_SMALL_ICON_IMAGE,
   FANTASY_CRITICAL_IMAGE_MODULES,
   FANTASY_STATIC_IMAGE_PROPS,
+  getFantasySeasonSmallLogoSource,
   preloadFantasyStaticAssets,
 } from "./assets/fantasyAssets";
 import type { FantasyTab, FantasyTabId } from "./types";
@@ -73,6 +75,22 @@ import {
   localizeFantasyPlayers,
   localizeFantasyTeam,
 } from "./utils/localizedFantasyData";
+import {
+  clearStoredFantasySeasonSlug,
+  getStoredFantasySeasonSlug,
+  storeFantasySeasonSlug,
+} from "./utils/seasonSelectionStorage";
+import {
+  getFantasySeasonDisplaySubtitle,
+  getFantasySeasonDisplayTitle,
+} from "./utils/seasonDisplay";
+import {
+  colorWithAlpha,
+  getFantasySeasonAccentColor,
+  getFantasySeasonPrimaryColor,
+  getFantasySeasonSoftColor,
+} from "./utils/seasonVisuals";
+import { FantasySeasonThemeProvider } from "./utils/seasonThemeContext";
 
 const FANTASY_TABS: FantasyTab[] = [
   { id: "team" },
@@ -101,6 +119,29 @@ const FANTASY_TAB_WEB_PATHS: Record<FantasyTabId, string> = {
 const FANTASY_WEB_TAB_IDS = new Set<FantasyTabId>(
   FANTASY_TABS.map((tab) => tab.id),
 );
+
+type FantasySeasonTheme = {
+  accentColor: string;
+  primaryColor: string;
+  secondaryColor: string;
+};
+
+type FantasySeasonOption = {
+  accessLevel?: "admin" | "public";
+  country: string;
+  description?: string | null;
+  displayName?: string | null;
+  id: string;
+  leagueName: string;
+  isLocked?: boolean;
+  lockedReason?: string | null;
+  logoKey?: string | null;
+  name: string;
+  shortName?: string | null;
+  slug: string;
+  status: string;
+  theme?: FantasySeasonTheme | null;
+};
 
 function normalizeFantasyWebPathname(pathname: string) {
   const cleanPathname = pathname.split("?")[0]?.split("#")[0] ?? WEB_APP_PATH;
@@ -134,6 +175,44 @@ function getInitialFantasyTab() {
   if (Platform.OS !== "web" || typeof window === "undefined") return "team";
 
   return getFantasyTabFromWebPathname(window.location.pathname) ?? "team";
+}
+
+function getFantasySeasonLogoSource(
+  season: FantasySeasonOption | null | undefined,
+) {
+  return getFantasySeasonSmallLogoSource(season);
+}
+
+function normalizeSeasonAccessValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLocaleLowerCase();
+}
+
+function isAdminOnlyFantasySeasonOption(
+  season: FantasySeasonOption | null | undefined,
+) {
+  if (!season) return false;
+
+  const candidates = [
+    season.accessLevel,
+    season.slug,
+    season.logoKey,
+    season.displayName,
+    season.leagueName,
+    season.name,
+    season.shortName,
+  ]
+    .map(normalizeSeasonAccessValue)
+    .filter(Boolean);
+
+  return candidates.some(
+    (candidate) =>
+      candidate === "admin" ||
+      candidate === "polish-ekstraklasa" ||
+      candidate.includes("polish-futsal-ekstraklasa") ||
+      candidate.includes("polish-ekstraklasa") ||
+      candidate.includes("polish ekstraklasa") ||
+      candidate.includes("polska ekstraklasa"),
+  );
 }
 
 type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
@@ -212,18 +291,270 @@ function FantasyStaticImagePreloader() {
   );
 }
 
+function FantasySeasonOptionCard({
+  onSelect,
+  season,
+}: {
+  onSelect: (season: FantasySeasonOption) => void;
+  season: FantasySeasonOption;
+}) {
+  const { t } = useI18n();
+  const title = getFantasySeasonDisplayTitle(season, t, t("app.title"));
+  const subtitle = getFantasySeasonDisplaySubtitle(season, t);
+  const seasonPrimaryColor = getFantasySeasonPrimaryColor(season);
+  const seasonAccentColor = getFantasySeasonAccentColor(season);
+  const isLocked = Boolean(season.isLocked);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isLocked }}
+      disabled={isLocked}
+      onPress={isLocked ? undefined : () => onSelect(season)}
+      style={[
+        styles.seasonSelectionCard,
+        { borderColor: seasonAccentColor },
+        isLocked ? styles.seasonSelectionCardLocked : null,
+      ]}
+    >
+      <Image
+        {...FANTASY_STATIC_IMAGE_PROPS}
+        contentFit="contain"
+        source={getFantasySeasonLogoSource(season)}
+        style={styles.seasonSelectionLogo}
+      />
+      <View style={styles.seasonSelectionCardTextGroup}>
+        <Text numberOfLines={1} style={styles.seasonSelectionCardTitle}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text numberOfLines={1} style={styles.seasonSelectionCardMeta}>
+            {subtitle}
+          </Text>
+        ) : null}
+        {season.description ? (
+          <Text numberOfLines={2} style={styles.seasonSelectionCardDescription}>
+            {season.description}
+          </Text>
+        ) : null}
+      </View>
+      <View
+        style={[
+          styles.seasonSelectionCardAction,
+          isLocked
+            ? [
+                styles.seasonSelectionCardActionLocked,
+                {
+                  backgroundColor: colorWithAlpha(seasonPrimaryColor, 0.1),
+                  borderColor: colorWithAlpha(seasonPrimaryColor, 0.28),
+                },
+              ]
+            : { backgroundColor: seasonPrimaryColor },
+        ]}
+      >
+        <Text
+          style={[
+            styles.seasonSelectionCardActionText,
+            isLocked
+              ? [
+                  styles.seasonSelectionCardActionTextLocked,
+                  { color: seasonPrimaryColor },
+                ]
+              : null,
+          ]}
+        >
+          {isLocked ? t("seasonSelection.soon") : t("seasonSelection.choose")}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function FantasySeasonSelectionScreen({
+  onSelect,
+  seasons,
+}: {
+  onSelect: (season: FantasySeasonOption) => void;
+  seasons: FantasySeasonOption[];
+}) {
+  const { t } = useI18n();
+
+  return (
+    <ScrollView
+      style={styles.fantasyScreen}
+      contentContainerStyle={styles.seasonSelectionScreen}
+    >
+      <View style={styles.seasonSelectionIntro}>
+        <Text style={styles.seasonSelectionKicker}>
+          {t("seasonSelection.kicker")}
+        </Text>
+        <Text style={styles.seasonSelectionTitle}>
+          {t("seasonSelection.title")}
+        </Text>
+        <Text style={styles.seasonSelectionDescription}>
+          {t("seasonSelection.description")}
+        </Text>
+      </View>
+
+      {seasons.length > 0 ? (
+        <View style={styles.seasonSelectionGrid}>
+          {seasons.map((season) => (
+            <FantasySeasonOptionCard
+              key={season.slug}
+              onSelect={onSelect}
+              season={season}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>
+            {t("seasonSelection.emptyTitle")}
+          </Text>
+          <Text style={styles.mutedText}>
+            {t("seasonSelection.emptyDescription")}
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function FantasySeasonPickerSheet({
+  activeSeasonSlug,
+  onClose,
+  onSelect,
+  seasons,
+  visible,
+}: {
+  activeSeasonSlug: string | null;
+  onClose: () => void;
+  onSelect: (season: FantasySeasonOption) => void;
+  seasons: FantasySeasonOption[];
+  visible: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <BottomSheet
+      contentScrollEnabled={false}
+      onClose={onClose}
+      visible={visible}
+    >
+      <View style={styles.seasonPickerSheetContent}>
+        <View style={styles.leagueActionsHeader}>
+          <Text style={styles.sectionTitle}>{t("seasonSelection.switch")}</Text>
+          <Text style={styles.mutedText}>
+            {t("seasonSelection.switchDescription")}
+          </Text>
+        </View>
+        <ScrollView
+          style={styles.seasonPickerScroll}
+          contentContainerStyle={styles.seasonPickerOptions}
+        >
+          {seasons.map((season) => {
+            const isSelected = season.slug === activeSeasonSlug;
+            const isLocked = Boolean(season.isLocked);
+            const seasonPrimaryColor = getFantasySeasonPrimaryColor(season);
+            const seasonSoftColor = getFantasySeasonSoftColor(season);
+            const seasonTitle = getFantasySeasonDisplayTitle(
+              season,
+              t,
+              season.name,
+            );
+            const seasonSubtitle = getFantasySeasonDisplaySubtitle(
+              season,
+              t,
+              season.name,
+            );
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLocked, selected: isSelected }}
+                disabled={isLocked}
+                key={season.slug}
+                onPress={isLocked ? undefined : () => onSelect(season)}
+                style={[
+                  styles.seasonPickerOption,
+                  isLocked ? styles.seasonPickerOptionLocked : null,
+                  isSelected && !isLocked
+                    ? [
+                        styles.seasonPickerOptionSelected,
+                        {
+                          backgroundColor: seasonSoftColor,
+                          borderColor: colorWithAlpha(seasonPrimaryColor, 0.35),
+                        },
+                      ]
+                    : null,
+                ]}
+              >
+                <Image
+                  {...FANTASY_STATIC_IMAGE_PROPS}
+                  contentFit="contain"
+                  source={getFantasySeasonLogoSource(season)}
+                  style={styles.seasonPickerOptionLogo}
+                />
+                <View style={styles.seasonPickerOptionTextGroup}>
+                  <Text numberOfLines={1} style={styles.seasonPickerOptionText}>
+                    {seasonTitle}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.seasonPickerOptionMeta}>
+                    {seasonSubtitle}
+                  </Text>
+                </View>
+                {isLocked ? (
+                  <View
+                    style={[
+                      styles.seasonPickerSoonBadge,
+                      {
+                        backgroundColor: colorWithAlpha(seasonPrimaryColor, 0.1),
+                        borderColor: colorWithAlpha(seasonPrimaryColor, 0.28),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.seasonPickerSoonBadgeText,
+                        { color: seasonPrimaryColor },
+                      ]}
+                    >
+                      {t("seasonSelection.soon")}
+                    </Text>
+                  </View>
+                ) : isSelected ? (
+                  <Check
+                    color={seasonPrimaryColor}
+                    size={18}
+                    strokeWidth={3}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </BottomSheet>
+  );
+}
+
 function FantasyShellHeader({
+  activeSeason,
   activeTab,
   onNotificationsPress,
+  onSeasonSelectPress,
   onTabChange,
+  seasonOptions,
   showLanguageSwitcher = false,
   showWebNav = true,
   tabs,
   unreadNotificationsCount = 0,
 }: {
+  activeSeason?: FantasySeasonOption | null;
   activeTab: FantasyTabId;
   onNotificationsPress: () => void;
+  onSeasonSelectPress?: () => void;
   onTabChange: (tab: FantasyTabId) => void;
+  seasonOptions?: FantasySeasonOption[];
   showLanguageSwitcher?: boolean;
   showWebNav?: boolean;
   tabs: FantasyTab[];
@@ -233,23 +564,49 @@ function FantasyShellHeader({
   const shouldShowLanguageSwitcher =
     Platform.OS === "web" && showLanguageSwitcher;
   const shouldShowWebNav = Platform.OS === "web" && showWebNav;
+  const canSelectSeason =
+    Boolean(activeSeason && onSeasonSelectPress) &&
+    (seasonOptions?.length ?? 0) > 1;
+  const titleText = getFantasySeasonDisplayTitle(
+    activeSeason,
+    t,
+    t("app.title"),
+  );
+  const seasonPrimaryColor = getFantasySeasonPrimaryColor(activeSeason);
+  const seasonAccentColor = getFantasySeasonAccentColor(activeSeason);
+  const seasonSoftColor = getFantasySeasonSoftColor(activeSeason);
   const notificationBadgeText =
     unreadNotificationsCount > 99 ? "99+" : String(unreadNotificationsCount);
 
   return (
-    <View style={styles.fantasyHeader}>
+    <View style={[styles.fantasyHeader, { borderColor: seasonAccentColor }]}>
       <View style={styles.fantasyHeaderTitleGroup}>
-        <View style={styles.fantasyHeaderTitleRow}>
+        <Pressable
+          accessibilityRole={canSelectSeason ? "button" : undefined}
+          disabled={!canSelectSeason}
+          onPress={onSeasonSelectPress}
+          style={styles.fantasyHeaderTitleRow}
+        >
           <Image
             {...FANTASY_STATIC_IMAGE_PROPS}
             contentFit="contain"
-            source={EXTRA_LIGA_SMALL_ICON_IMAGE}
+            source={getFantasySeasonLogoSource(activeSeason)}
             style={styles.fantasyHeaderLogo}
           />
-          <Text style={styles.fantasyAppTitle}>
-            {t("competition.extraLiga.title")}
+          <Text
+            numberOfLines={1}
+            style={[styles.fantasyAppTitle, { color: seasonPrimaryColor }]}
+          >
+            {titleText}
           </Text>
-        </View>
+          {canSelectSeason ? (
+            <ChevronDown
+              color={seasonPrimaryColor}
+              size={17}
+              strokeWidth={2.6}
+            />
+          ) : null}
+        </Pressable>
       </View>
 
       {shouldShowWebNav ? (
@@ -266,16 +623,22 @@ function FantasyShellHeader({
                 onPress={() => onTabChange(tab.id)}
                 style={[
                   styles.fantasyHeaderWebNavButton,
-                  isActive ? styles.fantasyHeaderWebNavButtonActive : null,
+                  isActive
+                    ? [
+                        styles.fantasyHeaderWebNavButtonActive,
+                        { backgroundColor: seasonSoftColor },
+                      ]
+                    : null,
                 ]}
               >
                 <Text
                   numberOfLines={1}
-                  style={
+                  style={[
                     isActive
                       ? styles.fantasyHeaderWebNavTextActive
-                      : styles.fantasyHeaderWebNavText
-                  }
+                      : styles.fantasyHeaderWebNavText,
+                    isActive ? { color: seasonPrimaryColor } : null,
+                  ]}
                 >
                   {label}
                 </Text>
@@ -287,16 +650,22 @@ function FantasyShellHeader({
 
       {shouldShowLanguageSwitcher ? (
         <View style={styles.fantasyHeaderLanguageSwitcher}>
-          <LanguageSwitcher />
+          <LanguageSwitcher activeColor={seasonPrimaryColor} />
         </View>
       ) : (
         <Pressable
           accessibilityLabel={t("notifications.title")}
           accessibilityRole="button"
           onPress={onNotificationsPress}
-          style={styles.fantasyHeaderIconButton}
+          style={[
+            styles.fantasyHeaderIconButton,
+            {
+              backgroundColor: colorWithAlpha(seasonPrimaryColor, 0.1),
+              borderColor: colorWithAlpha(seasonPrimaryColor, 0.35),
+            },
+          ]}
         >
-          <Bell color={colors.brand.blue} size={21} strokeWidth={2.4} />
+          <Bell color={seasonPrimaryColor} size={21} strokeWidth={2.4} />
           {unreadNotificationsCount > 0 ? (
             <View style={styles.fantasyHeaderNotificationBadge}>
               <Text style={styles.fantasyHeaderNotificationBadgeText}>
@@ -367,8 +736,6 @@ export function FantasyHome({
   const [isShellHeaderHidden, setIsShellHeaderHidden] = useState(false);
   const [areBottomTabsHidden, setAreBottomTabsHidden] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [shouldLoadPointsBreakdowns, setShouldLoadPointsBreakdowns] =
-    useState(false);
   const [hasAcceptedRequiredLegal, setHasAcceptedRequiredLegal] =
     useState(false);
   const [requiredLegalBusy, setRequiredLegalBusy] = useState(false);
@@ -377,12 +744,21 @@ export function FantasyHome({
   >(null);
   const [requiredLegalSheetKind, setRequiredLegalSheetKind] =
     useState<LegalTextKind | null>(null);
+  const [storedSeasonSlugLoaded, setStoredSeasonSlugLoaded] = useState(false);
+  const [selectedSeasonSlug, setSelectedSeasonSlug] = useState<string | null>(
+    null,
+  );
+  const [switchingSeasonSlug, setSwitchingSeasonSlug] = useState<string | null>(
+    null,
+  );
+  const [isSeasonPickerOpen, setSeasonPickerOpen] = useState(false);
 
   const rawProfileName =
     user?.fullName ??
     getMetadataDisplayName(user?.unsafeMetadata) ??
     user?.username ??
     undefined;
+  const currentAuthUserId = isSignedIn ? user?.id : undefined;
   const userIsSignedIn = authIsLoaded
     ? Boolean(isSignedIn)
     : hasEnteredPrivateApp;
@@ -397,51 +773,74 @@ export function FantasyHome({
   const canUseNetworkedPrivateFeatures =
     userCanUsePrivateFeatures && !isOffline;
   const privateDataCacheKey = user?.id;
+  const seasonDataCacheKey =
+    user?.id && selectedSeasonSlug
+      ? `${user.id}:${selectedSeasonSlug}`
+      : undefined;
   const shouldQueryPrivateData = canUseNetworkedPrivateFeatures;
+  const shouldQuerySeasonCatalog = shouldQueryPrivateData;
+  const shouldQuerySelectedSeasonData =
+    shouldQueryPrivateData && Boolean(selectedSeasonSlug);
+  const selectedSeasonQueryArgs =
+    shouldQuerySelectedSeasonData && selectedSeasonSlug
+      ? { seasonSlug: selectedSeasonSlug }
+      : "skip";
+  const fantasySeasonsQuery = useQuery(
+    api.fantasy.listSeasons,
+    shouldQuerySeasonCatalog ? {} : "skip",
+  );
   const fantasyOverviewQuery = useQuery(
     api.fantasy.overview,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const fantasyTeamQuery = useQuery(
     api.fantasy.myTeam,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const fantasyPlayersQuery = useQuery(
     api.fantasy.listPlayers,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const fantasyTeamsQuery = useQuery(
     api.fantasy.listFantasyTeams,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
+  );
+  const fantasyPrivateLeaguesQuery = useQuery(
+    api.fantasy.listMyPrivateLeagues,
+    selectedSeasonQueryArgs,
   );
   const fantasyClubsQuery = useQuery(
     api.fantasy.listClubs,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const fantasyGameweeksQuery = useQuery(
     api.fantasy.listGameweeks,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const fantasyFixturesQuery = useQuery(
     api.fantasy.listFixtures,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const seasonPlayerStatisticsQuery = useQuery(
     api.fantasy.seasonPlayerStatistics,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
   const favoritePlayerIdsQuery = useQuery(
     api.fantasy.myFavoritePlayerIds,
-    shouldQueryPrivateData ? {} : "skip",
+    selectedSeasonQueryArgs,
   );
-  const gameweekPointsBreakdownQuery = useQuery(
-    api.fantasy.myGameweekPointsBreakdown,
-    shouldQueryPrivateData && shouldLoadPointsBreakdowns ? {} : "skip",
-  );
-  const seasonPointsBreakdownQuery = useQuery(
-    api.fantasy.mySeasonPointsBreakdown,
-    shouldQueryPrivateData && shouldLoadPointsBreakdowns ? {} : "skip",
-  );
+  const selectedSeasonQueriesReady =
+    !shouldQuerySelectedSeasonData ||
+    (fantasyOverviewQuery !== undefined &&
+      fantasyTeamQuery !== undefined &&
+      fantasyPlayersQuery !== undefined &&
+      fantasyTeamsQuery !== undefined &&
+      fantasyPrivateLeaguesQuery !== undefined &&
+      fantasyClubsQuery !== undefined &&
+      fantasyGameweeksQuery !== undefined &&
+      fantasyFixturesQuery !== undefined &&
+      seasonPlayerStatisticsQuery !== undefined &&
+      favoritePlayerIdsQuery !== undefined);
   const currentUserProfileQuery = useQuery(
     api.users.me,
     shouldQueryPrivateData ? {} : "skip",
@@ -450,49 +849,49 @@ export function FantasyHome({
     api.notifications.currentUserNotificationSummary,
     shouldQueryPrivateData ? {} : "skip",
   );
+  const fantasySeasons = useLastDefinedValue(
+    fantasySeasonsQuery,
+    privateDataCacheKey,
+  ) as FantasySeasonOption[] | undefined;
   const fantasyOverview = useLastDefinedValue(
     fantasyOverviewQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const fantasyTeam = useLastDefinedValue(
     fantasyTeamQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const fantasyPlayers = useLastDefinedValue(
     fantasyPlayersQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const fantasyTeams = useLastDefinedValue(
     fantasyTeamsQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
+  );
+  const fantasyPrivateLeagues = useLastDefinedValue(
+    fantasyPrivateLeaguesQuery,
+    seasonDataCacheKey,
   );
   const fantasyClubs = useLastDefinedValue(
     fantasyClubsQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const fantasyGameweeks = useLastDefinedValue(
     fantasyGameweeksQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const fantasyFixtures = useLastDefinedValue(
     fantasyFixturesQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const seasonPlayerStatistics = useLastDefinedValue(
     seasonPlayerStatisticsQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const favoritePlayerIds = useLastDefinedValue(
     favoritePlayerIdsQuery,
-    privateDataCacheKey,
-  );
-  const gameweekPointsBreakdown = useLastDefinedValue(
-    gameweekPointsBreakdownQuery,
-    privateDataCacheKey,
-  );
-  const seasonPointsBreakdown = useLastDefinedValue(
-    seasonPointsBreakdownQuery,
-    privateDataCacheKey,
+    seasonDataCacheKey,
   );
   const currentUserProfile = useLastDefinedValue(
     currentUserProfileQuery,
@@ -503,6 +902,52 @@ export function FantasyHome({
     privateDataCacheKey,
   );
   const currentBackendUser = currentUserProfile?.user ?? null;
+  const currentViewerIsAdmin = Boolean(currentUserProfile?.isAdmin);
+  const availableFantasySeasons = useMemo(
+    () =>
+      (fantasySeasons ?? []).map((season) => {
+        const shouldLockForViewer =
+          !currentViewerIsAdmin && isAdminOnlyFantasySeasonOption(season);
+        const isLocked = Boolean(season.isLocked) || shouldLockForViewer;
+
+        if (
+          season.isLocked === isLocked &&
+          (season.lockedReason ?? null) ===
+            (isLocked ? (season.lockedReason ?? "coming_soon") : null)
+        ) {
+          return season;
+        }
+
+        return {
+          ...season,
+          accessLevel:
+            season.accessLevel ??
+            (isAdminOnlyFantasySeasonOption(season) ? "admin" : "public"),
+          isLocked,
+          lockedReason: isLocked
+            ? (season.lockedReason ?? "coming_soon")
+            : null,
+        };
+      }),
+    [currentViewerIsAdmin, fantasySeasons],
+  );
+  const activeFantasySeason = useMemo(
+    () =>
+      selectedSeasonSlug
+        ? (availableFantasySeasons.find(
+            (season) => season.slug === selectedSeasonSlug,
+          ) ?? null)
+        : null,
+    [availableFantasySeasons, selectedSeasonSlug],
+  );
+  const activeSeasonPrimaryColor =
+    getFantasySeasonPrimaryColor(activeFantasySeason);
+  const activeSeasonSoftColor =
+    getFantasySeasonSoftColor(activeFantasySeason);
+  const activeSeasonBorderColor = colorWithAlpha(
+    activeSeasonPrimaryColor,
+    0.32,
+  );
   const localizedFantasyClubs = useMemo(
     () => localizeFantasyClubs(fantasyClubs, language),
     [fantasyClubs, language],
@@ -513,7 +958,10 @@ export function FantasyHome({
     [fantasyPlayers, language, localizedFantasyClubs],
   );
   const localizedActiveClubFantasyPlayers = useMemo(
-    () => localizedFantasyPlayers?.filter((player) => player.clubId !== null),
+    () =>
+      localizedFantasyPlayers?.filter(
+        (player) => player.clubId !== null && player.status !== "left",
+      ),
     [localizedFantasyPlayers],
   );
   const localizedFantasyFixtures = useMemo(
@@ -533,6 +981,73 @@ export function FantasyHome({
   useEffect(() => {
     void preloadFantasyStaticAssets().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!authIsLoaded) {
+      setStoredSeasonSlugLoaded(false);
+      return undefined;
+    }
+
+    setSeasonPickerOpen(false);
+
+    if (!currentAuthUserId) {
+      setSelectedSeasonSlug(null);
+      setStoredSeasonSlugLoaded(true);
+      return undefined;
+    }
+
+    setStoredSeasonSlugLoaded(false);
+    void getStoredFantasySeasonSlug().then((seasonSlug) => {
+      if (isCancelled) return;
+      setSelectedSeasonSlug(seasonSlug);
+      setStoredSeasonSlugLoaded(true);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [authIsLoaded, currentAuthUserId]);
+
+  useEffect(() => {
+    if (
+      !storedSeasonSlugLoaded ||
+      fantasySeasons === undefined ||
+      !selectedSeasonSlug
+    ) {
+      return;
+    }
+
+    const selectedSeason = availableFantasySeasons.find(
+      (season) => season.slug === selectedSeasonSlug,
+    );
+    if (!selectedSeason) {
+      setSelectedSeasonSlug(null);
+      setSwitchingSeasonSlug(null);
+      void clearStoredFantasySeasonSlug();
+      return;
+    }
+    if (selectedSeason.isLocked) {
+      const fallbackSeasonSlug =
+        availableFantasySeasons.find((season) => !season.isLocked)?.slug ??
+        null;
+      setSwitchingSeasonSlug(null);
+      setErrorText(t("seasonSelection.comingSoonNotice"));
+      setSelectedSeasonSlug(fallbackSeasonSlug);
+      if (fallbackSeasonSlug) {
+        void storeFantasySeasonSlug(fallbackSeasonSlug);
+      } else {
+        void clearStoredFantasySeasonSlug();
+      }
+    }
+  }, [
+    availableFantasySeasons,
+    fantasySeasons,
+    selectedSeasonSlug,
+    storedSeasonSlugLoaded,
+    t,
+  ]);
 
   useEffect(() => {
     const currentGameweekNumber =
@@ -632,7 +1147,6 @@ export function FantasyHome({
     return () => subscription.remove();
   }, [userIsSignedIn]);
 
-  const currentAuthUserId = isSignedIn ? user?.id : undefined;
   const previousAuthUserIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -647,6 +1161,7 @@ export function FantasyHome({
     setHeaderActionOverlay(null);
     setIsShellHeaderHidden(false);
     setAreBottomTabsHidden(false);
+    setSeasonPickerOpen(false);
     setHasAcceptedRequiredLegal(false);
     setRequiredLegalBusy(false);
     setRequiredLegalErrorText(null);
@@ -701,6 +1216,23 @@ export function FantasyHome({
       setHeaderActionOverlay(null);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!switchingSeasonSlug) return;
+
+    if (
+      switchingSeasonSlug !== selectedSeasonSlug ||
+      selectedSeasonQueriesReady ||
+      !shouldQuerySelectedSeasonData
+    ) {
+      setSwitchingSeasonSlug(null);
+    }
+  }, [
+    selectedSeasonQueriesReady,
+    selectedSeasonSlug,
+    shouldQuerySelectedSeasonData,
+    switchingSeasonSlug,
+  ]);
 
   useEffect(() => {
     if (!hasAuthBootstrapProblem) {
@@ -804,6 +1336,7 @@ export function FantasyHome({
     requiredLegalSheetKind,
     isShellHeaderHidden,
     areBottomTabsHidden,
+    isSeasonPickerOpen,
   ]);
 
   const clearError = useCallback(() => setErrorText(null), []);
@@ -831,6 +1364,36 @@ export function FantasyHome({
     });
     setActiveTab(nextTab);
   }, []);
+
+  const handleSelectFantasySeason = useCallback(
+    (season: FantasySeasonOption) => {
+      Keyboard.dismiss();
+      setErrorText(null);
+      if (season.isLocked) {
+        setErrorText(t("seasonSelection.comingSoonNotice"));
+        setSeasonPickerOpen(false);
+        return;
+      }
+
+      const seasonSlug = season.slug;
+      if (seasonSlug === selectedSeasonSlug) {
+        setSeasonPickerOpen(false);
+        return;
+      }
+      if (selectedSeasonSlug) {
+        setSwitchingSeasonSlug(seasonSlug);
+      }
+      setSelectedSeasonSlug(seasonSlug);
+      setSeasonPickerOpen(false);
+
+      if (!selectedSeasonSlug) {
+        handleTabChange("team");
+      }
+
+      void storeFantasySeasonSlug(seasonSlug);
+    },
+    [handleTabChange, selectedSeasonSlug, t],
+  );
 
   const handleOpenAdminActions = useCallback(() => {
     Keyboard.dismiss();
@@ -866,11 +1429,26 @@ export function FantasyHome({
     currentBackendUser &&
     !currentTermsAreAccepted,
   );
+  const canResolveSeasonSelection = Boolean(
+    userCanUsePrivateFeatures &&
+      profileReady &&
+      currentBackendUser &&
+      currentTermsAreAccepted,
+  );
+  const shouldWaitForSeasonSelection = Boolean(
+    canResolveSeasonSelection &&
+      (!storedSeasonSlugLoaded || fantasySeasons === undefined),
+  );
+  const shouldRequireSeasonSelection = Boolean(
+    canResolveSeasonSelection &&
+      storedSeasonSlugLoaded &&
+      fantasySeasons !== undefined &&
+      !activeFantasySeason,
+  );
 
   useEffect(() => {
     if (userCanUsePrivateFeatures && profileReady) {
       setHasEnteredPrivateApp(true);
-      setShouldLoadPointsBreakdowns(true);
     }
   }, [profileReady, userCanUsePrivateFeatures]);
 
@@ -963,7 +1541,10 @@ export function FantasyHome({
 
   const handleToggleFavoritePlayer = useCallback(
     (playerId: Id<"fantasyPlayers">, isFavorite: boolean) => {
-      void toggleFavoritePlayer({ isFavorite, playerId }).catch(
+      const mutationArgs = selectedSeasonSlug
+        ? { isFavorite, playerId, seasonSlug: selectedSeasonSlug }
+        : { isFavorite, playerId };
+      void toggleFavoritePlayer(mutationArgs).catch(
         (error: unknown) => {
           setAsyncError(
             error instanceof Error ? error.message : t("common.loading"),
@@ -971,7 +1552,7 @@ export function FantasyHome({
         },
       );
     },
-    [setAsyncError, t, toggleFavoritePlayer],
+    [selectedSeasonSlug, setAsyncError, t, toggleFavoritePlayer],
   );
 
   const isLeagueTabActive = activeTab === "league";
@@ -1055,15 +1636,33 @@ export function FantasyHome({
     }
   }, [deleteCurrentUserAccount, signOut]);
 
-  const handlePointsDetailsVisibleChange = useCallback((isVisible: boolean) => {
-    if (isVisible) {
-      setShouldLoadPointsBreakdowns(true);
-    }
-  }, []);
-
   const leagueScreen = useMemo(
-    () => <LeagueScreen teams={fantasyTeams} />,
-    [fantasyTeams],
+    () => (
+      <LeagueScreen
+        clubs={localizedFantasyClubs}
+        currentFantasyTeamId={
+          localizedFantasyTeam?.id
+            ? (localizedFantasyTeam.id as Id<"fantasyTeams">)
+            : null
+        }
+        gameweeks={localizedFantasyGameweeks}
+        isAdmin={Boolean(currentUserProfile?.isAdmin)}
+        onBottomTabsHiddenChange={setAreBottomTabsHidden}
+        onShellHeaderHiddenChange={setIsShellHeaderHidden}
+        privateLeagues={fantasyPrivateLeagues}
+        seasonSlug={selectedSeasonSlug}
+        teams={fantasyTeams}
+      />
+    ),
+    [
+      currentUserProfile?.isAdmin,
+      fantasyTeams,
+      fantasyPrivateLeagues,
+      localizedFantasyClubs,
+      localizedFantasyGameweeks,
+      localizedFantasyTeam?.id,
+      selectedSeasonSlug,
+    ],
   );
   const teamScreen = useMemo(
     () => (
@@ -1073,14 +1672,12 @@ export function FantasyHome({
         fantasyPlayers={localizedActiveClubFantasyPlayers}
         fantasyTeam={localizedFantasyTeam}
         fantasyTeams={fantasyTeams}
+        fantasySeason={activeFantasySeason}
         fantasyGameweeks={localizedFantasyGameweeks}
-        gameweekPointsBreakdown={gameweekPointsBreakdown}
-        seasonPointsBreakdown={seasonPointsBreakdown}
         isActive={isTeamTabActive}
         managerName={profileName}
         onBottomTabsHiddenChange={setAreBottomTabsHidden}
         onHeaderActionOverlayChange={setHeaderActionOverlay}
-        onPointsDetailsVisibleChange={handlePointsDetailsVisibleChange}
         onShellHeaderHiddenChange={setIsShellHeaderHidden}
         onTopEdgeToEdgeChange={onTopEdgeToEdgeChange}
       />
@@ -1092,11 +1689,8 @@ export function FantasyHome({
       localizedFantasyTeam,
       fantasyTeams,
       localizedFantasyGameweeks,
-      gameweekPointsBreakdown,
-      seasonPointsBreakdown,
       isTeamTabActive,
       profileName,
-      handlePointsDetailsVisibleChange,
       setAreBottomTabsHidden,
       setIsShellHeaderHidden,
       onTopEdgeToEdgeChange,
@@ -1147,6 +1741,7 @@ export function FantasyHome({
         onOpenAdminActions={handleOpenAdminActions}
         onSignOut={handleSignOut}
         players={localizedActiveClubFantasyPlayers}
+        seasonSlug={selectedSeasonSlug}
       />
     ),
     [
@@ -1160,6 +1755,7 @@ export function FantasyHome({
       localizedActiveClubFantasyPlayers,
       profileEmail,
       profileName,
+      selectedSeasonSlug,
     ],
   );
 
@@ -1268,86 +1864,102 @@ export function FantasyHome({
 
   if (shouldRequireLegalAcceptance) {
     return (
-      <View style={styles.fantasyShell}>
-        <FantasyStaticImagePreloader />
-        <FantasyShellHeader
-          activeTab={activeTab}
-          onNotificationsPress={() => setIsNotificationsOpen(true)}
-          onTabChange={handleTabChange}
-          showLanguageSwitcher={shouldUseDesktopWebLayout}
-          showWebNav={false}
-          tabs={FANTASY_TABS}
-        />
-        <View style={styles.fantasyScreen}>
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>{t("auth.termsGateTitle")}</Text>
-            <Text style={styles.mutedText}>
-              {t("auth.termsGateDescription")}
-            </Text>
-
-            <View style={styles.legalConsentGroup}>
-              <View style={styles.legalConsentRow}>
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: hasAcceptedRequiredLegal }}
-                  hitSlop={8}
-                  onPress={() => {
-                    setHasAcceptedRequiredLegal((current) => !current);
-                    setRequiredLegalErrorText(null);
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.legalCheckbox,
-                      hasAcceptedRequiredLegal
-                        ? styles.legalCheckboxChecked
-                        : null,
-                    ]}
-                  >
-                    {hasAcceptedRequiredLegal ? (
-                      <Check
-                        color={colors.text.inverse}
-                        size={15}
-                        strokeWidth={3}
-                      />
-                    ) : null}
-                  </View>
-                </Pressable>
-                <LegalConsentText
-                  onPrivacyPress={() => setRequiredLegalSheetKind("privacy")}
-                  onTermsPress={() => setRequiredLegalSheetKind("terms")}
-                />
-              </View>
-            </View>
-
-            {requiredLegalErrorText ? (
-              <Text style={styles.errorText}>{requiredLegalErrorText}</Text>
-            ) : null}
-
-            <Pressable
-              disabled={requiredLegalBusy || !hasAcceptedRequiredLegal}
-              onPress={() => void handleRequiredLegalAccept()}
-              style={[
-                styles.authPrimaryButton,
-                requiredLegalBusy || !hasAcceptedRequiredLegal
-                  ? styles.buttonDisabled
-                  : null,
-              ]}
-            >
-              <Text style={styles.primaryButtonText}>
-                {requiredLegalBusy
-                  ? t("auth.wait")
-                  : t("auth.acceptTermsContinue")}
+      <FantasySeasonThemeProvider season={activeFantasySeason}>
+        <View style={styles.fantasyShell}>
+          <FantasyStaticImagePreloader />
+          <FantasyShellHeader
+            activeSeason={activeFantasySeason}
+            activeTab={activeTab}
+            onNotificationsPress={() => setIsNotificationsOpen(true)}
+            onSeasonSelectPress={() => setSeasonPickerOpen(true)}
+            onTabChange={handleTabChange}
+            seasonOptions={availableFantasySeasons}
+            showLanguageSwitcher={shouldUseDesktopWebLayout}
+            showWebNav={false}
+            tabs={FANTASY_TABS}
+          />
+          <View style={styles.fantasyScreen}>
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>
+                {t("auth.termsGateTitle")}
               </Text>
-            </Pressable>
+              <Text style={styles.mutedText}>
+                {t("auth.termsGateDescription")}
+              </Text>
+
+              <View style={styles.legalConsentGroup}>
+                <View style={styles.legalConsentRow}>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: hasAcceptedRequiredLegal }}
+                    hitSlop={8}
+                    onPress={() => {
+                      setHasAcceptedRequiredLegal((current) => !current);
+                      setRequiredLegalErrorText(null);
+                    }}
+                  >
+                    <View
+                      style={[
+                        styles.legalCheckbox,
+                        hasAcceptedRequiredLegal
+                          ? [
+                              styles.legalCheckboxChecked,
+                              {
+                                backgroundColor: activeSeasonPrimaryColor,
+                                borderColor: activeSeasonPrimaryColor,
+                              },
+                            ]
+                          : null,
+                      ]}
+                    >
+                      {hasAcceptedRequiredLegal ? (
+                        <Check
+                          color={colors.text.inverse}
+                          size={15}
+                          strokeWidth={3}
+                        />
+                      ) : null}
+                    </View>
+                  </Pressable>
+                  <LegalConsentText
+                    onPrivacyPress={() => setRequiredLegalSheetKind("privacy")}
+                    onTermsPress={() => setRequiredLegalSheetKind("terms")}
+                  />
+                </View>
+              </View>
+
+              {requiredLegalErrorText ? (
+                <Text style={styles.errorText}>{requiredLegalErrorText}</Text>
+              ) : null}
+
+              <Pressable
+                disabled={requiredLegalBusy || !hasAcceptedRequiredLegal}
+                onPress={() => void handleRequiredLegalAccept()}
+                style={[
+                  styles.authPrimaryButton,
+                  !requiredLegalBusy && hasAcceptedRequiredLegal
+                    ? { backgroundColor: activeSeasonPrimaryColor }
+                    : null,
+                  requiredLegalBusy || !hasAcceptedRequiredLegal
+                    ? styles.buttonDisabled
+                    : null,
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {requiredLegalBusy
+                    ? t("auth.wait")
+                    : t("auth.acceptTermsContinue")}
+                </Text>
+              </Pressable>
+            </View>
           </View>
+          <LegalTextSheet
+            kind={requiredLegalSheetKind ?? "terms"}
+            onClose={() => setRequiredLegalSheetKind(null)}
+            visible={Boolean(requiredLegalSheetKind)}
+          />
         </View>
-        <LegalTextSheet
-          kind={requiredLegalSheetKind ?? "terms"}
-          onClose={() => setRequiredLegalSheetKind(null)}
-          visible={Boolean(requiredLegalSheetKind)}
-        />
-      </View>
+      </FantasySeasonThemeProvider>
     );
   }
 
@@ -1391,6 +2003,19 @@ export function FantasyHome({
     );
   }
 
+  if (shouldWaitForSeasonSelection && !hasEnteredPrivateApp) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("seasonSelection.loadingTitle")}
+        description={t("seasonSelection.loadingDescription")}
+      />
+    );
+  }
+
   const authProblemText =
     hasAuthBootstrapProblem && canShowAuthProblem
       ? t("session.authProblem")
@@ -1405,6 +2030,12 @@ export function FantasyHome({
     isOffline && isConnectionToastVisible
       ? t("network.offlineDescription")
       : null;
+  const shouldShowSeasonSwitchOverlay = Boolean(
+    switchingSeasonSlug &&
+      switchingSeasonSlug === selectedSeasonSlug &&
+      !selectedSeasonQueriesReady &&
+      !isOffline,
+  );
   const inlineMessageText =
     errorText ??
     authProblemText ??
@@ -1412,86 +2043,173 @@ export function FantasyHome({
     deadlineNoticeText;
   const inlineMessageStyle =
     deadlineNoticeText && inlineMessageText === deadlineNoticeText
-      ? [styles.fantasyInlineMessage, styles.fantasyInlineMessageInfo]
+      ? [
+          styles.fantasyInlineMessage,
+          styles.fantasyInlineMessageInfo,
+          {
+            backgroundColor: activeSeasonSoftColor,
+            borderColor: activeSeasonBorderColor,
+          },
+        ]
       : styles.fantasyInlineMessage;
   const inlineMessageTextStyle =
     deadlineNoticeText && inlineMessageText === deadlineNoticeText
-      ? styles.fantasyInlineMessageInfoText
+      ? [
+          styles.fantasyInlineMessageInfoText,
+          { color: activeSeasonPrimaryColor },
+        ]
       : styles.errorText;
 
-  if (authProblemText) {
+  if (shouldShowSeasonSwitchOverlay) {
     return (
-      <View style={styles.fantasyShell}>
-        <FantasyShellHeader
-          activeTab={activeTab}
-          onNotificationsPress={() => setIsNotificationsOpen(true)}
-          onTabChange={handleTabChange}
-          showLanguageSwitcher={shouldUseDesktopWebLayout}
-          showWebNav={false}
-          tabs={FANTASY_TABS}
-        />
-
-        <View style={styles.fantasyInlineMessage}>
-          <Text style={styles.errorText}>{authProblemText}</Text>
-        </View>
-
-        <View style={styles.fantasyScreen}>
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>{profileName}</Text>
-            <Text style={styles.mutedText}>
-              {profileEmail ?? t("profile.noEmail")}
-            </Text>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => void handleSignOut()}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {t("profile.signOut")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  if (isNotificationsOpen) {
-    return <NotificationsScreen onBack={() => setIsNotificationsOpen(false)} />;
-  }
-
-  if (isAdminActionsOpen) {
-    return (
-      <ProfileScreen
-        canQueryPrivateData={shouldQueryPrivateData}
-        email={profileEmail}
-        fixtures={localizedFantasyFixtures}
-        gameweeks={localizedFantasyGameweeks}
-        isAdmin={Boolean(currentUserProfile?.isAdmin)}
-        mode="adminActions"
-        name={profileName}
-        onAdminActionsBack={handleCloseAdminActions}
-        onDeleteAccount={handleDeleteAccount}
-        onOpenAdminActions={handleOpenAdminActions}
-        onSignOut={handleSignOut}
-        players={localizedActiveClubFantasyPlayers}
+      <AppLoadingScreen
+        title={t("seasonSelection.loadingTitle")}
+        description={t("seasonSelection.loadingDescription")}
       />
     );
   }
 
-  return (
-    <View style={styles.fantasyShell}>
-      <FantasyStaticImagePreloader />
-      {isShellHeaderHidden ? null : (
-        <FantasyShellHeader
-          activeTab={activeTab}
-          onNotificationsPress={() => setIsNotificationsOpen(true)}
-          onTabChange={handleTabChange}
-          showLanguageSwitcher={shouldUseDesktopWebLayout}
-          showWebNav={shouldUseDesktopWebLayout}
-          tabs={FANTASY_TABS}
-          unreadNotificationsCount={notificationSummary?.unreadCount ?? 0}
+  if (authProblemText) {
+    return (
+      <FantasySeasonThemeProvider season={activeFantasySeason}>
+        <View style={styles.fantasyShell}>
+          <FantasyShellHeader
+            activeSeason={activeFantasySeason}
+            activeTab={activeTab}
+            onNotificationsPress={() => setIsNotificationsOpen(true)}
+            onSeasonSelectPress={() => setSeasonPickerOpen(true)}
+            onTabChange={handleTabChange}
+            seasonOptions={availableFantasySeasons}
+            showLanguageSwitcher={shouldUseDesktopWebLayout}
+            showWebNav={false}
+            tabs={FANTASY_TABS}
+          />
+
+          <View style={styles.fantasyInlineMessage}>
+            <Text style={styles.errorText}>{authProblemText}</Text>
+          </View>
+
+          <View style={styles.fantasyScreen}>
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>{profileName}</Text>
+              <Text style={styles.mutedText}>
+                {profileEmail ?? t("profile.noEmail")}
+              </Text>
+              <Pressable
+                onPress={() => void handleSignOut()}
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: activeSeasonBorderColor },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: activeSeasonPrimaryColor },
+                  ]}
+                >
+                  {t("profile.signOut")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </FantasySeasonThemeProvider>
+    );
+  }
+
+  if (shouldWaitForSeasonSelection) {
+    if (isOffline) {
+      return <AppConnectionProblemScreen />;
+    }
+
+    return (
+      <AppLoadingScreen
+        title={t("seasonSelection.loadingTitle")}
+        description={t("seasonSelection.loadingDescription")}
+      />
+    );
+  }
+
+  if (shouldRequireSeasonSelection) {
+    return (
+      <FantasySeasonThemeProvider season={activeFantasySeason}>
+        <View style={styles.fantasyShell}>
+          <FantasyStaticImagePreloader />
+          <FantasyShellHeader
+            activeSeason={activeFantasySeason}
+            activeTab={activeTab}
+            onNotificationsPress={() => setIsNotificationsOpen(true)}
+            onSeasonSelectPress={() => setSeasonPickerOpen(true)}
+            onTabChange={handleTabChange}
+            seasonOptions={availableFantasySeasons}
+            showLanguageSwitcher={shouldUseDesktopWebLayout}
+            showWebNav={false}
+            tabs={FANTASY_TABS}
+            unreadNotificationsCount={notificationSummary?.unreadCount ?? 0}
+          />
+          {inlineMessageText ? (
+            <View style={inlineMessageStyle}>
+              <Text style={inlineMessageTextStyle}>{inlineMessageText}</Text>
+            </View>
+          ) : null}
+          <FantasySeasonSelectionScreen
+            onSelect={handleSelectFantasySeason}
+            seasons={availableFantasySeasons}
+          />
+        </View>
+      </FantasySeasonThemeProvider>
+    );
+  }
+
+  if (isNotificationsOpen) {
+    return (
+      <FantasySeasonThemeProvider season={activeFantasySeason}>
+        <NotificationsScreen onBack={() => setIsNotificationsOpen(false)} />
+      </FantasySeasonThemeProvider>
+    );
+  }
+
+  if (isAdminActionsOpen) {
+    return (
+      <FantasySeasonThemeProvider season={activeFantasySeason}>
+        <ProfileScreen
+          canQueryPrivateData={shouldQueryPrivateData}
+          email={profileEmail}
+          fixtures={localizedFantasyFixtures}
+          gameweeks={localizedFantasyGameweeks}
+          isAdmin={Boolean(currentUserProfile?.isAdmin)}
+          mode="adminActions"
+          name={profileName}
+          onAdminActionsBack={handleCloseAdminActions}
+          onDeleteAccount={handleDeleteAccount}
+          onOpenAdminActions={handleOpenAdminActions}
+          onSignOut={handleSignOut}
+          players={localizedActiveClubFantasyPlayers}
+          seasonSlug={selectedSeasonSlug}
         />
-      )}
+      </FantasySeasonThemeProvider>
+    );
+  }
+
+  return (
+    <FantasySeasonThemeProvider season={activeFantasySeason}>
+      <View style={styles.fantasyShell}>
+        <FantasyStaticImagePreloader />
+        {isShellHeaderHidden ? null : (
+          <FantasyShellHeader
+            activeSeason={activeFantasySeason}
+            activeTab={activeTab}
+            onNotificationsPress={() => setIsNotificationsOpen(true)}
+            onSeasonSelectPress={() => setSeasonPickerOpen(true)}
+            onTabChange={handleTabChange}
+            seasonOptions={availableFantasySeasons}
+            showLanguageSwitcher={shouldUseDesktopWebLayout}
+            showWebNav={shouldUseDesktopWebLayout}
+            tabs={FANTASY_TABS}
+            unreadNotificationsCount={notificationSummary?.unreadCount ?? 0}
+          />
+        )}
       <HeaderActionOverlay config={headerActionOverlay} />
 
       {connectionToastText ? (
@@ -1563,12 +2281,22 @@ export function FantasyHome({
       </View>
 
       {areBottomTabsHidden || shouldUseDesktopWebLayout ? null : (
-        <FantasyBottomTabs
+      <FantasyBottomTabs
+          activeColor={getFantasySeasonPrimaryColor(activeFantasySeason)}
+          activeBackgroundColor={getFantasySeasonSoftColor(activeFantasySeason)}
           activeTab={activeTab}
           onChange={handleTabChange}
           tabs={FANTASY_TABS}
         />
       )}
+
+      <FantasySeasonPickerSheet
+        activeSeasonSlug={selectedSeasonSlug}
+        onClose={() => setSeasonPickerOpen(false)}
+        onSelect={handleSelectFantasySeason}
+        seasons={availableFantasySeasons}
+        visible={isSeasonPickerOpen}
+      />
 
       {privateLoadingOverlayTitle && !privateLoadingTimedOut ? (
         Platform.OS === "web" ? (
@@ -1580,6 +2308,7 @@ export function FantasyHome({
           <AppLoadingOverlay title={privateLoadingOverlayTitle} />
         )
       ) : null}
-    </View>
+      </View>
+    </FantasySeasonThemeProvider>
   );
 }

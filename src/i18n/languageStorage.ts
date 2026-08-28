@@ -6,7 +6,7 @@ import { DEFAULT_LANGUAGE, type LanguageCode } from "./translations";
 const LANGUAGE_STORAGE_KEY = "futsalFantasyLanguage";
 
 export function isLanguageCode(value: string | null): value is LanguageCode {
-  return value === "en" || value === "uk";
+  return value === "en" || value === "uk" || value === "pl";
 }
 
 export async function getStoredLanguage(): Promise<LanguageCode> {

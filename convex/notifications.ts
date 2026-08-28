@@ -13,9 +13,18 @@ type ExpoPushMessage = {
   to: string;
 };
 
+type NotificationLanguage = "en" | "uk" | "pl";
+
 type ExpoPushRecipient = {
+  preferredLanguage: NotificationLanguage;
   tokens: string[];
   userId: Id<"users">;
+};
+
+type PushMessage = {
+  body: string;
+  kind: string;
+  title: string;
 };
 
 type UserNotificationInput = {
@@ -29,13 +38,17 @@ type UserNotificationInput = {
 };
 
 type DeadlineReminder = {
-  body: string;
+  gameweekName: string;
+  gameweekNumber: number;
   key: string;
-  title: string;
   type: string;
 };
 
-type GameweekPushState = { status: string } | null;
+type GameweekPushState = {
+  name: string;
+  number: number;
+  status: string;
+} | null;
 
 function normalizeToken(token: string) {
   return token.trim();
@@ -44,6 +57,156 @@ function normalizeToken(token: string) {
 function normalizeLimit(value: number | undefined) {
   if (!value || !Number.isFinite(value)) return 50;
   return Math.min(Math.max(Math.trunc(value), 1), 100);
+}
+
+function normalizeNotificationLanguage(
+  language: string | undefined,
+): NotificationLanguage {
+  return language === "uk" || language === "pl" ? language : "en";
+}
+
+function getNotificationGameweekName(
+  language: NotificationLanguage,
+  gameweekName?: string | null,
+  gameweekNumber?: number | null,
+) {
+  const number =
+    typeof gameweekNumber === "number" && Number.isFinite(gameweekNumber)
+      ? Math.trunc(gameweekNumber)
+      : Number(gameweekName?.match(/\d+/)?.[0] ?? NaN);
+
+  if (Number.isFinite(number) && number > 0) {
+    if (language === "uk") return `Тур ${number}`;
+    if (language === "pl") return `Kolejka ${number}`;
+    return `Gameweek ${number}`;
+  }
+
+  return gameweekName?.trim() || (language === "uk" ? "Тур" : language === "pl" ? "Kolejka" : "Gameweek");
+}
+
+const PUSH_NOTIFICATION_COPY: Record<
+  string,
+  Record<
+    NotificationLanguage,
+    { body: (gameweekName: string) => string; title: string }
+  >
+> = {
+  deadline_reminder_day: {
+    en: {
+      title: "Deadline tomorrow",
+      body: (gameweekName: string) =>
+        `${gameweekName}: the deadline is tomorrow. Remember to save your squad.`,
+    },
+    uk: {
+      title: "Дедлайн завтра",
+      body: (gameweekName: string) =>
+        `${gameweekName}: дедлайн уже завтра. Не забудьте зберегти склад.`,
+    },
+    pl: {
+      title: "Deadline jutro",
+      body: (gameweekName: string) =>
+        `${gameweekName}: deadline już jutro. Pamiętaj, aby zapisać skład.`,
+    },
+  },
+  deadline_reminder_hour: {
+    en: {
+      title: "Deadline in one hour",
+      body: (gameweekName: string) =>
+        `${gameweekName}: about one hour left to save your squad.`,
+    },
+    uk: {
+      title: "Дедлайн за годину",
+      body: (gameweekName: string) =>
+        `${gameweekName}: лишилася приблизно година, щоб зберегти склад.`,
+    },
+    pl: {
+      title: "Deadline za godzinę",
+      body: (gameweekName: string) =>
+        `${gameweekName}: została około godzina, aby zapisać skład.`,
+    },
+  },
+  deadline_passed: {
+    en: {
+      title: "Gameweek is live",
+      body: (gameweekName: string) =>
+        `${gameweekName} is live. Follow result updates in the app.`,
+    },
+    uk: {
+      title: "Тур live",
+      body: (gameweekName: string) =>
+        `${gameweekName} live. Стежте за оновленнями результатів у застосунку.`,
+    },
+    pl: {
+      title: "Kolejka live",
+      body: (gameweekName: string) =>
+        `${gameweekName} jest live. Śledź aktualizacje wyników w aplikacji.`,
+    },
+  },
+  gameweek_results_ready: {
+    en: {
+      title: "Gameweek results are ready",
+      body: (gameweekName: string) =>
+        `${gameweekName} is over. Points are calculated, so you can check the results.`,
+    },
+    uk: {
+      title: "Підсумки туру готові",
+      body: (gameweekName: string) =>
+        `${gameweekName} завершено. Очки вже підраховані, можна перевірити результати.`,
+    },
+    pl: {
+      title: "Wyniki kolejki są gotowe",
+      body: (gameweekName: string) =>
+        `${gameweekName} zakończona. Punkty są już policzone, możesz sprawdzić wyniki.`,
+    },
+  },
+  test: {
+    en: {
+      title: "Fantasy Futsal",
+      body: () => "Test push notification works.",
+    },
+    uk: {
+      title: "Fantasy Futsal",
+      body: () => "Тестове push-сповіщення працює.",
+    },
+    pl: {
+      title: "Fantasy Futsal",
+      body: () => "Testowe powiadomienie push działa.",
+    },
+  },
+};
+
+function getLocalizedPushMessage(
+  recipient: Pick<ExpoPushRecipient, "preferredLanguage">,
+  fallback: PushMessage & {
+    gameweekName?: string | null;
+    gameweekNumber?: number | null;
+    type: string;
+  },
+): PushMessage {
+  const language = normalizeNotificationLanguage(recipient.preferredLanguage);
+  const copy =
+    PUSH_NOTIFICATION_COPY[fallback.type]?.[language] ??
+    PUSH_NOTIFICATION_COPY[fallback.type]?.en;
+
+  if (!copy) {
+    return {
+      body: fallback.body,
+      kind: fallback.kind,
+      title: fallback.title,
+    };
+  }
+
+  const gameweekName = getNotificationGameweekName(
+    language,
+    fallback.gameweekName,
+    fallback.gameweekNumber,
+  );
+
+  return {
+    body: copy.body(gameweekName),
+    kind: fallback.kind,
+    title: copy.title,
+  };
 }
 
 const enabledExpoPushRecipientForClerkUser = makeFunctionReference<
@@ -85,10 +248,6 @@ const isAdminClerkUser = makeFunctionReference<"query", { clerkId: string; email
 const pendingDeadlineReminders = makeFunctionReference<"query", { now: number }, DeadlineReminder[]>(
   "notificationInternals:pendingDeadlineReminders",
 ) as unknown as FunctionReference<"query", "internal", { now: number }, DeadlineReminder[]>;
-const pushNotificationEventExists = makeFunctionReference<"query", { key: string }, boolean>(
-  "notificationInternals:pushNotificationEventExists",
-) as unknown as FunctionReference<"query", "internal", { key: string }, boolean>;
-
 const gameweekPushState = makeFunctionReference<
   "query",
   { gameweekId: Id<"fantasyGameweeks"> },
@@ -100,11 +259,22 @@ const gameweekPushState = makeFunctionReference<
   GameweekPushState
 >;
 
-const markPushNotificationEventSent = makeFunctionReference<
+const claimPushNotificationEvent = makeFunctionReference<
+  "mutation",
+  { key: string; type: string },
+  { claimed: boolean; id: string }
+>("notificationInternals:claimPushNotificationEvent") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  { key: string; type: string },
+  { claimed: boolean; id: string }
+>;
+
+const completePushNotificationEvent = makeFunctionReference<
   "mutation",
   { key: string; tokensCount: number; type: string },
   { created: boolean; id: string }
->("notificationInternals:markPushNotificationEventSent") as unknown as FunctionReference<
+>("notificationInternals:completePushNotificationEvent") as unknown as FunctionReference<
   "mutation",
   "internal",
   { key: string; tokensCount: number; type: string },
@@ -144,13 +314,16 @@ async function sendExpoPushMessages(messages: ExpoPushMessage[]) {
       throw new Error(`Expo Push API вернул ${response.status}.`);
     }
 
-    const result = (await response.json()) as { data?: Array<{ status?: string; message?: string }> };
-    const failed = result.data?.filter((item) => item.status !== "ok") ?? [];
-    if (failed.length > 0) {
-      throw new Error(failed[0]?.message ?? "Expo Push API не принял уведомление.");
+    const result = (await response.json()) as {
+      data?: Array<{ status?: string; message?: string }>;
+    };
+    const statuses = Array.isArray(result.data) ? result.data : [];
+    if (statuses.length === 0) {
+      sent += chunk.length;
+      continue;
     }
 
-    sent += chunk.length;
+    sent += statuses.filter((item) => item.status === "ok").length;
   }
 
   return sent;
@@ -158,7 +331,7 @@ async function sendExpoPushMessages(messages: ExpoPushMessage[]) {
 
 function createExpoMessages(
   tokens: string[],
-  message: { body: string; kind: string; title: string },
+  message: PushMessage,
 ) {
   return tokens.map((token) => ({
     to: token,
@@ -171,11 +344,15 @@ function createExpoMessages(
 
 function createExpoMessagesForRecipients(
   recipients: ExpoPushRecipient[],
-  message: { body: string; kind: string; title: string },
+  messageOrFactory: PushMessage | ((recipient: ExpoPushRecipient) => PushMessage),
 ) {
-  return recipients.flatMap((recipient) =>
-    createExpoMessages(recipient.tokens, message),
-  );
+  return recipients.flatMap((recipient) => {
+    const message =
+      typeof messageOrFactory === "function"
+        ? messageOrFactory(recipient)
+        : messageOrFactory;
+    return createExpoMessages(recipient.tokens, message);
+  });
 }
 
 function countRecipientTokens(recipients: ExpoPushRecipient[]) {
@@ -187,19 +364,25 @@ function countRecipientTokens(recipients: ExpoPushRecipient[]) {
 
 function createNotificationRecordsForRecipients(
   recipients: ExpoPushRecipient[],
-  message: { body: string; kind: string; title: string },
+  messageOrFactory: PushMessage | ((recipient: ExpoPushRecipient) => PushMessage),
   sentAt: number,
   pushEventKey?: string,
 ): UserNotificationInput[] {
-  return recipients.map((recipient) => ({
-    userId: recipient.userId,
-    type: message.kind,
-    title: message.title,
-    body: message.body,
-    data: { kind: message.kind },
-    ...(pushEventKey ? { pushEventKey } : {}),
-    sentAt,
-  }));
+  return recipients.map((recipient) => {
+    const message =
+      typeof messageOrFactory === "function"
+        ? messageOrFactory(recipient)
+        : messageOrFactory;
+    return {
+      userId: recipient.userId,
+      type: message.kind,
+      title: message.title,
+      body: message.body,
+      data: { kind: message.kind },
+      ...(pushEventKey ? { pushEventKey } : {}),
+      sentAt,
+    };
+  });
 }
 
 function toNotificationView(notification: {
@@ -407,11 +590,12 @@ export const sendTestPushToCurrentUser = action({
     }
 
     const sentAt = Date.now();
-    const message = {
+    const message = getLocalizedPushMessage(recipient, {
       title: "Fantasy Futsal",
       body: "Тестовое push-уведомление работает.",
       kind: "test",
-    };
+      type: "test",
+    });
     const sent = await sendExpoPushMessages(
       createExpoMessagesForRecipients([recipient], message),
     );
@@ -453,19 +637,22 @@ export const sendGameweekResultsReadyPushToAll = action({
     }
 
     const sentAt = Date.now();
-    const message = {
+    const fallbackMessage = {
       title: "Итоги тура готовы",
       body: "Очки тура уже посчитаны. Откройте приложение, чтобы посмотреть таблицу.",
       kind: "gameweek_results_ready",
+      type: "gameweek_results_ready",
     };
+    const messageForRecipient = (recipient: ExpoPushRecipient) =>
+      getLocalizedPushMessage(recipient, fallbackMessage);
     const sent = await sendExpoPushMessages(
-      createExpoMessagesForRecipients(recipients, message),
+      createExpoMessagesForRecipients(recipients, messageForRecipient),
     );
 
     await ctx.runMutation(createUserNotifications, {
       notifications: createNotificationRecordsForRecipients(
         recipients,
-        message,
+        messageForRecipient,
         sentAt,
         `gameweek-results-ready:${sentAt}`,
       ),
@@ -480,47 +667,61 @@ export const sendPushToAllUsersInternal = internalAction({
     body: v.string(),
     data: v.optional(v.object({ kind: v.string() })),
     gameweekId: v.optional(v.id("fantasyGameweeks")),
+    gameweekName: v.optional(v.string()),
+    gameweekNumber: v.optional(v.number()),
     key: v.string(),
     skipIfGameweekCompleted: v.optional(v.boolean()),
     title: v.string(),
     type: v.string(),
   },
   handler: async (ctx, args) => {
-    const alreadySent = await ctx.runQuery(pushNotificationEventExists, {
-      key: args.key,
-    });
-    if (alreadySent) {
-      return { created: 0, sent: 0, skippedDuplicate: true, updated: 0 };
-    }
+    let gameweek: GameweekPushState = null;
 
     if (args.skipIfGameweekCompleted && args.gameweekId) {
-      const gameweek = await ctx.runQuery(gameweekPushState, {
+      gameweek = await ctx.runQuery(gameweekPushState, {
         gameweekId: args.gameweekId,
       });
       if (!gameweek || gameweek.status === "completed") {
         return { created: 0, sent: 0, skippedDuplicate: false, updated: 0 };
       }
+    } else if (args.gameweekId) {
+      gameweek = await ctx.runQuery(gameweekPushState, {
+        gameweekId: args.gameweekId,
+      });
+    }
+
+    const eventClaim = await ctx.runMutation(claimPushNotificationEvent, {
+      key: args.key,
+      type: args.type,
+    });
+    if (!eventClaim.claimed) {
+      return { created: 0, sent: 0, skippedDuplicate: true, updated: 0 };
     }
 
     const recipients = await ctx.runQuery(
       pushNotificationRecipientsForAllUsers,
       {},
     );
-    const message = {
+    const fallbackMessage = {
       title: args.title,
       body: args.body,
       kind: args.data?.kind ?? args.type,
+      type: args.type,
+      gameweekName: args.gameweekName ?? gameweek?.name ?? null,
+      gameweekNumber: args.gameweekNumber ?? gameweek?.number ?? null,
     };
+    const messageForRecipient = (recipient: ExpoPushRecipient) =>
+      getLocalizedPushMessage(recipient, fallbackMessage);
     const tokenCount = countRecipientTokens(recipients);
     const sent =
       tokenCount > 0
         ? await sendExpoPushMessages(
-            createExpoMessagesForRecipients(recipients, message),
+            createExpoMessagesForRecipients(recipients, messageForRecipient),
           )
         : 0;
     const sentAt = Date.now();
 
-    await ctx.runMutation(markPushNotificationEventSent, {
+    await ctx.runMutation(completePushNotificationEvent, {
       key: args.key,
       tokensCount: sent,
       type: args.type,
@@ -531,7 +732,7 @@ export const sendPushToAllUsersInternal = internalAction({
         ? await ctx.runMutation(createUserNotifications, {
             notifications: createNotificationRecordsForRecipients(
               recipients,
-              message,
+              messageForRecipient,
               sentAt,
               args.key,
             ),
@@ -563,22 +764,37 @@ export const sendDeadlineRemindersInternal = internalAction({
     let created = 0;
     let sent = 0;
     let updated = 0;
+    let claimedReminders = 0;
     for (const reminder of reminders) {
+      const eventClaim = await ctx.runMutation(claimPushNotificationEvent, {
+        key: reminder.key,
+        type: reminder.type,
+      });
+      if (!eventClaim.claimed) {
+        continue;
+      }
+
+      claimedReminders += 1;
       const sentAt = Date.now();
-      const message = {
-        title: reminder.title,
-        body: reminder.body,
+      const fallbackMessage = {
+        title: "Дедлайн",
+        body: `${reminder.gameweekName}: дедлайн наближається. Не забудьте зберегти склад.`,
         kind: reminder.type,
+        type: reminder.type,
+        gameweekName: reminder.gameweekName,
+        gameweekNumber: reminder.gameweekNumber,
       };
+      const messageForRecipient = (recipient: ExpoPushRecipient) =>
+        getLocalizedPushMessage(recipient, fallbackMessage);
       const tokenCount = countRecipientTokens(recipients);
       const sentForReminder =
         tokenCount > 0
           ? await sendExpoPushMessages(
-              createExpoMessagesForRecipients(recipients, message),
+              createExpoMessagesForRecipients(recipients, messageForRecipient),
             )
           : 0;
 
-      await ctx.runMutation(markPushNotificationEventSent, {
+      await ctx.runMutation(completePushNotificationEvent, {
         key: reminder.key,
         tokensCount: sentForReminder,
         type: reminder.type,
@@ -588,7 +804,7 @@ export const sendDeadlineRemindersInternal = internalAction({
         const notificationResult = await ctx.runMutation(createUserNotifications, {
           notifications: createNotificationRecordsForRecipients(
             recipients,
-            message,
+            messageForRecipient,
             sentAt,
             reminder.key,
           ),
@@ -599,6 +815,6 @@ export const sendDeadlineRemindersInternal = internalAction({
       sent += sentForReminder;
     }
 
-    return { created, reminders: reminders.length, sent, updated };
+    return { created, reminders: claimedReminders, sent, updated };
   },
 });

@@ -4,7 +4,12 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { getCurrentUser, isAdminUser, requireIdentity } from "./authHelpers";
+import {
+  getCurrentUser,
+  isAdminUser,
+  requireAdmin,
+  requireIdentity,
+} from "./authHelpers";
 
 const MAX_FEEDBACK_MESSAGE_LENGTH = 4000;
 const SUPPORT_EMAIL = "support@fantasyfutsal.app";
@@ -47,12 +52,15 @@ const sendFeedbackEmailInternalRef = makeFunctionReference<
 >;
 
 type DeleteCurrentUserDataResult = {
+  crashReports: number;
   deleted: boolean;
   favorites: number;
   feedback: number;
   gameweekSquadPicks: number;
   notifications: number;
   pointDeductions: number;
+  privateLeagueMemberships: number;
+  privateLeagues: number;
   pushTokens: number;
   squadPicks: number;
   teamScores: number;
@@ -157,12 +165,15 @@ const markAccountDeletionCleanupJobFailedInternalRef = makeFunctionReference<
 
 function emptyDeleteCurrentUserDataResult(): DeleteCurrentUserDataResult {
   return {
+    crashReports: 0,
     deleted: false,
     favorites: 0,
     feedback: 0,
     gameweekSquadPicks: 0,
     notifications: 0,
     pointDeductions: 0,
+    privateLeagueMemberships: 0,
+    privateLeagues: 0,
     pushTokens: 0,
     squadPicks: 0,
     teamScores: 0,
@@ -330,10 +341,11 @@ function toUserView(user: {
   _id: string;
   clerkId: string;
   email?: string;
+  role?: "user" | "admin";
   name: string;
   participantNumber?: number;
   favoriteFantasyClubId?: string;
-  preferredLanguage?: "en" | "uk";
+  preferredLanguage?: "en" | "uk" | "pl";
   termsAcceptedAt?: number;
   termsVersion?: string;
   createdAt: number;
@@ -343,6 +355,7 @@ function toUserView(user: {
     clerkId: user.clerkId,
     email: user.email ?? null,
     name: user.name,
+    role: user.role ?? "user",
     participantNumber: user.participantNumber ?? null,
     favoriteFantasyClubId: user.favoriteFantasyClubId ?? null,
     preferredLanguage: user.preferredLanguage ?? null,
@@ -356,7 +369,9 @@ export const upsertCurrentUser = mutation({
   args: {
     email: v.optional(v.string()),
     name: v.optional(v.string()),
-    preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("uk"))),
+    preferredLanguage: v.optional(
+      v.union(v.literal("en"), v.literal("uk"), v.literal("pl")),
+    ),
     termsAcceptedAt: v.optional(v.number()),
     termsVersion: v.optional(v.string()),
   },
@@ -387,6 +402,7 @@ export const upsertCurrentUser = mutation({
       await ctx.db.patch(existing._id, {
         email,
         name,
+        role: existing.role ?? "user",
         ...legalAcceptancePatch,
         ...preferredLanguagePatch,
         updatedAt: now,
@@ -407,6 +423,7 @@ export const upsertCurrentUser = mutation({
       clerkId: identity.subject,
       email,
       name,
+      role: "user",
       ...legalAcceptancePatch,
       ...preferredLanguagePatch,
       createdAt: now,
@@ -419,6 +436,7 @@ export const upsertCurrentUser = mutation({
         clerkId: identity.subject,
         email: email ?? null,
         name,
+        role: "user",
         participantNumber: null,
         favoriteFantasyClubId: null,
         preferredLanguage: preferredLanguagePatch.preferredLanguage ?? null,
@@ -485,6 +503,44 @@ export const me = query({
       isAdmin: isAdminUser(identity, user),
       user: user ? toUserView(user) : null,
     };
+  },
+});
+
+export const setUserRole = mutation({
+  args: {
+    clerkId: v.optional(v.string()),
+    email: v.optional(v.string()),
+    role: v.union(v.literal("user"), v.literal("admin")),
+    userId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const normalizedEmail = normalizeOptional(args.email)?.toLowerCase();
+    const target =
+      (args.userId ? await ctx.db.get(args.userId) : null) ??
+      (args.clerkId
+        ? await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId!))
+            .first()
+        : null) ??
+      (normalizedEmail
+        ? (await ctx.db.query("users").collect()).find(
+            (user) => user.email?.trim().toLowerCase() === normalizedEmail,
+          )
+        : null);
+
+    if (!target) {
+      throw new Error("Пользователь не найден.");
+    }
+
+    await ctx.db.patch(target._id, {
+      role: args.role,
+      updatedAt: Date.now(),
+    });
+
+    return { user: toUserView({ ...target, role: args.role }) };
   },
 });
 
@@ -622,6 +678,9 @@ async function deleteUserDataForUser(
   let deletedTeamScores = 0;
   let deletedTransfers = 0;
   let deletedPointDeductions = 0;
+  let deletedPrivateLeagueMemberships = 0;
+  let deletedPrivateLeagues = 0;
+  let deletedCrashReports = 0;
   const fantasyTeams = await ctx.db
     .query("fantasyTeams")
     .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -674,6 +733,33 @@ async function deleteUserDataForUser(
     }
   }
 
+  const privateLeagueMemberships = await ctx.db
+    .query("fantasyPrivateLeagueMembers")
+    .filter((q) => q.eq(q.field("userId"), user._id))
+    .collect();
+  for (const membership of privateLeagueMemberships) {
+    await ctx.db.delete(membership._id);
+    deletedPrivateLeagueMemberships += 1;
+  }
+
+  const ownedPrivateLeagues = await ctx.db
+    .query("fantasyPrivateLeagues")
+    .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
+    .collect();
+  for (const privateLeague of ownedPrivateLeagues) {
+    const members = await ctx.db
+      .query("fantasyPrivateLeagueMembers")
+      .withIndex("by_league", (q) => q.eq("privateLeagueId", privateLeague._id))
+      .collect();
+    for (const member of members) {
+      await ctx.db.delete(member._id);
+      deletedPrivateLeagueMemberships += 1;
+    }
+
+    await ctx.db.delete(privateLeague._id);
+    deletedPrivateLeagues += 1;
+  }
+
   const favorites = await ctx.db
     .query("fantasyPlayerFavorites")
     .filter((q) => q.eq(q.field("userId"), user._id))
@@ -706,6 +792,15 @@ async function deleteUserDataForUser(
     await ctx.db.delete(feedbackItem._id);
   }
 
+  const crashReports = await ctx.db
+    .query("appCrashReports")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  for (const crashReport of crashReports) {
+    await ctx.db.delete(crashReport._id);
+    deletedCrashReports += 1;
+  }
+
   const remainingDeductions = await ctx.db
     .query("fantasyPointDeductions")
     .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -731,12 +826,15 @@ async function deleteUserDataForUser(
   await ctx.db.delete(user._id);
 
   return {
+    crashReports: deletedCrashReports,
     deleted: true,
     favorites: favorites.length,
     feedback: feedbackItems.length,
     gameweekSquadPicks: deletedGameweekSquadPicks,
     notifications: notifications.length,
     pointDeductions: deletedPointDeductions,
+    privateLeagueMemberships: deletedPrivateLeagueMemberships,
+    privateLeagues: deletedPrivateLeagues,
     pushTokens: pushTokens.length,
     squadPicks: deletedSquadPicks,
     teamScores: deletedTeamScores,

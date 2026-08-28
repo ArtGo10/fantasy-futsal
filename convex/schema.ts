@@ -18,9 +18,12 @@ export default defineSchema({
     clerkId: v.string(),
     email: v.optional(v.string()),
     name: v.string(),
+    role: v.optional(v.union(v.literal("user"), v.literal("admin"))),
     participantNumber: v.optional(v.number()),
     favoriteFantasyClubId: v.optional(v.id("fantasyClubs")),
-    preferredLanguage: v.optional(v.union(v.literal("en"), v.literal("uk"))),
+    preferredLanguage: v.optional(
+      v.union(v.literal("en"), v.literal("uk"), v.literal("pl")),
+    ),
     termsAcceptedAt: v.optional(v.number()),
     termsVersion: v.optional(v.string()),
     createdAt: v.number(),
@@ -104,11 +107,49 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_status_created_at", ["status", "createdAt"]),
 
+  appCrashReports: defineTable({
+    reportId: v.string(),
+    userId: v.optional(v.id("users")),
+    clerkId: v.optional(v.string()),
+    source: v.union(
+      v.literal("errorBoundary"),
+      v.literal("globalError"),
+      v.literal("unhandledRejection"),
+    ),
+    fatal: v.union(v.boolean(), v.null()),
+    message: v.string(),
+    name: v.union(v.string(), v.null()),
+    stack: v.union(v.string(), v.null()),
+    componentStack: v.union(v.string(), v.null()),
+    platform: v.string(),
+    platformVersion: v.union(v.string(), v.number(), v.null()),
+    appVersion: v.union(v.string(), v.null()),
+    buildVersion: v.union(v.string(), v.null()),
+    runtimeVersion: v.union(v.string(), v.null()),
+    occurredAt: v.number(),
+    submittedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_report_id", ["reportId"])
+    .index("by_user", ["userId"])
+    .index("by_source_submitted_at", ["source", "submittedAt"])
+    .index("by_submitted_at", ["submittedAt"]),
+
   fantasySeasons: defineTable({
     slug: v.string(),
     name: v.string(),
     leagueName: v.string(),
     country: v.string(),
+    displayName: v.optional(v.string()),
+    shortName: v.optional(v.string()),
+    description: v.optional(v.string()),
+    logoKey: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+    isVisible: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
     status: fantasySeasonStatusValidator,
     budget: v.number(),
     squadSize: v.number(),
@@ -379,6 +420,33 @@ export default defineSchema({
     .index("by_season", ["seasonId"])
     .index("by_user", ["userId"])
     .index("by_user_season", ["userId", "seasonId"]),
+
+  fantasyPrivateLeagues: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    ownerUserId: v.id("users"),
+    name: v.string(),
+    inviteCode: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_owner", ["ownerUserId"])
+    .index("by_season_invite_code", ["seasonId", "inviteCode"]),
+
+  fantasyPrivateLeagueMembers: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    privateLeagueId: v.id("fantasyPrivateLeagues"),
+    userId: v.id("users"),
+    fantasyTeamId: v.optional(v.id("fantasyTeams")),
+    role: v.union(v.literal("owner"), v.literal("member")),
+    joinedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_league", ["privateLeagueId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_user_season", ["userId", "seasonId"])
+    .index("by_user_league", ["userId", "privateLeagueId"]),
 
   fantasySquadPicks: defineTable({
     fantasyTeamId: v.id("fantasyTeams"),

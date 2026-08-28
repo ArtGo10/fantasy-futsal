@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "284310031245",
+    "project_id": "fantasy-futsal-5e267",
+    "storage_bucket": "fantasy-futsal-5e267.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:284310031245:android:a11ab8ebf464214873cbc4",
+        "android_client_info": {
+          "package_name": "com.artemholoven.fantasy_futsal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASZ-OtV5HHLO3qMdTbvl15qC5pLv3BZsw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

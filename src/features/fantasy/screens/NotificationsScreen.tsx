@@ -7,9 +7,11 @@ import type { LanguageCode } from "../../../i18n/translations";
 import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
   en: "en-US",
+  pl: "pl-PL",
   uk: "uk-UA",
 };
 
@@ -24,6 +26,7 @@ function formatNotificationDate(value: number, language: LanguageCode) {
 
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const notifications = useQuery(api.notifications.listCurrentUserNotifications, {
     limit: 50,
   });
@@ -43,9 +46,19 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
           accessibilityLabel={t("common.close")}
           accessibilityRole="button"
           onPress={onBack}
-          style={styles.notificationsBackButton}
+          style={[
+            styles.notificationsBackButton,
+            {
+              backgroundColor: fantasyTheme.softColor,
+              borderColor: fantasyTheme.borderColor,
+            },
+          ]}
         >
-          <ChevronLeft color={colors.brand.blue} size={26} strokeWidth={2.4} />
+          <ChevronLeft
+            color={fantasyTheme.primaryColor}
+            size={26}
+            strokeWidth={2.4}
+          />
         </Pressable>
         <Text style={styles.notificationsTitle}>{t("notifications.title")}</Text>
         {unreadCount > 0 ? (
@@ -55,7 +68,11 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
             onPress={() => void markAllNotificationsRead({})}
             style={styles.notificationsHeaderAction}
           >
-            <CheckCheck color={colors.brand.blue} size={20} strokeWidth={2.4} />
+            <CheckCheck
+              color={fantasyTheme.primaryColor}
+              size={20}
+              strokeWidth={2.4}
+            />
           </Pressable>
         ) : (
           <View style={styles.notificationsHeaderSpacer} />
@@ -64,14 +81,19 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
 
       {notifications === undefined ? (
         <View style={styles.notificationsLoadingState}>
-          <ActivityIndicator color={colors.brand.blue} />
+          <ActivityIndicator color={fantasyTheme.primaryColor} />
           <Text style={styles.notificationsEmptyText}>
             {t("notifications.loading")}
           </Text>
         </View>
       ) : notifications.items.length === 0 ? (
         <View style={styles.notificationsEmptyState}>
-          <View style={styles.notificationsEmptyIconWrap}>
+          <View
+            style={[
+              styles.notificationsEmptyIconWrap,
+              { backgroundColor: fantasyTheme.primaryColor },
+            ]}
+          >
             <BellOff color={colors.text.inverse} size={44} strokeWidth={2.4} />
           </View>
           <Text style={styles.notificationsEmptyTitle}>
@@ -101,17 +123,35 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
                 }}
                 style={[
                   styles.notificationCard,
-                  isUnread ? styles.notificationCardUnread : null,
+                  isUnread
+                    ? [
+                        styles.notificationCardUnread,
+                        {
+                          backgroundColor: fantasyTheme.softColor,
+                          borderColor: fantasyTheme.borderColor,
+                        },
+                      ]
+                    : null,
                 ]}
               >
                 <View
                   style={[
                     styles.notificationIconWrap,
-                    isUnread ? styles.notificationIconWrapUnread : null,
+                    isUnread
+                      ? [
+                          styles.notificationIconWrapUnread,
+                          {
+                            backgroundColor: fantasyTheme.primaryColor,
+                            borderColor: fantasyTheme.primaryColor,
+                          },
+                        ]
+                      : null,
                   ]}
                 >
                   <BellRing
-                    color={isUnread ? colors.text.inverse : colors.brand.blue}
+                    color={
+                      isUnread ? colors.text.inverse : fantasyTheme.primaryColor
+                    }
                     size={20}
                     strokeWidth={2.4}
                   />
@@ -122,13 +162,23 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
                       numberOfLines={2}
                       style={[
                         styles.notificationCardTitle,
-                        isUnread ? styles.notificationCardTitleUnread : null,
+                        isUnread
+                          ? [
+                              styles.notificationCardTitleUnread,
+                              { color: fantasyTheme.primaryColor },
+                            ]
+                          : null,
                       ]}
                     >
                       {notification.title}
                     </Text>
                     {isUnread ? (
-                      <View style={styles.notificationUnreadPill}>
+                      <View
+                        style={[
+                          styles.notificationUnreadPill,
+                          { backgroundColor: fantasyTheme.primaryColor },
+                        ]}
+                      >
                         <Text style={styles.notificationUnreadPillText}>
                           {t("notifications.unread")}
                         </Text>

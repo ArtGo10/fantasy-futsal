@@ -131,6 +131,15 @@ const importSourceValidator = v.object({
     name: v.string(),
     leagueName: v.string(),
     country: v.string(),
+    displayName: v.optional(v.string()),
+    shortName: v.optional(v.string()),
+    description: v.optional(v.string()),
+    logoKey: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+    isVisible: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
     budget: v.number(),
     squadSize: v.number(),
     activeSlots: v.number(),
@@ -174,6 +183,20 @@ type ImportPreview = ImportCounters & {
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizePlayerDuplicateKey(value: string) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[ł]/g, "l")
+    .replace(/[đð]/g, "d")
+    .replace(/[æ]/g, "ae")
+    .replace(/[œ]/g, "oe")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-zа-яіїєґ0-9]+/giu, " ")
+    .trim();
 }
 
 function toOptionalText(value: string | null | undefined) {
@@ -258,6 +281,18 @@ async function upsertSeason(
     name: normalizeText(source.season.name || DEFAULT_SEASON_NAME),
     leagueName: normalizeText(source.season.leagueName || DEFAULT_LEAGUE_NAME),
     country: normalizeText(source.season.country || DEFAULT_COUNTRY),
+    displayName: toOptionalText(source.season.displayName),
+    shortName: toOptionalText(source.season.shortName),
+    description: toOptionalText(source.season.description),
+    logoKey: toOptionalText(source.season.logoKey),
+    primaryColor:
+      toOptionalText(source.season.primaryColor) ?? existing?.primaryColor,
+    secondaryColor:
+      toOptionalText(source.season.secondaryColor) ?? existing?.secondaryColor,
+    accentColor:
+      toOptionalText(source.season.accentColor) ?? existing?.accentColor,
+    isVisible: source.season.isVisible ?? existing?.isVisible,
+    sortOrder: source.season.sortOrder ?? existing?.sortOrder,
     status: existing?.status ?? ("setup" as const),
     budget: source.season.budget || DEFAULT_BUDGET,
     squadSize: source.season.squadSize || DEFAULT_SQUAD_SIZE,
@@ -692,11 +727,19 @@ async function deactivateMissingPlayers(
     if (touchedIds.has(player._id)) continue;
     if (player.externalId && importedExternalIds.has(player.externalId))
       continue;
-    if (player.status === "left") continue;
+
+    const hasStaleClubAssignment =
+      player.clubId !== undefined ||
+      (player.currentTeamExternalIds?.length ?? 0) > 0 ||
+      (player.listedTeamExternalIds?.length ?? 0) > 0;
+    if (player.status === "left" && !hasStaleClubAssignment) continue;
 
     count += 1;
     if (!dryRun) {
       await ctx.db.patch(player._id, {
+        clubId: undefined,
+        currentTeamExternalIds: [],
+        listedTeamExternalIds: [],
         status: "left",
         updatedAt: now,
       });
@@ -843,5 +886,343 @@ export const importSource = mutation({
       deactivateMissing: args.deactivateMissing ?? true,
       dryRun: args.dryRun ?? true,
     });
+  },
+});
+
+export const cleanupDuplicatePlayersByName = mutation({
+  args: {
+    seasonSlug: v.string(),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const dryRun = args.dryRun ?? true;
+    const season = await findSeason(ctx, args.seasonSlug);
+    if (!season) {
+      throw new Error(`Season ${args.seasonSlug} not found.`);
+    }
+
+    const players = await ctx.db
+      .query("fantasyPlayers")
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+      .collect();
+    const groupsByName = new Map<string, Doc<"fantasyPlayers">[]>();
+
+    for (const player of players) {
+      const key = normalizePlayerDuplicateKey(player.displayName);
+      if (!key) continue;
+
+      const group = groupsByName.get(key) ?? [];
+      group.push(player);
+      groupsByName.set(key, group);
+    }
+
+    const duplicateGroups = [...groupsByName.values()].filter(
+      (group) => group.length > 1,
+    );
+    const replacementsByPlayerId = new Map<
+      Id<"fantasyPlayers">,
+      Id<"fantasyPlayers">
+    >();
+    const mergePreview: Array<{
+      fromClubId: Id<"fantasyClubs"> | null;
+      fromId: Id<"fantasyPlayers">;
+      fromName: string;
+      fromStatus: Doc<"fantasyPlayers">["status"];
+      toClubId: Id<"fantasyClubs"> | null;
+      toId: Id<"fantasyPlayers">;
+      toName: string;
+      toStatus: Doc<"fantasyPlayers">["status"];
+    }> = [];
+    let skippedDuplicateGroups = 0;
+
+    for (const group of duplicateGroups) {
+      const canonicalPlayers = group.filter(
+        (player) => player.clubId !== undefined && player.status !== "left",
+      );
+      const stalePlayers = group.filter(
+        (player) => player.clubId === undefined || player.status === "left",
+      );
+
+      if (canonicalPlayers.length !== 1 || stalePlayers.length === 0) {
+        skippedDuplicateGroups += 1;
+        continue;
+      }
+
+      const canonicalPlayer = canonicalPlayers[0];
+      for (const stalePlayer of stalePlayers) {
+        if (stalePlayer._id === canonicalPlayer._id) continue;
+
+        replacementsByPlayerId.set(stalePlayer._id, canonicalPlayer._id);
+        mergePreview.push({
+          fromClubId: stalePlayer.clubId ?? null,
+          fromId: stalePlayer._id,
+          fromName: stalePlayer.displayName,
+          fromStatus: stalePlayer.status,
+          toClubId: canonicalPlayer.clubId ?? null,
+          toId: canonicalPlayer._id,
+          toName: canonicalPlayer.displayName,
+          toStatus: canonicalPlayer.status,
+        });
+      }
+    }
+
+    const counters = {
+      deletedFavoriteConflicts: 0,
+      deletedGameweekSquadPickConflicts: 0,
+      deletedPlayerStatConflicts: 0,
+      deletedPlayers: 0,
+      deletedSelfTransfers: 0,
+      deletedSquadPickConflicts: 0,
+      updatedFavorites: 0,
+      updatedFixtureEvents: 0,
+      updatedFixtureLineups: 0,
+      updatedGameweekSquadPicks: 0,
+      updatedPlayerPriceHistory: 0,
+      updatedPlayerStats: 0,
+      updatedSquadPicks: 0,
+      updatedTransfers: 0,
+    };
+
+    if (!dryRun && replacementsByPlayerId.size > 0) {
+      const now = Date.now();
+      const [
+        favorites,
+        fantasyTeams,
+        gameweekSquadPicks,
+        playerStats,
+        playerPriceHistory,
+        fixtureLineups,
+        fixtureEvents,
+        transfers,
+      ] = await Promise.all([
+        ctx.db
+          .query("fantasyPlayerFavorites")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyTeams")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyGameweekSquadPicks")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyPlayerGameweekStats")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyPlayerPriceHistory")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyFixtureLineups")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyFixtureEvents")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+        ctx.db
+          .query("fantasyTransfers")
+          .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+          .collect(),
+      ]);
+      const squadPicks = (
+        await Promise.all(
+          fantasyTeams.map((fantasyTeam) =>
+            ctx.db
+              .query("fantasySquadPicks")
+              .withIndex("by_team", (q) =>
+                q.eq("fantasyTeamId", fantasyTeam._id),
+              )
+              .collect(),
+          ),
+        )
+      ).flat();
+
+      const favoriteKeys = new Set<string>();
+      for (const favorite of favorites) {
+        if (replacementsByPlayerId.has(favorite.playerId)) continue;
+
+        favoriteKeys.add(`${favorite.userId}:${favorite.playerId}`);
+      }
+      for (const favorite of favorites) {
+        const replacementId = replacementsByPlayerId.get(favorite.playerId);
+        if (!replacementId) continue;
+
+        const nextKey = `${favorite.userId}:${replacementId}`;
+        if (favoriteKeys.has(nextKey)) {
+          await ctx.db.delete(favorite._id);
+          counters.deletedFavoriteConflicts += 1;
+          continue;
+        }
+
+        await ctx.db.patch(favorite._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        favoriteKeys.add(nextKey);
+        counters.updatedFavorites += 1;
+      }
+
+      const squadPickKeys = new Set<string>();
+      for (const pick of squadPicks) {
+        if (replacementsByPlayerId.has(pick.playerId)) continue;
+
+        squadPickKeys.add(`${pick.fantasyTeamId}:${pick.playerId}`);
+      }
+      for (const pick of squadPicks) {
+        const replacementId = replacementsByPlayerId.get(pick.playerId);
+        if (!replacementId) continue;
+
+        const nextKey = `${pick.fantasyTeamId}:${replacementId}`;
+        if (squadPickKeys.has(nextKey)) {
+          await ctx.db.delete(pick._id);
+          counters.deletedSquadPickConflicts += 1;
+          continue;
+        }
+
+        await ctx.db.patch(pick._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        squadPickKeys.add(nextKey);
+        counters.updatedSquadPicks += 1;
+      }
+
+      const gameweekSquadPickKeys = new Set<string>();
+      for (const pick of gameweekSquadPicks) {
+        if (replacementsByPlayerId.has(pick.playerId)) continue;
+
+        gameweekSquadPickKeys.add(
+          `${pick.fantasyTeamId}:${pick.gameweekId}:${pick.playerId}`,
+        );
+      }
+      for (const pick of gameweekSquadPicks) {
+        const replacementId = replacementsByPlayerId.get(pick.playerId);
+        if (!replacementId) continue;
+
+        const nextKey = `${pick.fantasyTeamId}:${pick.gameweekId}:${replacementId}`;
+        if (gameweekSquadPickKeys.has(nextKey)) {
+          await ctx.db.delete(pick._id);
+          counters.deletedGameweekSquadPickConflicts += 1;
+          continue;
+        }
+
+        await ctx.db.patch(pick._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        gameweekSquadPickKeys.add(nextKey);
+        counters.updatedGameweekSquadPicks += 1;
+      }
+
+      const playerStatKeys = new Set<string>();
+      for (const stat of playerStats) {
+        if (replacementsByPlayerId.has(stat.playerId)) continue;
+
+        playerStatKeys.add(`${stat.gameweekId}:${stat.playerId}`);
+      }
+      for (const stat of playerStats) {
+        const replacementId = replacementsByPlayerId.get(stat.playerId);
+        if (!replacementId) continue;
+
+        const nextKey = `${stat.gameweekId}:${replacementId}`;
+        if (playerStatKeys.has(nextKey)) {
+          await ctx.db.delete(stat._id);
+          counters.deletedPlayerStatConflicts += 1;
+          continue;
+        }
+
+        await ctx.db.patch(stat._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        playerStatKeys.add(nextKey);
+        counters.updatedPlayerStats += 1;
+      }
+
+      for (const history of playerPriceHistory) {
+        const replacementId = replacementsByPlayerId.get(history.playerId);
+        if (!replacementId) continue;
+
+        await ctx.db.patch(history._id, { playerId: replacementId });
+        counters.updatedPlayerPriceHistory += 1;
+      }
+
+      for (const lineup of fixtureLineups) {
+        if (!lineup.playerId) continue;
+        const replacementId = replacementsByPlayerId.get(lineup.playerId);
+        if (!replacementId) continue;
+
+        await ctx.db.patch(lineup._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        counters.updatedFixtureLineups += 1;
+      }
+
+      for (const event of fixtureEvents) {
+        if (!event.playerId) continue;
+        const replacementId = replacementsByPlayerId.get(event.playerId);
+        if (!replacementId) continue;
+
+        await ctx.db.patch(event._id, {
+          playerId: replacementId,
+          updatedAt: now,
+        });
+        counters.updatedFixtureEvents += 1;
+      }
+
+      for (const transfer of transfers) {
+        const nextFromPlayerId = transfer.fromPlayerId
+          ? (replacementsByPlayerId.get(transfer.fromPlayerId) ??
+            transfer.fromPlayerId)
+          : undefined;
+        const nextToPlayerId =
+          replacementsByPlayerId.get(transfer.toPlayerId) ??
+          transfer.toPlayerId;
+
+        if (
+          nextFromPlayerId === transfer.fromPlayerId &&
+          nextToPlayerId === transfer.toPlayerId
+        ) {
+          continue;
+        }
+        if (nextFromPlayerId && nextFromPlayerId === nextToPlayerId) {
+          await ctx.db.delete(transfer._id);
+          counters.deletedSelfTransfers += 1;
+          continue;
+        }
+
+        await ctx.db.patch(transfer._id, {
+          fromPlayerId: nextFromPlayerId,
+          toPlayerId: nextToPlayerId,
+          updatedAt: now,
+        });
+        counters.updatedTransfers += 1;
+      }
+
+      for (const stalePlayerId of replacementsByPlayerId.keys()) {
+        const stalePlayer = await ctx.db.get(stalePlayerId);
+        if (!stalePlayer) continue;
+
+        await ctx.db.delete(stalePlayerId);
+        counters.deletedPlayers += 1;
+      }
+    }
+
+    return {
+      ...counters,
+      dryRun,
+      duplicateGroups: duplicateGroups.length,
+      mergeCandidates: replacementsByPlayerId.size,
+      merges: mergePreview.slice(0, 50),
+      seasonId: season._id,
+      skippedDuplicateGroups,
+    };
   },
 });

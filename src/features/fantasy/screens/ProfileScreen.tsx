@@ -32,6 +32,7 @@ import {
   getErrorMessage,
 } from "../../../utils/auth";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import type { FantasyFixture, FantasyGameweek } from "./FixturesScreen";
 
 type AdminGameweekAction = "lock" | "recalculate" | "complete";
@@ -68,6 +69,7 @@ type ProfileScreenProps = {
   onOpenAdminActions?: () => void;
   onSignOut: () => Promise<void> | void;
   players: FantasyPlayer[] | undefined;
+  seasonSlug?: string | null;
 };
 
 const ADMIN_EVENT_TYPES: AdminFixtureEventType[] = [
@@ -94,6 +96,7 @@ const ADMIN_EVENT_LABEL_KEYS: Record<AdminFixtureEventType, TranslationKey> = {
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
   en: "en-US",
+  pl: "pl-PL",
   uk: "uk-UA",
 };
 
@@ -141,12 +144,30 @@ export function ProfileScreen({
   onOpenAdminActions,
   onSignOut,
   players,
+  seasonSlug,
 }: ProfileScreenProps) {
   const { language, t } = useI18n();
+  const fantasyTheme = useFantasySeasonTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const shouldShowProfileLanguageSwitcher = !isDesktopWeb;
+  const themedBackButtonStyle = [
+    styles.teamWorkspaceBackButton,
+    { backgroundColor: fantasyTheme.softColor },
+  ];
+  const themedPrimaryButtonStyle = [
+    styles.primaryButton,
+    { backgroundColor: fantasyTheme.primaryColor },
+  ];
+  const themedSecondaryButtonStyle = [
+    styles.secondaryButton,
+    { borderColor: fantasyTheme.borderColor },
+  ];
+  const themedSecondaryButtonTextStyle = [
+    styles.secondaryButtonText,
+    { color: fantasyTheme.primaryColor },
+  ];
   const syncDefaultScoringRules = useMutation(
     api.fantasy.syncDefaultScoringRules,
   );
@@ -386,7 +407,7 @@ export function ProfileScreen({
       setAdminStatusText(null);
       setAdminErrorText(null);
 
-      await syncDefaultScoringRules({});
+      await syncDefaultScoringRules(seasonSlug ? { seasonSlug } : {});
       setAdminStatusText(t("profile.adminScoringSyncSuccess"));
     } catch (error) {
       setAdminErrorText(getErrorMessage(error));
@@ -412,7 +433,9 @@ export function ProfileScreen({
       setAdminGameweekErrorText(null);
 
       if (action === "lock") {
-        const result = await lockGameweek({ gameweekNumber });
+        const result = await lockGameweek(
+          seasonSlug ? { gameweekNumber, seasonSlug } : { gameweekNumber },
+        );
         setAdminGameweekStatusText(
           `${t("profile.adminGameweekLockSuccess")} ${result.snapshotState.totalSnapshots}.`,
         );
@@ -420,7 +443,9 @@ export function ProfileScreen({
       }
 
       if (action === "recalculate") {
-        const result = await recalculateGameweekScores({ gameweekNumber });
+        const result = await recalculateGameweekScores(
+          seasonSlug ? { gameweekNumber, seasonSlug } : { gameweekNumber },
+        );
         setAdminGameweekStatusText(
           `${t("profile.adminGameweekRecalculateSuccess")} ${result.participatedTeams}.`,
         );
@@ -429,6 +454,7 @@ export function ProfileScreen({
 
       const result = await completeGameweekAndGrantTransfers({
         gameweekNumber,
+        ...(seasonSlug ? { seasonSlug } : {}),
       });
       const priceChanges = result.priceChanges?.changedPlayers ?? 0;
       setAdminGameweekStatusText(
@@ -635,7 +661,17 @@ export function ProfileScreen({
     <View style={[styles.panel, styles.adminPanel]}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>{t("profile.adminTitle")}</Text>
-        <Text style={styles.adminBadge}>{t("profile.adminBadge")}</Text>
+        <Text
+          style={[
+            styles.adminBadge,
+            {
+              backgroundColor: fantasyTheme.softColor,
+              color: fantasyTheme.primaryColor,
+            },
+          ]}
+        >
+          {t("profile.adminBadge")}
+        </Text>
       </View>
       <Text style={styles.mutedText}>{t("profile.adminDescription")}</Text>
       <View style={styles.profileFeedbackAdminBlock}>
@@ -668,11 +704,11 @@ export function ProfileScreen({
         disabled={pushBusy}
         onPress={handleSendTestPush}
         style={[
-          styles.secondaryButton,
+          themedSecondaryButtonStyle,
           pushBusy ? styles.buttonDisabled : null,
         ]}
       >
-        <Text style={styles.secondaryButtonText}>
+        <Text style={themedSecondaryButtonTextStyle}>
           {pushBusy
             ? t("profile.pushTestSending")
             : t("profile.pushTestButton")}
@@ -689,11 +725,11 @@ export function ProfileScreen({
         disabled={resultsPushBusy}
         onPress={handleSendResultsReadyPush}
         style={[
-          styles.secondaryButton,
+          themedSecondaryButtonStyle,
           resultsPushBusy ? styles.buttonDisabled : null,
         ]}
       >
-        <Text style={styles.secondaryButtonText}>
+        <Text style={themedSecondaryButtonTextStyle}>
           {resultsPushBusy
             ? t("profile.resultsPushSending")
             : t("profile.resultsPushButton")}
@@ -710,11 +746,11 @@ export function ProfileScreen({
         disabled={scoringBusy}
         onPress={handleSyncDefaultScoringRules}
         style={[
-          styles.secondaryButton,
+          themedSecondaryButtonStyle,
           scoringBusy ? styles.buttonDisabled : null,
         ]}
       >
-        <Text style={styles.secondaryButtonText}>
+        <Text style={themedSecondaryButtonTextStyle}>
           {scoringBusy
             ? t("profile.adminScoringSyncing")
             : t("profile.adminScoringSyncButton")}
@@ -748,11 +784,11 @@ export function ProfileScreen({
             disabled={adminGameweekAction !== null}
             onPress={() => void handleAdminGameweekAction("lock")}
             style={[
-              styles.secondaryButton,
+              themedSecondaryButtonStyle,
               adminGameweekAction !== null ? styles.buttonDisabled : null,
             ]}
           >
-            <Text style={styles.secondaryButtonText}>
+            <Text style={themedSecondaryButtonTextStyle}>
               {adminGameweekAction === "lock"
                 ? t("profile.adminGameweekLocking")
                 : t("profile.adminGameweekLockButton")}
@@ -762,11 +798,11 @@ export function ProfileScreen({
             disabled={adminGameweekAction !== null}
             onPress={() => void handleAdminGameweekAction("recalculate")}
             style={[
-              styles.secondaryButton,
+              themedSecondaryButtonStyle,
               adminGameweekAction !== null ? styles.buttonDisabled : null,
             ]}
           >
-            <Text style={styles.secondaryButtonText}>
+            <Text style={themedSecondaryButtonTextStyle}>
               {adminGameweekAction === "recalculate"
                 ? t("profile.adminGameweekRecalculating")
                 : t("profile.adminGameweekRecalculateButton")}
@@ -776,11 +812,11 @@ export function ProfileScreen({
             disabled={adminGameweekAction !== null}
             onPress={() => void handleAdminGameweekAction("complete")}
             style={[
-              styles.secondaryButton,
+              themedSecondaryButtonStyle,
               adminGameweekAction !== null ? styles.buttonDisabled : null,
             ]}
           >
-            <Text style={styles.secondaryButtonText}>
+            <Text style={themedSecondaryButtonTextStyle}>
               {adminGameweekAction === "complete"
                 ? t("profile.adminGameweekCompleting")
                 : t("profile.adminGameweekCompleteButton")}
@@ -822,7 +858,15 @@ export function ProfileScreen({
                   onPress={() => handleSelectAdminFixture(fixture)}
                   style={[
                     styles.adminFixtureOption,
-                    isSelected ? styles.adminFixtureOptionSelected : null,
+                    isSelected
+                      ? [
+                          styles.adminFixtureOptionSelected,
+                          {
+                            backgroundColor: fantasyTheme.softColor,
+                            borderColor: fantasyTheme.primaryColor,
+                          },
+                        ]
+                      : null,
                   ]}
                 >
                   <Text
@@ -830,7 +874,10 @@ export function ProfileScreen({
                     style={[
                       styles.adminFixtureOptionTitle,
                       isSelected
-                        ? styles.adminFixtureOptionTitleSelected
+                        ? [
+                            styles.adminFixtureOptionTitleSelected,
+                            { color: fantasyTheme.primaryColor },
+                          ]
                         : null,
                     ]}
                   >
@@ -873,7 +920,7 @@ export function ProfileScreen({
               disabled={adminFixtureBusy}
               onPress={() => void handleSaveAdminFixtureScore()}
               style={[
-                styles.primaryButton,
+                themedPrimaryButtonStyle,
                 adminFixtureBusy ? styles.buttonDisabled : null,
               ]}
             >
@@ -897,14 +944,27 @@ export function ProfileScreen({
                     onPress={() => setAdminEventType(eventType)}
                     style={[
                       styles.adminEventTypeButton,
-                      isSelected ? styles.segmentButtonActive : null,
+                      isSelected
+                        ? [
+                            styles.segmentButtonActive,
+                            {
+                              backgroundColor: fantasyTheme.softColor,
+                              borderColor: fantasyTheme.primaryColor,
+                            },
+                          ]
+                        : null,
                     ]}
                   >
                     <Text
                       numberOfLines={1}
                       style={[
                         styles.segmentText,
-                        isSelected ? styles.segmentTextActive : null,
+                        isSelected
+                          ? [
+                              styles.segmentTextActive,
+                              { color: fantasyTheme.primaryColor },
+                            ]
+                          : null,
                       ]}
                     >
                       {t(ADMIN_EVENT_LABEL_KEYS[eventType])}
@@ -919,14 +979,27 @@ export function ProfileScreen({
                 onPress={() => setAdminEventSide("home")}
                 style={[
                   styles.segmentButton,
-                  adminEventSide === "home" ? styles.segmentButtonActive : null,
+                  adminEventSide === "home"
+                    ? [
+                        styles.segmentButtonActive,
+                        {
+                          backgroundColor: fantasyTheme.softColor,
+                          borderColor: fantasyTheme.primaryColor,
+                        },
+                      ]
+                    : null,
                 ]}
               >
                 <Text
                   numberOfLines={1}
                   style={[
                     styles.segmentText,
-                    adminEventSide === "home" ? styles.segmentTextActive : null,
+                    adminEventSide === "home"
+                      ? [
+                          styles.segmentTextActive,
+                          { color: fantasyTheme.primaryColor },
+                        ]
+                      : null,
                   ]}
                 >
                   {selectedAdminFixtureForForm.homeClubName}
@@ -937,14 +1010,27 @@ export function ProfileScreen({
                 onPress={() => setAdminEventSide("away")}
                 style={[
                   styles.segmentButton,
-                  adminEventSide === "away" ? styles.segmentButtonActive : null,
+                  adminEventSide === "away"
+                    ? [
+                        styles.segmentButtonActive,
+                        {
+                          backgroundColor: fantasyTheme.softColor,
+                          borderColor: fantasyTheme.primaryColor,
+                        },
+                      ]
+                    : null,
                 ]}
               >
                 <Text
                   numberOfLines={1}
                   style={[
                     styles.segmentText,
-                    adminEventSide === "away" ? styles.segmentTextActive : null,
+                    adminEventSide === "away"
+                      ? [
+                          styles.segmentTextActive,
+                          { color: fantasyTheme.primaryColor },
+                        ]
+                      : null,
                   ]}
                 >
                   {selectedAdminFixtureForForm.awayClubName}
@@ -973,14 +1059,27 @@ export function ProfileScreen({
                     onPress={() => setAdminEventPlayerId(player.id)}
                     style={[
                       styles.adminEventPlayerOption,
-                      isSelected ? styles.adminEventPlayerOptionSelected : null,
+                      isSelected
+                        ? [
+                            styles.adminEventPlayerOptionSelected,
+                            {
+                              backgroundColor: fantasyTheme.softColor,
+                              borderColor: fantasyTheme.primaryColor,
+                            },
+                          ]
+                        : null,
                     ]}
                   >
                     <Text
                       numberOfLines={1}
                       style={[
                         styles.adminEventPlayerName,
-                        isSelected ? styles.adminEventPlayerNameSelected : null,
+                        isSelected
+                          ? [
+                              styles.adminEventPlayerNameSelected,
+                              { color: fantasyTheme.primaryColor },
+                            ]
+                          : null,
                       ]}
                     >
                       {player.displayName}
@@ -1013,14 +1112,14 @@ export function ProfileScreen({
                 disabled={adminFixtureBusy || !selectedAdminEventPlayer}
                 onPress={() => void handleMarkAdminFixtureAppearance()}
                 style={[
-                  styles.secondaryButton,
+                  themedSecondaryButtonStyle,
                   styles.adminFixtureActionButton,
                   adminFixtureBusy || !selectedAdminEventPlayer
                     ? styles.buttonDisabled
                     : null,
                 ]}
               >
-                <Text style={styles.secondaryButtonText}>
+                <Text style={themedSecondaryButtonTextStyle}>
                   {t("profile.adminFixtureMarkAppearance")}
                 </Text>
               </Pressable>
@@ -1028,7 +1127,7 @@ export function ProfileScreen({
                 disabled={adminFixtureBusy || !selectedAdminEventPlayer}
                 onPress={() => void handleAddAdminFixtureEvent()}
                 style={[
-                  styles.primaryButton,
+                  themedPrimaryButtonStyle,
                   styles.adminFixtureActionButton,
                   adminFixtureBusy || !selectedAdminEventPlayer
                     ? styles.buttonDisabled
@@ -1145,10 +1244,10 @@ export function ProfileScreen({
               accessibilityLabel={t("auth.back")}
               accessibilityRole="button"
               onPress={onAdminActionsBack}
-              style={styles.teamWorkspaceBackButton}
+              style={themedBackButtonStyle}
             >
               <ArrowLeft
-                color={colors.brand.blueDark}
+                color={fantasyTheme.primaryColor}
                 size={22}
                 strokeWidth={2.5}
               />
@@ -1181,10 +1280,12 @@ export function ProfileScreen({
       <Text style={styles.sectionTitle}>{name}</Text>
       <Text style={styles.mutedText}>{email ?? t("profile.noEmail")}</Text>
       <Pressable
-        style={styles.secondaryButton}
+        style={themedSecondaryButtonStyle}
         onPress={() => void onSignOut()}
       >
-        <Text style={styles.secondaryButtonText}>{t("profile.signOut")}</Text>
+        <Text style={themedSecondaryButtonTextStyle}>
+          {t("profile.signOut")}
+        </Text>
       </Pressable>
     </View>
   );
@@ -1195,7 +1296,17 @@ export function ProfileScreen({
         <Text style={styles.sectionTitle}>
           {t("profile.adminActionsTitle")}
         </Text>
-        <Text style={styles.adminBadge}>{t("profile.adminBadge")}</Text>
+        <Text
+          style={[
+            styles.adminBadge,
+            {
+              backgroundColor: fantasyTheme.softColor,
+              color: fantasyTheme.primaryColor,
+            },
+          ]}
+        >
+          {t("profile.adminBadge")}
+        </Text>
       </View>
       <Text style={styles.mutedText}>
         {t("profile.adminActionsDescription")}
@@ -1203,7 +1314,7 @@ export function ProfileScreen({
       <Pressable
         accessibilityRole="button"
         onPress={onOpenAdminActions}
-        style={styles.primaryButton}
+        style={themedPrimaryButtonStyle}
       >
         <Text style={styles.primaryButtonText}>
           {t("profile.adminActionsButton")}
@@ -1217,7 +1328,7 @@ export function ProfileScreen({
       <Text style={styles.sectionTitle}>{t("profile.languageTitle")}</Text>
       <Text style={styles.mutedText}>{t("profile.languageDescription")}</Text>
       <View style={styles.profileLanguageSwitcherRow}>
-        <LanguageSwitcher />
+        <LanguageSwitcher activeColor={fantasyTheme.primaryColor} />
       </View>
     </View>
   ) : null;
@@ -1234,17 +1345,24 @@ export function ProfileScreen({
         <Text style={styles.profileSupportEmailLabel}>
           {t("profile.supportEmailLabel")}
         </Text>
-        <Text style={styles.profileSupportEmailText}>{SUPPORT_EMAIL}</Text>
+        <Text
+          style={[
+            styles.profileSupportEmailText,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
+          {SUPPORT_EMAIL}
+        </Text>
       </Pressable>
       <Pressable
-        style={styles.secondaryButton}
+        style={themedSecondaryButtonStyle}
         onPress={() => {
           setFeedbackErrorText(null);
           setFeedbackStatusText(null);
           setFeedbackSheetOpen(true);
         }}
       >
-        <Text style={styles.secondaryButtonText}>
+        <Text style={themedSecondaryButtonTextStyle}>
           {t("profile.feedbackButton")}
         </Text>
       </Pressable>
@@ -1260,26 +1378,26 @@ export function ProfileScreen({
       <Text style={styles.mutedText}>{t("profile.legalDescription")}</Text>
       <View style={styles.profileLegalButtonsRow}>
         <Pressable
-          style={styles.secondaryButton}
+          style={themedSecondaryButtonStyle}
           onPress={() => setLegalSheetKind("terms")}
         >
-          <Text style={styles.secondaryButtonText}>
+          <Text style={themedSecondaryButtonTextStyle}>
             {t("profile.termsButton")}
           </Text>
         </Pressable>
         <Pressable
-          style={styles.secondaryButton}
+          style={themedSecondaryButtonStyle}
           onPress={() => setLegalSheetKind("privacy")}
         >
-          <Text style={styles.secondaryButtonText}>
+          <Text style={themedSecondaryButtonTextStyle}>
             {t("profile.privacyButton")}
           </Text>
         </Pressable>
         <Pressable
-          style={styles.secondaryButton}
+          style={themedSecondaryButtonStyle}
           onPress={() => setLegalSheetKind("rules")}
         >
-          <Text style={styles.secondaryButtonText}>
+          <Text style={themedSecondaryButtonTextStyle}>
             {t("profile.rulesButton")}
           </Text>
         </Pressable>
@@ -1369,7 +1487,7 @@ export function ProfileScreen({
           disabled={feedbackBusy}
           onPress={handleSubmitFeedback}
           style={[
-            styles.primaryButton,
+            themedPrimaryButtonStyle,
             feedbackBusy ? styles.buttonDisabled : null,
           ]}
         >
@@ -1396,11 +1514,13 @@ export function ProfileScreen({
             disabled={deleteBusy}
             onPress={() => setDeleteConfirmOpen(false)}
             style={[
-              styles.secondaryButton,
+              themedSecondaryButtonStyle,
               deleteBusy ? styles.buttonDisabled : null,
             ]}
           >
-            <Text style={styles.secondaryButtonText}>{t("common.cancel")}</Text>
+            <Text style={themedSecondaryButtonTextStyle}>
+              {t("common.cancel")}
+            </Text>
           </Pressable>
           <Pressable
             disabled={deleteBusy}

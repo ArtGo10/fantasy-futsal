@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { ArrowDown, ArrowUp, Coins, Star } from "lucide-react-native";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { TranslationKey } from "../../../i18n/translations";
@@ -11,6 +11,7 @@ import {
   getClubLogoSource,
 } from "../assets/fantasyAssets";
 import { formatFantasyMoney } from "../utils/money";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import { TeamKitAvatar } from "./TeamKitAvatar";
 
 type PlayerPosition = "goalkeeper" | "universal";
@@ -91,37 +92,73 @@ function stripNameBrackets(value: string) {
   return value.replace(/^[\s(]+|[\s)]+$/g, "").trim();
 }
 
-export function formatFantasyPlayerListName(
-  player: FantasyPlayerListRowPlayer,
-) {
-  const firstName = player.firstName?.trim();
-  const lastName = player.lastName?.trim();
-  const firstInitial = firstName ? Array.from(firstName)[0] : null;
+function getBracketAliasLabel(displayName: string) {
+  const aliasMatch = displayName.match(/\(([^()]*)\)\s*$/);
+  return aliasMatch ? stripNameBrackets(aliasMatch[1]) : null;
+}
 
-  if (firstInitial && lastName) return `${firstInitial}. ${lastName}`;
+function stripTrailingBracketAlias(value: string) {
+  return value.replace(/\s*\([^()]*\)\s*$/g, "").trim();
+}
+
+function getPlayerFirstInitial(player: FantasyPlayerListRowPlayer) {
+  const firstName = player.firstName?.trim();
+  if (firstName) return Array.from(firstName)[0] ?? null;
 
   const nameParts = player.displayName.trim().split(/\s+/).filter(Boolean);
   if (nameParts.length >= 2) {
-    const [fallbackFirstName, ...restParts] = nameParts;
-    const [fallbackInitial] = Array.from(fallbackFirstName);
-    return `${fallbackInitial}. ${restParts.join(" ")}`;
+    const [fallbackFirstName] = nameParts;
+    return Array.from(fallbackFirstName)[0] ?? null;
   }
 
-  return player.displayName;
+  return null;
 }
 
-export function formatFantasyPlayerPickerName(
-  player: FantasyPlayerListRowPlayer,
-) {
-  const lastName = stripNameBrackets(player.lastName?.trim() ?? "");
+function getPlayerLastNameLabel(player: FantasyPlayerListRowPlayer) {
+  const aliasLabel = getBracketAliasLabel(player.displayName);
+  if (aliasLabel) {
+    const aliasParts = aliasLabel.trim().split(/\s+/).filter(Boolean);
+    const aliasLastName = aliasParts.at(-1);
+    if (aliasLastName) return stripNameBrackets(aliasLastName);
+    return aliasLabel;
+  }
+
+  const lastName = stripTrailingBracketAlias(
+    stripNameBrackets(player.lastName?.trim() ?? ""),
+  );
   if (lastName) return lastName;
 
-  const nameParts = player.displayName.trim().split(/\s+/).filter(Boolean);
+  const fallbackName = stripTrailingBracketAlias(player.displayName);
+  const nameParts = fallbackName.trim().split(/\s+/).filter(Boolean);
   if (nameParts.length >= 2) {
     return stripNameBrackets(nameParts.slice(1).join(" "));
   }
 
   return stripNameBrackets(player.displayName) || player.displayName;
+}
+
+export function formatFantasyPlayerListName(
+  player: FantasyPlayerListRowPlayer,
+) {
+  const firstInitial = getPlayerFirstInitial(player);
+  const lastName = getPlayerLastNameLabel(player);
+
+  if (firstInitial && lastName) return `${firstInitial}. ${lastName}`;
+  return lastName || player.displayName;
+}
+
+export function formatFantasyPlayerPickerName(
+  player: FantasyPlayerListRowPlayer,
+  options: { includeFirstInitial?: boolean } = {},
+) {
+  const lastName = getPlayerLastNameLabel(player);
+
+  if (options.includeFirstInitial) {
+    const firstInitial = getPlayerFirstInitial(player);
+    if (firstInitial && lastName) return `${firstInitial}. ${lastName}`;
+  }
+
+  return lastName;
 }
 
 export function getPositionShortLabelKey(
@@ -204,8 +241,11 @@ export function FantasyClubLogo({
   loadImage?: boolean;
   size?: "sm" | "md";
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+  const localLogoSource = getClubLogoSource(club?.name, club?.shortName);
+  const remoteLogoUrl = club?.logoThumbnailUrl ?? club?.logoUrl ?? null;
   const logoSource = loadImage
-    ? getClubLogoSource(club?.name, club?.shortName)
+    ? (localLogoSource ?? (remoteLogoUrl ? { uri: remoteLogoUrl } : null))
     : null;
   const logoStyle =
     size === "sm" ? styles.seasonClubLogoSm : styles.seasonClubLogoMd;
@@ -213,7 +253,18 @@ export function FantasyClubLogo({
     size === "sm" ? styles.seasonClubLogoTextSm : styles.seasonClubLogoTextMd;
 
   return (
-    <View style={[styles.seasonClubLogo, logoStyle]}>
+    <View
+      style={[
+        styles.seasonClubLogo,
+        logoStyle,
+        !logoSource
+          ? {
+              backgroundColor: fantasyTheme.softColor,
+              borderColor: fantasyTheme.borderColor,
+            }
+          : null,
+      ]}
+    >
       {logoSource ? (
         <Image
           {...FANTASY_STATIC_IMAGE_PROPS}
@@ -222,7 +273,14 @@ export function FantasyClubLogo({
           style={styles.seasonClubLogoImage}
         />
       ) : (
-        <Text numberOfLines={1} style={[styles.seasonClubLogoText, textStyle]}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.seasonClubLogoText,
+            textStyle,
+            { color: fantasyTheme.primaryColor },
+          ]}
+        >
           {getListInitials(club?.shortName ?? club?.name ?? "?")}
         </Text>
       )}
@@ -256,6 +314,8 @@ function FantasyPlayerPickerMetric({
   value: string;
   wide?: boolean;
 }) {
+  const fantasyTheme = useFantasySeasonTheme();
+
   return (
     <View
       accessibilityLabel={label + ": " + value}
@@ -270,6 +330,7 @@ function FantasyPlayerPickerMetric({
         style={[
           styles.playerPickerStatsMetricValue,
           tone === "price" ? styles.playerPickerStatsMetricValuePrice : null,
+          tone === "price" ? { color: fantasyTheme.primaryColor } : null,
         ]}
       >
         {value}
@@ -314,12 +375,21 @@ function FantasyPlayerPickerMetricHeader({
   );
 }
 
-export function FantasyPlayerPickerStatsHeader({ t }: { t: Translate }) {
+export function FantasyPlayerPickerStatsHeader({
+  showStatsMarkerColumn = false,
+  t,
+}: {
+  showStatsMarkerColumn?: boolean;
+  t: Translate;
+}) {
   return (
     <View style={styles.playerPickerStatsHeaderRow}>
       <Text numberOfLines={1} style={styles.playerPickerStatsHeaderPlayer}>
         {t("team.playerTable.player")}
       </Text>
+      {showStatsMarkerColumn ? (
+        <View style={styles.playerPickerStatsMarkerHeaderCell} />
+      ) : null}
       <View style={styles.playerPickerStatsMetrics}>
         <FantasyPlayerPickerMetricHeader
           isFirst
@@ -354,10 +424,14 @@ type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
   isHighlighted?: boolean;
   isSelected?: boolean;
   loadImages?: boolean;
+  nameAccessory?: ReactNode;
   onPress: (player: TPlayer) => void;
+  pickerNameFormat?: "lastName" | "initialLastName";
   player: TPlayer;
+  showStatsMarkerColumn?: boolean;
   stateLabel?: string | null;
   stateTone?: "danger" | "success";
+  statsMarkerLabel?: string | null;
   t: Translate;
   variant?: "market" | "pickerStats";
 };
@@ -368,13 +442,18 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
   isFavorite = false,
   isHighlighted = false,
   isSelected = false,
+  nameAccessory = null,
   onPress,
+  pickerNameFormat = "lastName",
   player,
+  showStatsMarkerColumn = false,
   stateLabel = null,
   stateTone = "success",
+  statsMarkerLabel = null,
   t,
   variant = "market",
 }: FantasyPlayerListRowProps<TPlayer>) {
+  const fantasyTheme = useFantasySeasonTheme();
   const sideTextStyle = isDisabled
     ? styles.marketSideValueMuted
     : styles.marketSideValue;
@@ -396,7 +475,15 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
         style={[
           styles.playerPickerStatsPlayerRow,
           isHighlighted ? styles.playerPickerRowIncomingTransfer : null,
-          isSelected ? styles.playerPickerRowSelected : null,
+          isSelected
+            ? [
+                styles.playerPickerRowSelected,
+                {
+                  backgroundColor: fantasyTheme.softColor,
+                  borderColor: fantasyTheme.primaryColor,
+                },
+              ]
+            : null,
           isDisabled ? styles.playerPickerRowDisabled : null,
         ]}
       >
@@ -421,7 +508,9 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
                 numberOfLines={1}
                 style={styles.playerPickerStatsPlayerName}
               >
-                {formatFantasyPlayerPickerName(player)}
+                {formatFantasyPlayerPickerName(player, {
+                  includeFirstInitial: pickerNameFormat === "initialLastName",
+                })}
               </Text>
               {isFavorite ? (
                 <Star
@@ -430,6 +519,11 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
                   size={12}
                   strokeWidth={2.4}
                 />
+              ) : null}
+              {nameAccessory ? (
+                <View style={styles.playerPickerStatsNameAccessory}>
+                  {nameAccessory}
+                </View>
               ) : null}
             </View>
             <View style={styles.playerPickerStatsMetaLine}>
@@ -451,6 +545,22 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
             </View>
           </View>
         </Pressable>
+
+        {showStatsMarkerColumn ? (
+          <View style={styles.playerPickerStatsMarkerCell}>
+            {statsMarkerLabel ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.playerPickerStatsMarkerText,
+                  { color: fantasyTheme.primaryColor },
+                ]}
+              >
+                {statsMarkerLabel}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.playerPickerStatsMetrics}>
           <FantasyPlayerPickerMetric
@@ -506,7 +616,15 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
       style={[
         styles.marketPlayerRow,
         isHighlighted ? styles.playerPickerRowIncomingTransfer : null,
-        isSelected ? styles.playerPickerRowSelected : null,
+        isSelected
+          ? [
+              styles.playerPickerRowSelected,
+              {
+                backgroundColor: fantasyTheme.softColor,
+                borderColor: fantasyTheme.primaryColor,
+              },
+            ]
+          : null,
         isDisabled ? styles.playerPickerRowDisabled : null,
       ]}
     >
@@ -551,12 +669,19 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
         </View>
         <View style={styles.marketSideLine}>
           <Coins
-            color={isDisabled ? colors.text.muted : colors.brand.blueDark}
+            color={isDisabled ? colors.text.muted : fantasyTheme.primaryColor}
             size={15}
             strokeWidth={2.4}
           />
           <View style={styles.marketPriceTrendGroup}>
-            <Text style={priceTextStyle}>
+            <Text
+              style={[
+                priceTextStyle,
+                !isDisabled && !hasPriceTrend
+                  ? { color: fantasyTheme.primaryColor }
+                  : null,
+              ]}
+            >
               {formatFantasyMoney(player.price)}
             </Text>
             {hasPriceTrend ? (

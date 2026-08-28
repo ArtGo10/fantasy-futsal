@@ -7,15 +7,26 @@ function functionRef<T>(name: string) {
 }
 
 export const api = {
+  appDiagnostics: {
+    submitCrashReport: functionRef<
+      GeneratedApi["appDiagnostics"]["submitCrashReport"]
+    >("appDiagnostics:submitCrashReport"),
+  },
   fantasy: {
     listClubs:
       functionRef<GeneratedApi["fantasy"]["listClubs"]>("fantasy:listClubs"),
+    listSeasons: functionRef<GeneratedApi["fantasy"]["listSeasons"]>(
+      "fantasy:listSeasons",
+    ),
     fixtureDetails: functionRef<GeneratedApi["fantasy"]["fixtureDetails"]>(
       "fantasy:fixtureDetails",
     ),
     listFantasyTeams: functionRef<GeneratedApi["fantasy"]["listFantasyTeams"]>(
       "fantasy:listFantasyTeams",
     ),
+    listMyPrivateLeagues: functionRef<
+      GeneratedApi["fantasy"]["listMyPrivateLeagues"]
+    >("fantasy:listMyPrivateLeagues"),
     listFixtures: functionRef<GeneratedApi["fantasy"]["listFixtures"]>(
       "fantasy:listFixtures",
     ),
@@ -28,6 +39,9 @@ export const api = {
     myFavoritePlayerIds: functionRef<
       GeneratedApi["fantasy"]["myFavoritePlayerIds"]
     >("fantasy:myFavoritePlayerIds"),
+    fantasyTeamGameweekView: functionRef<
+      GeneratedApi["fantasy"]["fantasyTeamGameweekView"]
+    >("fantasy:fantasyTeamGameweekView"),
     myGameweekPointsBreakdown: functionRef<
       GeneratedApi["fantasy"]["myGameweekPointsBreakdown"]
     >("fantasy:myGameweekPointsBreakdown"),
@@ -37,6 +51,9 @@ export const api = {
     myTeam: functionRef<GeneratedApi["fantasy"]["myTeam"]>("fantasy:myTeam"),
     overview:
       functionRef<GeneratedApi["fantasy"]["overview"]>("fantasy:overview"),
+    playerProfile: functionRef<GeneratedApi["fantasy"]["playerProfile"]>(
+      "fantasy:playerProfile",
+    ),
     saveMyTeam:
       functionRef<GeneratedApi["fantasy"]["saveMyTeam"]>("fantasy:saveMyTeam"),
     seasonPlayerStatistics: functionRef<
@@ -48,6 +65,12 @@ export const api = {
     completeGameweekAndGrantTransfers: functionRef<
       GeneratedApi["fantasy"]["completeGameweekAndGrantTransfers"]
     >("fantasy:completeGameweekAndGrantTransfers"),
+    createPrivateLeague: functionRef<
+      GeneratedApi["fantasy"]["createPrivateLeague"]
+    >("fantasy:createPrivateLeague"),
+    deletePrivateLeague: functionRef<
+      GeneratedApi["fantasy"]["deletePrivateLeague"]
+    >("fantasy:deletePrivateLeague"),
     deleteFixtureEvent: functionRef<
       GeneratedApi["fantasy"]["deleteFixtureEvent"]
     >("fantasy:deleteFixtureEvent"),
@@ -57,6 +80,12 @@ export const api = {
     lockGameweek: functionRef<GeneratedApi["fantasy"]["lockGameweek"]>(
       "fantasy:lockGameweek",
     ),
+    joinPrivateLeague: functionRef<
+      GeneratedApi["fantasy"]["joinPrivateLeague"]
+    >("fantasy:joinPrivateLeague"),
+    updatePrivateLeague: functionRef<
+      GeneratedApi["fantasy"]["updatePrivateLeague"]
+    >("fantasy:updatePrivateLeague"),
     recalculateGameweekScores: functionRef<
       GeneratedApi["fantasy"]["recalculateGameweekScores"]
     >("fantasy:recalculateGameweekScores"),
@@ -121,6 +150,8 @@ export const api = {
     updateFavoriteFantasyClub: functionRef<
       GeneratedApi["users"]["updateFavoriteFantasyClub"]
     >("users:updateFavoriteFantasyClub"),
+    setUserRole:
+      functionRef<GeneratedApi["users"]["setUserRole"]>("users:setUserRole"),
     upsertCurrentUser: functionRef<GeneratedApi["users"]["upsertCurrentUser"]>(
       "users:upsertCurrentUser",
     ),

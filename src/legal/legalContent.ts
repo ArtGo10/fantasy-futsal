@@ -333,6 +333,164 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
   },
+  pl: {
+    terms: {
+      updatedAt: "13 sierpnia 2026",
+      sections: [
+        {
+          title: "Usługa",
+          body: [
+            "Fantasy Futsal to rozrywkowa aplikacja fantasy dla futsalu, w której można tworzyć wirtualne drużyny, śledzić terminarz i porównywać punkty fantasy z innymi menedżerami w obsługiwanych ligach.",
+            "Aplikacja nie jest oficjalnym serwisem bukmacherskim, hazardowym ani usługą z nagrodami pieniężnymi. Jeśli nagrody lub dodatkowe zasady ligi pojawią się później, organizatorzy opiszą je osobno.",
+          ],
+        },
+        {
+          title: "Konto i działania drużyny",
+          body: [
+            "Odpowiadasz za używane konto oraz działania fantasy wykonane z tego konta, w tym wybór składu, kapitanów, ulubionych zawodników i ustawienia profilu.",
+            "Możemy ograniczyć albo usunąć dostęp, jeśli konto jest używane do nadużyć, manipulacji danymi albo utrudniania korzystania innym użytkownikom.",
+          ],
+        },
+        {
+          title: "Dane fantasy",
+          body: [
+            "Dane zawodników, klubów, meczów i statystyk mogą być kompilowane z publicznie dostępnych źródeł dla wybranej ligi. Dla ukraińskiej Extra-ligi może to obejmować futsal.com.ua, a dla polskiej Futsal Ekstraklasy publiczne źródła ligowe i statystyczne. Prawa osób trzecich pozostają przy ich właścicielach.",
+            "Dane fantasy mogą być niepełne, opóźnione albo poprawiane po weryfikacji. Możemy przeliczać punkty, gdy źródło zmieni dane albo zostanie znaleziona pomyłka.",
+          ],
+        },
+        {
+          title: "Dostępność",
+          body: [
+            "Aplikacja może być aktualizowana, wstrzymywana albo czasowo niedostępna podczas prac technicznych, importu danych lub konfiguracji sezonu.",
+            "Nie gwarantujemy nieprzerwanego dostępu ani idealnie dokładnych aktualizacji live.",
+          ],
+        },
+        {
+          title: "Zmiany",
+          body: [
+            "Możemy aktualizować te warunki, gdy zmieniają się zasady aplikacji, model danych albo wymagania sklepów. Dalsze korzystanie oznacza akceptację aktualnej wersji.",
+          ],
+        },
+      ],
+    },
+    privacy: {
+      updatedAt: "13 sierpnia 2026",
+      sections: [
+        {
+          title: "Dane, których używamy",
+          body: [
+            "Używamy danych konta przekazywanych przez Clerk, takich jak imię, adres email i identyfikator logowania, aby utworzyć i chronić Twój profil w aplikacji.",
+            "Przechowujemy dane fantasy potrzebne do gry: nazwę drużyny, wybory składu, kapitanów, ulubionych zawodników, punkty oraz tokeny powiadomień, jeśli zezwolisz na powiadomienia push.",
+          ],
+        },
+        {
+          title: "Jak używamy danych",
+          body: [
+            "Dane są używane do logowania, pokazywania drużyny, obliczania tabel fantasy, wysyłania powiadomień i utrzymania działania wspólnej ligi.",
+            "Nie używamy profilu fantasy do targetowania reklam wewnątrz aplikacji.",
+          ],
+        },
+        {
+          title: "Źródła",
+          body: [
+            "Dane zawodników, klubów, meczów i statystyk mogą być kompilowane z publicznie dostępnych źródeł dla wybranej ligi. Dane te są używane tylko do obsługi doświadczenia fantasy.",
+          ],
+        },
+        {
+          title: "Usunięcie",
+          body: [
+            "Możesz poprosić o usunięcie konta na ekranie Profilu. Po zakończeniu usunięcia kasujemy profil aplikacji, drużyny fantasy, wybory składu, ulubionych zawodników, wyniki i tokeny powiadomień push z naszej bazy.",
+            "Niektóre rekordy platformowe, bezpieczeństwa albo kopii zapasowych mogą pozostać tylko w zakresie wymaganym przez usługodawców lub prawo.",
+          ],
+        },
+        {
+          title: "Kontakt",
+          body: [
+            "W sprawach prywatności albo konta napisz na support@fantasyfutsal.app albo użyj publicznej strony pomocy.",
+          ],
+        },
+      ],
+    },
+    rules: {
+      updatedAt: "13 sierpnia 2026",
+      sections: [
+        {
+          title: "Jak działa gra",
+          body: [
+            "Utwórz jedną drużynę fantasy na sezon 2026/27, wybieraj prawdziwych zawodników futsalu, ustawiaj aktywny skład na każdą kolejkę i zdobywaj punkty za prawdziwe wydarzenia meczowe.",
+            "Menedżer z największą liczbą punktów fantasy po wszystkich zakończonych kolejkach wygrywa w tabeli ligi.",
+          ],
+        },
+        {
+          title: "Skład",
+          body: [
+            "Twój skład ma 12 zawodników: pierwszą piątkę, drugą czwórkę i rezerwę.",
+            "Pierwsza piątka musi zawierać 1 bramkarza i 4 zawodników uniwersalnych. Ci zawodnicy punktują z pełnym współczynnikiem fantasy.",
+            "Druga czwórka zawiera 4 zawodników uniwersalnych. Oni także mogą punktować, ale ich punkty w kolejce są mnożone przez 0.5.",
+            "Rezerwa zawiera 1 bramkarza i 2 zawodników uniwersalnych. Rezerwowi służą do zabezpieczenia składu i przyszłych zmian, ale nie punktują, dopóki nie zostanie dodana reguła automatycznej zmiany.",
+          ],
+        },
+        {
+          title: "Limity składu",
+          body: [
+            "Skład musi mieścić się w budżecie sezonu.",
+            "W całym składzie możesz mieć maksymalnie 3 zawodników z jednego realnego klubu.",
+          ],
+        },
+        {
+          title: "Kapitan i wicekapitan",
+          body: [
+            "W każdej kolejce wybierasz kapitana i wicekapitana z pierwszej piątki albo drugiej czwórki.",
+            "Punkty kapitana są podwajane. Jeśli kapitan nie wystąpi i zdobędzie 0 punktów, wicekapitan zostaje kapitanem i otrzymuje bonus podwojenia.",
+            "Kapitan i wicekapitan muszą być różnymi zawodnikami.",
+          ],
+        },
+        {
+          title: "Transfery i deadline'y",
+          body: [
+            "Przed pierwszym deadline'em możesz zmieniać drużynę bez ograniczeń.",
+            "Po deadline'ie kolejka przechodzi live: zapisane składy są blokowane do punktacji, a nowe zmiany dotyczą następnej kolejki.",
+            "Po każdym deadline'ie menedżerowie z zapisanym pełnym składem otrzymują +1 darmowy transfer na następną kolejkę, do maksymalnego banku 5 darmowych transferów.",
+            "Dodatkowe transfery ponad darmowy balans kosztują punkty karne. Dokładna kara jest zapisana w ustawieniach sezonu.",
+          ],
+        },
+        {
+          title: "Podwójne i puste kolejki",
+          body: [
+            "Niektóre realne kluby mogą grać dwa razy w jednej kolejce fantasy z powodu przełożonych lub zmienionych terminów meczów. To podwójna kolejka.",
+            "Niektóre kluby mogą nie mieć meczu w kolejce fantasy. To pusta kolejka.",
+            "Ekran kalendarza wyróżnia podwójne i puste kolejki, jeśli istnieją, aby menedżerowie mogli planować transfery i wybór kapitana przed deadline'em.",
+          ],
+        },
+        {
+          title: "Ceny zawodników",
+          body: [
+            "Ceny startowe bazują na roli zawodnika, sile klubu i dostępnych danych z poprzedniego sezonu.",
+            "Po zakończonych kolejkach ceny mogą zmieniać się na podstawie punktów fantasy, formy, regularności występów i opuszczonych meczów. Tygodniowa zmiana ceny jest ograniczona ustawieniami sezonu.",
+          ],
+        },
+        {
+          title: "Punktacja",
+          body: [
+            "Występ: +1 punkt.",
+            "Akcje osobiste zawodnika uniwersalnego: gol +3, asysta +2, niewykorzystany karny -2, żółta kartka -1, czerwona po dwóch żółtych -3, bezpośrednia czerwona -4, gol samobójczy -2.",
+            "Gole zdobyte przez drużynę zawodnika uniwersalnego: 0 = -1, 1-2 = 0, 3-4 = +1, 5-6 = +2, 7+ = +3.",
+            "Gole stracone przez drużynę zawodnika uniwersalnego: 0 = +3, 1 = +2, 2 = +1, 3 = 0, 4 = -1, 5 = -2, 6+ = -3.",
+            "Akcje osobiste bramkarza: gol +6, asysta +4, żółta kartka -1, czerwona po dwóch żółtych -3, bezpośrednia czerwona -4, gol samobójczy -2.",
+            "Gole stracone przez drużynę bramkarza: 0 = +4, 1 = +3, 2 = +1, 3 = 0, 4 = -1, 5 = -3, 6+ = -4.",
+            "Punkty drużynowe dotyczą tylko zawodników, którzy wystąpili w meczu. Ujemne punkty zawodnika są obsługiwane.",
+          ],
+        },
+        {
+          title: "Tabela",
+          body: [
+            "Tabela ligi sortuje menedżerów według łącznej liczby punktów fantasy z zakończonych kolejek.",
+            "Aplikacja może też pokazywać średnie punkty na kolejkę i najlepszy pojedynczy wynik kolejki, gdy historia kolejek jest dostępna.",
+          ],
+        },
+      ],
+    },
+  },
 };
 
 export function getLegalContent(language: LanguageCode, kind: LegalKind) {

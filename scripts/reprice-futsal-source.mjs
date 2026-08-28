@@ -6,6 +6,8 @@ import {
   FANTASY_INITIAL_PRICE_MAX,
   FANTASY_INITIAL_PRICE_MIN,
   FANTASY_INITIAL_PRICE_STEP,
+  POLISH_INITIAL_PRICE_MAX,
+  POLISH_INITIAL_PRICE_MIN,
   calculateSuggestedPrice,
 } from "./futsal-pricing.mjs";
 
@@ -51,6 +53,8 @@ function main() {
   }
 
   const source = JSON.parse(readFileSync(filePath, "utf8"));
+  const isPolishSource =
+    source.season?.slug === "polish-futsal-ekstraklasa-2026-27";
   const clubsByExternalId = new Map(
     source.clubs.map((club) => [club.externalId, club]),
   );
@@ -60,6 +64,7 @@ function main() {
     const nextPrice = calculateSuggestedPrice({
       clubExternalId: player.clubExternalId,
       displayName: player.displayName,
+      position: player.position,
       statsByCompetition: player.sourceStats,
     });
     if (player.suggestedPrice !== nextPrice) changed += 1;
@@ -69,9 +74,15 @@ function main() {
   source.summary = {
     ...source.summary,
     pricing: {
-      version: "initial-extra-liga-v2-half-step",
-      min: FANTASY_INITIAL_PRICE_MIN,
-      max: FANTASY_INITIAL_PRICE_MAX,
+      version: isPolishSource
+        ? "initial-polish-ekstraklasa-v6-balanced-stars"
+        : "initial-extra-liga-v2-half-step",
+      min: isPolishSource
+        ? POLISH_INITIAL_PRICE_MIN
+        : FANTASY_INITIAL_PRICE_MIN,
+      max: isPolishSource
+        ? POLISH_INITIAL_PRICE_MAX
+        : FANTASY_INITIAL_PRICE_MAX,
       step: FANTASY_INITIAL_PRICE_STEP,
       changedPlayers: changed,
       updatedAt: new Date().toISOString(),

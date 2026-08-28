@@ -5,6 +5,7 @@ import { type StyleProp, View, type ViewStyle } from "react-native";
 
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
+import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 type PlayerAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -43,6 +44,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
   size = "md",
   style,
 }: PlayerAvatarProps) {
+  const fantasyTheme = useFantasySeasonTheme();
   const [hasImageError, setHasImageError] = useState(false);
   const resolvedPhotoUrl = photoUrl && !hasImageError ? photoUrl : null;
 
@@ -56,6 +58,10 @@ export const PlayerAvatar = memo(function PlayerAvatar({
       style={[
         styles.playerAvatarBase,
         AVATAR_SIZE_STYLES[size],
+        {
+          backgroundColor: fantasyTheme.softColor,
+          borderColor: fantasyTheme.borderColor,
+        },
         style,
         isMuted ? styles.playerAvatarMuted : null,
       ]}
@@ -74,7 +80,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
         />
       ) : (
         <UserRound
-          color={isMuted ? colors.text.muted : colors.brand.blueDark}
+          color={isMuted ? colors.text.muted : fantasyTheme.primaryColor}
           size={iconSize ?? AVATAR_ICON_SIZES[size]}
           strokeWidth={2.2}
         />
