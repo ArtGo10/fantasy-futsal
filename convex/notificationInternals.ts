@@ -25,6 +25,11 @@ type DeadlineReminderWindow = {
   type: string;
 };
 
+type PushNotificationRecipientFilterArgs = {
+  legacyPushEventKeys?: string[];
+  pushEventKey: string;
+};
+
 const DEADLINE_REMINDER_WINDOWS: DeadlineReminderWindow[] = [
   {
     keySuffix: "day-before",
@@ -196,6 +201,67 @@ export const pushNotificationRecipientsForAllUsers = internalQuery({
   },
 });
 
+export const pushNotificationRecipientsWithoutUserNotification = internalQuery({
+  args: {
+    legacyPushEventKeys: v.optional(v.array(v.string())),
+    pushEventKey: v.string(),
+  },
+  handler: async (
+    ctx,
+    args: PushNotificationRecipientFilterArgs,
+  ): Promise<ExpoPushRecipient[]> => {
+    const pushEventKeys = [
+      args.pushEventKey,
+      ...(args.legacyPushEventKeys ?? []),
+    ].filter((key, index, keys) => key && keys.indexOf(key) === index);
+    const [users, tokens] = await Promise.all([
+      ctx.db.query("users").collect(),
+      ctx.db.query("pushNotificationTokens").collect(),
+    ]);
+    const tokensByUserId = new Map<string, Set<string>>();
+
+    for (const token of tokens) {
+      if (token.provider !== "expo" || !token.enabled) continue;
+
+      const key = token.userId;
+      const existing = tokensByUserId.get(key);
+      if (existing) {
+        existing.add(token.token);
+      } else {
+        tokensByUserId.set(key, new Set([token.token]));
+      }
+    }
+
+    const recipients: ExpoPushRecipient[] = [];
+    for (const user of users) {
+      let alreadyNotified = false;
+      for (const pushEventKey of pushEventKeys) {
+        const existingNotification = await ctx.db
+          .query("userNotifications")
+          .withIndex("by_user_push_event_key", (q) =>
+            q.eq("userId", user._id).eq("pushEventKey", pushEventKey),
+          )
+          .first();
+
+        if (existingNotification) {
+          alreadyNotified = true;
+          break;
+        }
+      }
+
+      if (alreadyNotified) continue;
+
+      recipients.push({
+        preferredLanguage: normalizePreferredLanguage(user.preferredLanguage),
+        tokens: Array.from(tokensByUserId.get(user._id) ?? []),
+        userId: user._id,
+      });
+    }
+
+    return recipients;
+  },
+});
+
 export const isAdminClerkUser = internalQuery({
   args: {
     clerkId: v.string(),
@@ -262,6 +328,7 @@ export const pendingDeadlineReminders = internalQuery({
       gameweekName: string;
       gameweekNumber: number;
       key: string;
+      legacyKeys: string[];
       type: string;
     }> = [];
 
@@ -286,6 +353,10 @@ export const pendingDeadlineReminders = internalQuery({
 
           const key =
             `deadline-reminder:${reminderWindow.keySuffix}:${gameweek._id}`;
+          const legacyKeys =
+            reminderWindow.keySuffix === "day-before"
+              ? [`deadline-reminder:${gameweek._id}`]
+              : [];
           const alreadySent = await ctx.db
             .query("pushNotificationEvents")
             .withIndex("by_key", (q) => q.eq("key", key))
@@ -306,6 +377,7 @@ export const pendingDeadlineReminders = internalQuery({
             gameweekName: gameweek.name,
             gameweekNumber: gameweek.number,
             key,
+            legacyKeys,
             type: reminderWindow.type,
           });
         }

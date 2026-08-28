@@ -259,7 +259,7 @@ function localizeMatchPlayerName(name: string, language: LanguageCode) {
 
 function formatMatchTime(fixture: FantasyFixture, language: LanguageCode) {
   if (
-    fixture.status === "completed" &&
+    (fixture.status === "live" || fixture.status === "completed") &&
     fixture.homeScore !== null &&
     fixture.awayScore !== null
   ) {
@@ -270,6 +270,14 @@ function formatMatchTime(fixture: FantasyFixture, language: LanguageCode) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(fixture.scheduledAt));
+}
+
+function shouldShowFixtureScore(fixture: FantasyFixture) {
+  return (
+    (fixture.status === "live" || fixture.status === "completed") &&
+    fixture.homeScore !== null &&
+    fixture.awayScore !== null
+  );
 }
 
 function formatPickerDate(value: number, language: LanguageCode) {
@@ -340,11 +348,7 @@ function SeasonFixtureProfileNotice({
 }
 
 function isCompletedFixture(fixture: FantasyFixture) {
-  return (
-    fixture.status === "completed" &&
-    fixture.homeScore !== null &&
-    fixture.awayScore !== null
-  );
+  return fixture.status === "completed" && shouldShowFixtureScore(fixture);
 }
 
 function getDefaultGameweekId(
@@ -769,6 +773,20 @@ function SeasonStats({
 
   const { leaderboard, leaders, topPerformers } = localizedStatistics;
   const visibleLeaderboard = leaderboard.slice(0, 20);
+  const topScorerLeader =
+    leaders.topScorer && leaders.topScorer.goals > 0 ? leaders.topScorer : null;
+  const mostAssistsLeader =
+    leaders.mostAssists && leaders.mostAssists.assists > 0
+      ? leaders.mostAssists
+      : null;
+  const bestValueLeader =
+    leaders.bestValue && leaders.bestValue.valueScore > 0
+      ? leaders.bestValue
+      : null;
+  const mostPickedLeader =
+    leaders.mostPicked && leaders.mostPicked.selectedByTeams > 0
+      ? leaders.mostPicked
+      : null;
 
   if (leaderboard.length === 0) {
     return (
@@ -784,23 +802,23 @@ function SeasonStats({
       <View style={styles.seasonStatsCardsGrid}>
         <SeasonStatsCard
           label={t("season.stats.topScorer")}
-          player={leaders.topScorer}
-          value={`${leaders.topScorer?.goals ?? 0} ${t("season.stats.goals")}`}
+          player={topScorerLeader}
+          value={`${topScorerLeader?.goals ?? 0} ${t("season.stats.goals")}`}
         />
         <SeasonStatsCard
           label={t("season.stats.mostAssists")}
-          player={leaders.mostAssists}
-          value={`${leaders.mostAssists?.assists ?? 0} ${t("season.stats.assists")}`}
+          player={mostAssistsLeader}
+          value={`${mostAssistsLeader?.assists ?? 0} ${t("season.stats.assists")}`}
         />
         <SeasonStatsCard
           label={t("season.stats.bestValue")}
-          player={leaders.bestValue}
-          value={`${formatSeasonStatNumber(leaders.bestValue?.valueScore ?? 0)} ${t("season.stats.valueUnit")}`}
+          player={bestValueLeader}
+          value={`${formatSeasonStatNumber(bestValueLeader?.valueScore ?? 0)} ${t("season.stats.valueUnit")}`}
         />
         <SeasonStatsCard
           label={t("season.stats.mostPicked")}
-          player={leaders.mostPicked}
-          value={`${formatSeasonStatNumber(leaders.mostPicked?.selectedPercent ?? 0)}% ${t("season.stats.picked")}`}
+          player={mostPickedLeader}
+          value={`${formatSeasonStatNumber(mostPickedLeader?.selectedPercent ?? 0)}% ${t("season.stats.picked")}`}
         />
       </View>
 
@@ -950,6 +968,11 @@ export function MatchDetailsPage({
     ? (awayClub?.name ??
       getMatchFixtureClubName(fixture, "away", clubsById, language))
     : "";
+  const matchDetailsHasScore = fixture ? shouldShowFixtureScore(fixture) : false;
+  const matchDetailsIsLive =
+    fixture?.status === "live" && matchDetailsHasScore;
+  const matchDetailsIsCompleted =
+    fixture?.status === "completed" && matchDetailsHasScore;
 
   return (
     <View style={styles.matchDetailsPage}>
@@ -990,7 +1013,11 @@ export function MatchDetailsPage({
           <View
             style={[
               styles.matchDetailsScoreCard,
-              { backgroundColor: fantasyTheme.softColor },
+              {
+                backgroundColor: matchDetailsIsLive
+                  ? colors.state.dangerSoft
+                  : fantasyTheme.softColor,
+              },
             ]}
           >
             <View style={styles.matchDetailsTeamNameGroup}>
@@ -1004,7 +1031,11 @@ export function MatchDetailsPage({
             <Text
               style={[
                 styles.matchDetailsScoreText,
-                { color: fantasyTheme.primaryColor },
+                matchDetailsIsLive
+                  ? styles.matchDetailsScoreTextLive
+                  : matchDetailsIsCompleted
+                    ? styles.matchDetailsScoreTextCompleted
+                    : { color: fantasyTheme.primaryColor },
               ]}
             >
               {formatMatchTime(fixture, language)}
@@ -1537,7 +1568,9 @@ function SeasonCalendar({
                   clubsById,
                   clubsByName,
                 );
-                const isCompleted = isCompletedFixture(fixture);
+                const hasScore = shouldShowFixtureScore(fixture);
+                const isLive = fixture.status === "live" && hasScore;
+                const isCompleted = fixture.status === "completed" && hasScore;
 
                 return (
                   <Pressable
@@ -1558,12 +1591,14 @@ function SeasonCalendar({
                     <View
                       style={[
                         styles.seasonMatchCenter,
+                        isLive ? styles.seasonMatchCenterLive : null,
                         isCompleted ? styles.seasonMatchCenterCompleted : null,
                       ]}
                     >
                       <Text
                         style={[
                           styles.seasonMatchTime,
+                          isLive ? styles.seasonMatchScoreLive : null,
                           isCompleted ? styles.seasonMatchScore : null,
                         ]}
                       >

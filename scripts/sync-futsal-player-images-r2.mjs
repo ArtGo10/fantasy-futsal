@@ -7,6 +7,7 @@ const DEFAULT_SOURCE_FILE = "data/futsal/source-2026-27.json";
 const DEFAULT_PROVIDER = "cloudflare_r2";
 const DEFAULT_KEY_PREFIX = "players";
 const DEFAULT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const MIN_USABLE_IMAGE_BYTES = 1024;
 const SOURCE_PHOTO_HOSTS = new Set([
   "futsal.com.ua",
   "www.futsal.com.ua",
@@ -305,6 +306,13 @@ async function fetchImage(sourcePhotoUrl) {
     throw new Error("Source URL did not return an image: " + contentType);
   }
   const body = Buffer.from(await response.arrayBuffer());
+  if (body.length < MIN_USABLE_IMAGE_BYTES) {
+    throw new Error(
+      "Source image is too small to be a usable player photo: " +
+        body.length +
+        " bytes",
+    );
+  }
   return { body, contentType };
 }
 

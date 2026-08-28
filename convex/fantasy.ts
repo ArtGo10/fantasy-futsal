@@ -920,6 +920,24 @@ function isGameweekEditableForFantasy(
   return !gameweek.deadlineAt || now < gameweek.deadlineAt;
 }
 
+function isFixtureScoredForFantasy(fixture: Doc<"fantasyFixtures">) {
+  return fixture.status === "completed" || fixture.status === "live";
+}
+
+function isGameweekScoredForFantasy(gameweek: Doc<"fantasyGameweeks">) {
+  return gameweek.status === "completed" || gameweek.status === "live";
+}
+
+function findLatestScoredGameweekFromList(
+  gameweeks: Doc<"fantasyGameweeks">[],
+) {
+  return (
+    [...gameweeks]
+      .filter(isGameweekScoredForFantasy)
+      .sort((a, b) => b.number - a.number)[0] ?? null
+  );
+}
+
 function findEditableGameweekFromList(
   gameweeks: Doc<"fantasyGameweeks">[],
   now: number,
@@ -1552,10 +1570,7 @@ export const listPlayers = query({
         stat,
       );
     }
-    const latestCompletedGameweek =
-      gameweeks
-        .filter((gameweek) => gameweek.status === "completed")
-        .sort((a, b) => b.number - a.number)[0] ?? null;
+    const latestScoredGameweek = findLatestScoredGameweekFromList(gameweeks);
     const squadPickLists = await Promise.all(
       fantasyTeams.map((fantasyTeam) =>
         ctx.db
@@ -1599,10 +1614,10 @@ export const listPlayers = query({
           stats.appearances > 0
             ? Number((stats.points / stats.appearances).toFixed(1))
             : 0;
-        const latestGameweekStat = latestCompletedGameweek
+        const latestGameweekStat = latestScoredGameweek
           ? statsByGameweekAndPlayerId.get(
               getPlayerGameweekStatsKey(
-                latestCompletedGameweek._id,
+                latestScoredGameweek._id,
                 player._id,
               ),
             )
@@ -2388,9 +2403,7 @@ async function recalculateGameweekScoresInternal(
       .collect(),
   ]);
   const playerById = new Map(players.map((player) => [player._id, player]));
-  const scoringFixtures = fixtures.filter(
-    (fixture) => fixture.status === "completed",
-  );
+  const scoringFixtures = fixtures.filter(isFixtureScoredForFantasy);
   const statsByPlayerId = new Map<
     Id<"fantasyPlayers">,
     MutablePlayerGameweekStats
@@ -2657,10 +2670,15 @@ async function recalculateGameweekScoresInternal(
   }
 
   return {
-    completedFixtures: scoringFixtures.length,
+    completedFixtures: scoringFixtures.filter(
+      (fixture) => fixture.status === "completed",
+    ).length,
     fantasyTeams: fantasyTeams.length,
+    liveFixtures: scoringFixtures.filter((fixture) => fixture.status === "live")
+      .length,
     participatedTeams,
     playerStats: statsByPlayerId.size,
+    scoringFixtures: scoringFixtures.length,
     skippedEventsWithoutPlayer,
     snapshotState,
     teamScores: fantasyTeams.length,
@@ -3896,7 +3914,7 @@ export const playerProfile = query({
           player.clubId &&
           (fixture.homeClubId === player.clubId ||
             fixture.awayClubId === player.clubId) &&
-          fixture.status === "completed" &&
+          isFixtureScoredForFantasy(fixture) &&
           fixture.homeScore !== undefined &&
           fixture.awayScore !== undefined,
       )
@@ -4126,10 +4144,7 @@ export const seasonPlayerStatistics = query({
         stat,
       );
     }
-    const latestCompletedGameweek =
-      gameweeks
-        .filter((gameweek) => gameweek.status === "completed")
-        .sort((a, b) => b.number - a.number)[0] ?? null;
+    const latestScoredGameweek = findLatestScoredGameweekFromList(gameweeks);
 
     const squadPickLists = await Promise.all(
       fantasyTeams.map((fantasyTeam) =>
@@ -4168,9 +4183,9 @@ export const seasonPlayerStatistics = query({
         stats.appearances > 0
           ? Number((stats.points / stats.appearances).toFixed(1))
           : 0;
-      const latestGameweekStat = latestCompletedGameweek
+      const latestGameweekStat = latestScoredGameweek
         ? statsByGameweekAndPlayerId.get(
-            getPlayerGameweekStatsKey(latestCompletedGameweek._id, player._id),
+            getPlayerGameweekStatsKey(latestScoredGameweek._id, player._id),
           )
         : undefined;
       const valueScore =
@@ -4220,25 +4235,36 @@ export const seasonPlayerStatistics = query({
       };
     });
 
-    const topScorer =
-      [...leaderboard].sort(
-        (a, b) => b.goals - a.goals || compareSeasonPlayerStats(a, b),
-      )[0] ?? null;
-    const mostAssists =
-      [...leaderboard].sort(
-        (a, b) => b.assists - a.assists || compareSeasonPlayerStats(a, b),
-      )[0] ?? null;
-    const bestValue =
-      [...leaderboard].sort(
-        (a, b) => b.valueScore - a.valueScore || compareSeasonPlayerStats(a, b),
-      )[0] ?? null;
-    const mostPicked =
-      [...leaderboard].sort(
-        (a, b) =>
-          b.selectedPercent - a.selectedPercent ||
-          b.selectedByTeams - a.selectedByTeams ||
-          compareSeasonPlayerStats(a, b),
-      )[0] ?? null;
+    const pickPositiveLeader = (
+      getValue: (player: (typeof leaderboard)[number]) => number,
+      compare: (
+        a: (typeof leaderboard)[number],
+        b: (typeof leaderboard)[number],
+      ) => number,
+    ) => {
+      const leader = [...leaderboard].sort(compare)[0] ?? null;
+      return leader && getValue(leader) > 0 ? leader : null;
+    };
+
+    const topScorer = pickPositiveLeader(
+      (player) => player.goals,
+      (a, b) => b.goals - a.goals || compareSeasonPlayerStats(a, b),
+    );
+    const mostAssists = pickPositiveLeader(
+      (player) => player.assists,
+      (a, b) => b.assists - a.assists || compareSeasonPlayerStats(a, b),
+    );
+    const bestValue = pickPositiveLeader(
+      (player) => player.valueScore,
+      (a, b) => b.valueScore - a.valueScore || compareSeasonPlayerStats(a, b),
+    );
+    const mostPicked = pickPositiveLeader(
+      (player) => player.selectedByTeams,
+      (a, b) =>
+        b.selectedPercent - a.selectedPercent ||
+        b.selectedByTeams - a.selectedByTeams ||
+        compareSeasonPlayerStats(a, b),
+    );
     const sortedByPoints = [...leaderboard].sort(compareSeasonPlayerStats);
 
     return {
@@ -4448,10 +4474,7 @@ export const myTeam = query({
     const gameweeksById = new Map(
       gameweeks.map((gameweek) => [gameweek._id, gameweek]),
     );
-    const latestCompletedGameweek =
-      gameweeks
-        .filter((gameweek) => gameweek.status === "completed")
-        .sort((a, b) => b.number - a.number)[0] ?? null;
+    const latestScoredGameweek = findLatestScoredGameweekFromList(gameweeks);
     const snapshotsByGameweekId = new Map<
       Id<"fantasyGameweeks">,
       Doc<"fantasyGameweekSquadPicks">[]
@@ -4468,7 +4491,7 @@ export const myTeam = query({
     >();
     for (const [gameweekId, snapshots] of snapshotsByGameweekId) {
       const gameweek = gameweeksById.get(gameweekId);
-      if (!gameweek || gameweek.status !== "completed") continue;
+      if (!gameweek || !isGameweekScoredForFantasy(gameweek)) continue;
 
       const captain = snapshots.find((snapshot) => snapshot.isCaptain);
       const viceCaptain = snapshots.find((snapshot) => snapshot.isViceCaptain);
@@ -4501,7 +4524,7 @@ export const myTeam = query({
         current.managerSeasonPoints = roundFantasyPoints(
           current.managerSeasonPoints + managerPoints,
         );
-        if (latestCompletedGameweek?._id === snapshot.gameweekId) {
+        if (latestScoredGameweek?._id === snapshot.gameweekId) {
           current.managerLastGameweekPoints = managerPoints;
         }
         managerPointsByPlayerId.set(snapshot.playerId, current);
@@ -4589,10 +4612,10 @@ export const myTeam = query({
               ? Number((stats.points / stats.appearances).toFixed(1))
               : 0;
           const latestGameweekStat =
-            player && latestCompletedGameweek
+            player && latestScoredGameweek
               ? statsByGameweekAndPlayerId.get(
                   getPlayerGameweekStatsKey(
-                    latestCompletedGameweek._id,
+                    latestScoredGameweek._id,
                     player._id,
                   ),
                 )

@@ -903,11 +903,15 @@ export function FantasyHome({
   );
   const currentBackendUser = currentUserProfile?.user ?? null;
   const currentViewerIsAdmin = Boolean(currentUserProfile?.isAdmin);
+  const currentViewerAccessResolved =
+    !shouldQueryPrivateData || currentUserProfile !== undefined;
   const availableFantasySeasons = useMemo(
     () =>
       (fantasySeasons ?? []).map((season) => {
         const shouldLockForViewer =
-          !currentViewerIsAdmin && isAdminOnlyFantasySeasonOption(season);
+          currentViewerAccessResolved &&
+          !currentViewerIsAdmin &&
+          isAdminOnlyFantasySeasonOption(season);
         const isLocked = Boolean(season.isLocked) || shouldLockForViewer;
 
         if (
@@ -929,7 +933,7 @@ export function FantasyHome({
             : null,
         };
       }),
-    [currentViewerIsAdmin, fantasySeasons],
+    [currentViewerAccessResolved, currentViewerIsAdmin, fantasySeasons],
   );
   const activeFantasySeason = useMemo(
     () =>
@@ -1028,6 +1032,13 @@ export function FantasyHome({
       void clearStoredFantasySeasonSlug();
       return;
     }
+    if (
+      selectedSeason.isLocked &&
+      isAdminOnlyFantasySeasonOption(selectedSeason) &&
+      !currentViewerAccessResolved
+    ) {
+      return;
+    }
     if (selectedSeason.isLocked) {
       const fallbackSeasonSlug =
         availableFantasySeasons.find((season) => !season.isLocked)?.slug ??
@@ -1043,11 +1054,19 @@ export function FantasyHome({
     }
   }, [
     availableFantasySeasons,
+    currentViewerAccessResolved,
     fantasySeasons,
     selectedSeasonSlug,
     storedSeasonSlugLoaded,
     t,
   ]);
+
+  useEffect(() => {
+    if (!activeFantasySeason || activeFantasySeason.isLocked) return;
+    if (errorText === t("seasonSelection.comingSoonNotice")) {
+      setErrorText(null);
+    }
+  }, [activeFantasySeason, errorText, t]);
 
   useEffect(() => {
     const currentGameweekNumber =
