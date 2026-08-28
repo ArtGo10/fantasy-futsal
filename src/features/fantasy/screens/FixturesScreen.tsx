@@ -79,7 +79,7 @@ function formatDateTime(value: number | null | undefined, language: LanguageCode
 }
 
 function formatFixtureCenter(fixture: FantasyFixture, language: LanguageCode) {
-  if (fixture.status === "completed" && fixture.homeScore !== null && fixture.awayScore !== null) {
+  if (shouldShowFixtureScore(fixture)) {
     return fixture.homeScore + ":" + fixture.awayScore;
   }
 
@@ -87,6 +87,14 @@ function formatFixtureCenter(fixture: FantasyFixture, language: LanguageCode) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(fixture.scheduledAt));
+}
+
+function shouldShowFixtureScore(fixture: FantasyFixture) {
+  return (
+    (fixture.status === "live" || fixture.status === "completed") &&
+    fixture.homeScore !== null &&
+    fixture.awayScore !== null
+  );
 }
 
 export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenProps) {
@@ -163,10 +171,9 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
 
                 <View style={styles.fixtureRows}>
                   {gameweekFixtures.map((fixture) => {
-                    const isCompleted =
-                      fixture.status === "completed" &&
-                      fixture.homeScore !== null &&
-                      fixture.awayScore !== null;
+                    const hasScore = shouldShowFixtureScore(fixture);
+                    const isLive = fixture.status === "live" && hasScore;
+                    const isCompleted = fixture.status === "completed" && hasScore;
 
                     return (
                       <View key={fixture.id} style={styles.fixtureRow}>
@@ -179,13 +186,15 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                         <View
                           style={[
                             styles.fixtureCenterPill,
+                            isLive ? styles.fixtureCenterPillLive : null,
                             isCompleted ? styles.fixtureCenterPillCompleted : null,
                           ]}
                         >
                           <Text
                             style={[
                               styles.fixtureCenterText,
-                              !isCompleted
+                              isLive ? styles.fixtureCenterTextLive : null,
+                              !hasScore
                                 ? { color: fantasyTheme.primaryColor }
                                 : null,
                               isCompleted ? styles.fixtureCenterTextCompleted : null,

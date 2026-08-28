@@ -5,6 +5,10 @@ import type { Id } from "./_generated/dataModel";
 import { action, internalAction, mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./authHelpers";
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 type ExpoPushMessage = {
   body: string;
   data: { kind: string };
@@ -41,6 +45,7 @@ type DeadlineReminder = {
   gameweekName: string;
   gameweekNumber: number;
   key: string;
+  legacyKeys?: string[];
   type: string;
 };
 
@@ -63,6 +68,10 @@ function normalizeNotificationLanguage(
   language: string | undefined,
 ): NotificationLanguage {
   return language === "uk" || language === "pl" ? language : "en";
+}
+
+function automatedPushNotificationsAreDisabled() {
+  return process.env.AUTOMATED_PUSH_NOTIFICATIONS_DISABLED === "true";
 }
 
 function getNotificationGameweekName(
@@ -230,14 +239,16 @@ const enabledExpoPushRecipientsForAllUsers = makeFunctionReference<
   Record<string, never>,
   ExpoPushRecipient[]
 >;
-const pushNotificationRecipientsForAllUsers = makeFunctionReference<
+const pushNotificationRecipientsWithoutUserNotification = makeFunctionReference<
   "query",
-  Record<string, never>,
+  { legacyPushEventKeys?: string[]; pushEventKey: string },
   ExpoPushRecipient[]
->("notificationInternals:pushNotificationRecipientsForAllUsers") as unknown as FunctionReference<
+>(
+  "notificationInternals:pushNotificationRecipientsWithoutUserNotification",
+) as unknown as FunctionReference<
   "query",
   "internal",
-  Record<string, never>,
+  { legacyPushEventKeys?: string[]; pushEventKey: string },
   ExpoPushRecipient[]
 >;
 
@@ -675,6 +686,10 @@ export const sendPushToAllUsersInternal = internalAction({
     type: v.string(),
   },
   handler: async (ctx, args) => {
+    if (automatedPushNotificationsAreDisabled()) {
+      return { created: 0, sent: 0, skippedDuplicate: true, updated: 0 };
+    }
+
     let gameweek: GameweekPushState = null;
 
     if (args.skipIfGameweekCompleted && args.gameweekId) {
@@ -699,8 +714,8 @@ export const sendPushToAllUsersInternal = internalAction({
     }
 
     const recipients = await ctx.runQuery(
-      pushNotificationRecipientsForAllUsers,
-      {},
+      pushNotificationRecipientsWithoutUserNotification,
+      { pushEventKey: args.key },
     );
     const fallbackMessage = {
       title: args.title,
@@ -751,11 +766,12 @@ export const sendPushToAllUsersInternal = internalAction({
 export const sendDeadlineRemindersInternal = internalAction({
   args: {},
   handler: async (ctx) => {
+    if (automatedPushNotificationsAreDisabled()) {
+      return { created: 0, reminders: 0, sent: 0, updated: 0 };
+    }
+
     const now = Date.now();
-    const [recipients, reminders] = await Promise.all([
-      ctx.runQuery(pushNotificationRecipientsForAllUsers, {}),
-      ctx.runQuery(pendingDeadlineReminders, { now }),
-    ]);
+    const reminders = await ctx.runQuery(pendingDeadlineReminders, { now });
 
     if (reminders.length === 0) {
       return { created: 0, reminders: 0, sent: 0, updated: 0 };
@@ -776,6 +792,13 @@ export const sendDeadlineRemindersInternal = internalAction({
 
       claimedReminders += 1;
       const sentAt = Date.now();
+      const recipients = await ctx.runQuery(
+        pushNotificationRecipientsWithoutUserNotification,
+        {
+          legacyPushEventKeys: reminder.legacyKeys,
+          pushEventKey: reminder.key,
+        },
+      );
       const fallbackMessage = {
         title: "Дедлайн",
         body: `${reminder.gameweekName}: дедлайн наближається. Не забудьте зберегти склад.`,

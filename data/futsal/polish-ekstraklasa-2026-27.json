@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-26T14:59:57.735Z",
+  "generatedAt": "2026-08-28T18:21:33.896Z",
   "source": {
     "baseUrl": "https://www.futsal-polska.pl",
     "apiBaseUrl": "https://futsal-ekstraklasa.statscore.com/pl/futsal/futsal-ekstraklasa,6294/71147/query",
@@ -633,7 +633,8 @@
         "pol-fp-transfer:1261090:christopher-moen",
         "pol-fp-transfer:1261090:jefferson-ortiz",
         "pol-fp-transfer:1261090:christian-rodriguez",
-        "pol-fp-transfer:1261090:dmytro-rybicki"
+        "pol-fp-transfer:1261090:dmytro-rybicki",
+        "pol-live:1261090:adam-lesiecki"
       ],
       "sortOrder": 16,
       "isActive": true
@@ -6692,7 +6693,7 @@
       "lastName": "Janczak",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 33,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -6766,7 +6767,7 @@
       "lastName": "Krawiec",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 19,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -6803,7 +6804,7 @@
       "lastName": "Lintula",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 11,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -6811,11 +6812,11 @@
       "listedTeamExternalIds": [
         "1100264"
       ],
-      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-4065.webp",
-      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-4065.webp",
-      "photoProvider": "cloudflare_r2",
-      "photoSourceUrl": "https://cdn.sportigio.com/spaces/161/img/players/lassi-lintula_123.webp",
-      "photoSourceThumbnailUrl": "https://cdn.sportigio.com/spaces/161/img/players/lassi-lintula_123.webp",
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": {
           "goals": 0,
@@ -6829,18 +6830,18 @@
       },
       "suggestedPrice": 6.5,
       "photoCloudflareId": null,
-      "photoStorageKey": "players/pol-fp-4065.webp"
+      "photoStorageKey": null
     },
     {
       "externalId": "pol-fp:5428",
       "sourceSlug": "lion-ribeiro-de-souza",
       "sourceUrl": "https://www.futsal-polska.pl/futsal-ekstraklasa/player/81-fogo-futsal-ekstraklasa-2025-26/579-jaxan-wks-slask-wroclaw-futsal/5428-lion-ribeiro-de-souza",
-      "displayName": "Lion de Souza",
-      "firstName": "Lion de",
-      "lastName": "Souza",
+      "displayName": "Lion Ribeiro",
+      "firstName": "Lion",
+      "lastName": "Ribeiro",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 30,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -7860,7 +7861,7 @@
       "lastName": "Błaszczyk",
       "position": "goalkeeper",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 4,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -7897,7 +7898,7 @@
       "lastName": "Kušnír",
       "position": "goalkeeper",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 18,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -7934,7 +7935,7 @@
       "lastName": "Cepeda",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 10,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -8006,7 +8007,7 @@
       "lastName": "Korytny",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 22,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -8043,7 +8044,7 @@
       "lastName": "Kozłowski",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 90,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -8115,7 +8116,7 @@
       "lastName": "Rykaczewski",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 92,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -8152,7 +8153,7 @@
       "lastName": "Solecki",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 9,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -8189,7 +8190,7 @@
       "lastName": "Solzi",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 25,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -10125,12 +10126,12 @@
       "externalId": "pol-fp-transfer:1100264:claudinho",
       "sourceSlug": "claudinho",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Claudinho",
+      "displayName": "Claudio",
       "firstName": null,
-      "lastName": "Claudinho",
+      "lastName": "Claudio",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 10,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10138,29 +10139,29 @@
       "listedTeamExternalIds": [
         "1100264"
       ],
-      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-claudinho.webp",
-      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-claudinho.webp",
-      "photoProvider": "cloudflare_r2",
-      "photoSourceUrl": "https://cdn.sportigio.com/spaces/161/img/players/luiz-claudio-sampaio-filho_125.webp",
-      "photoSourceThumbnailUrl": "https://cdn.sportigio.com/spaces/161/img/players/luiz-claudio-sampaio-filho_125.webp",
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
       "suggestedPrice": 6.5,
       "photoCloudflareId": null,
-      "photoStorageKey": "players/pol-fp-transfer-1100264-claudinho.webp"
+      "photoStorageKey": null
     },
     {
       "externalId": "pol-fp-transfer:1100264:pedro-fininho",
       "sourceSlug": "pedro-fininho",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Pedro Fininho",
-      "firstName": "Pedro",
+      "displayName": "Fininho",
+      "firstName": null,
       "lastName": "Fininho",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 73,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10183,12 +10184,12 @@
       "externalId": "pol-fp-transfer:1100264:gustavo",
       "sourceSlug": "gustavo",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Gustavo",
-      "firstName": null,
-      "lastName": "Gustavo",
-      "position": "universal",
+      "displayName": "Gustavo Stefano",
+      "firstName": "Gustavo",
+      "lastName": "Stefano",
+      "position": "goalkeeper",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 22,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10211,12 +10212,12 @@
       "externalId": "pol-fp-transfer:1100264:rafa-lopez",
       "sourceSlug": "rafa-lopez",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Rafa López",
+      "displayName": "Rafa Lopez",
       "firstName": "Rafa",
-      "lastName": "López",
+      "lastName": "Lopez",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 17,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10244,7 +10245,7 @@
       "lastName": "Ostrák",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 37,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10270,9 +10271,9 @@
       "displayName": "Jesus Quiles",
       "firstName": "Jesus",
       "lastName": "Quiles",
-      "position": "universal",
+      "position": "goalkeeper",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 1,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10300,7 +10301,7 @@
       "lastName": "Rafinha",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 12,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10323,12 +10324,12 @@
       "externalId": "pol-fp-transfer:1100264:leo-santana",
       "sourceSlug": "leo-santana",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Léo Santana",
-      "firstName": "Léo",
+      "displayName": "Leonardo Santana",
+      "firstName": "Leonardo",
       "lastName": "Santana",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 4,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10336,18 +10337,18 @@
       "listedTeamExternalIds": [
         "1100264"
       ],
-      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-leo-santana.webp",
-      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-leo-santana.webp",
-      "photoProvider": "cloudflare_r2",
-      "photoSourceUrl": "https://cdn.sportigio.com/spaces/161/img/players/leo-santana_121.webp",
-      "photoSourceThumbnailUrl": "https://cdn.sportigio.com/spaces/161/img/players/leo-santana_121.webp",
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
       "suggestedPrice": 9,
       "photoCloudflareId": null,
-      "photoStorageKey": "players/pol-fp-transfer-1100264-leo-santana.webp"
+      "photoStorageKey": null
     },
     {
       "externalId": "pol-fp-transfer:1100264:stefano",
@@ -10386,7 +10387,7 @@
       "lastName": "Szczepański",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 7,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10394,18 +10395,18 @@
       "listedTeamExternalIds": [
         "1100264"
       ],
-      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-oskar-szczepanski.webp",
-      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-oskar-szczepanski.webp",
-      "photoProvider": "cloudflare_r2",
-      "photoSourceUrl": "https://cdn.sportigio.com/spaces/161/img/players/oskar-szczepanski_124.webp",
-      "photoSourceThumbnailUrl": "https://cdn.sportigio.com/spaces/161/img/players/oskar-szczepanski_124.webp",
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
       "suggestedPrice": 8,
       "photoCloudflareId": null,
-      "photoStorageKey": "players/pol-fp-transfer-1100264-oskar-szczepanski.webp"
+      "photoStorageKey": null
     },
     {
       "externalId": "pol-fp-transfer:1100264:nicolas-tumkiewicz",
@@ -10416,7 +10417,7 @@
       "lastName": "Tumkiewicz",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 8,
       "clubExternalId": "1100264",
       "currentTeamExternalIds": [
         "1100264"
@@ -10424,18 +10425,18 @@
       "listedTeamExternalIds": [
         "1100264"
       ],
-      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-nicolas-tumkiewicz.webp",
-      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/pol-fp-transfer-1100264-nicolas-tumkiewicz.webp",
-      "photoProvider": "cloudflare_r2",
-      "photoSourceUrl": "https://cdn.sportigio.com/spaces/161/img/players/nicolas-tumkiewicz_122.webp",
-      "photoSourceThumbnailUrl": "https://cdn.sportigio.com/spaces/161/img/players/nicolas-tumkiewicz_122.webp",
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
       "sourceStats": {
         "extraLeague2025_26": null,
         "firstLeague2025_26": null
       },
       "suggestedPrice": 6.5,
       "photoCloudflareId": null,
-      "photoStorageKey": "players/pol-fp-transfer-1100264-nicolas-tumkiewicz.webp"
+      "photoStorageKey": null
     },
     {
       "externalId": "pol-fp-transfer:1261090:oussama-chefraou",
@@ -10446,7 +10447,7 @@
       "lastName": "Chefraou",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 93,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -10497,12 +10498,12 @@
       "externalId": "pol-fp-transfer:1261090:jefferson-ortiz",
       "sourceSlug": "jefferson-ortiz",
       "sourceUrl": "https://www.futsal-polska.pl/transfery2026",
-      "displayName": "Jefferson Ortiz",
-      "firstName": "Jefferson",
+      "displayName": "Jeffer Ortiz",
+      "firstName": "Jeffer",
       "lastName": "Ortiz",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 21,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -10532,7 +10533,7 @@
       "lastName": "Rodríguez",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 15,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -10562,7 +10563,7 @@
       "lastName": "Rybicki",
       "position": "universal",
       "status": "active",
-      "jerseyNumber": null,
+      "jerseyNumber": 11,
       "clubExternalId": "1261090",
       "currentTeamExternalIds": [
         "1261090"
@@ -11154,6 +11155,34 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 6
+    },
+    {
+      "externalId": "pol-live:1261090:adam-lesiecki",
+      "sourceSlug": "adam-lesiecki",
+      "sourceUrl": "https://www.futsalekstraklasa.pl/",
+      "displayName": "Adam Lesiecki",
+      "firstName": "Adam",
+      "lastName": "Lesiecki",
+      "position": "goalkeeper",
+      "status": "active",
+      "jerseyNumber": 23,
+      "clubExternalId": "1261090",
+      "currentTeamExternalIds": [
+        "1261090"
+      ],
+      "listedTeamExternalIds": [
+        "1261090"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5
     }
   ],
   "gameweeks": [
@@ -11290,9 +11319,9 @@
       "awayClubExternalId": "1100264",
       "homeClubName": "Wiara Lecha Poznań",
       "awayClubName": "JAXAN Śląsk Wrocław",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 2,
+      "awayScore": 1,
+      "status": "live",
       "venue": null,
       "leagueExternalIds": [
         "6294"

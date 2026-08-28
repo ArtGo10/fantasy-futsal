@@ -6299,10 +6299,15 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
-  seasonMatchCenterCompleted: {
-    backgroundColor: colors.state.successSoft,
+  seasonMatchCenterLive: {
+    backgroundColor: colors.state.dangerSoft,
     borderWidth: 1,
-    borderColor: colors.state.success,
+    borderColor: colors.state.dangerBorder,
+  },
+  seasonMatchCenterCompleted: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   seasonMatchTime: {
     color: colors.text.primary,
@@ -6311,7 +6316,10 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.lg,
   },
   seasonMatchScore: {
-    color: colors.state.success,
+    color: colors.text.primary,
+  },
+  seasonMatchScoreLive: {
+    color: colors.fantasy.red,
   },
   matchDetailsPage: {
     width: "100%",
@@ -6353,6 +6361,12 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.xxl,
     textAlign: "center",
+  },
+  matchDetailsScoreTextCompleted: {
+    color: colors.text.primary,
+  },
+  matchDetailsScoreTextLive: {
+    color: colors.fantasy.red,
   },
   matchDetailsContentGrid: {
     width: "100%",
@@ -7123,8 +7137,12 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   fixtureCenterPillCompleted: {
-    backgroundColor: colors.state.success,
-    borderColor: colors.state.success,
+    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.border.default,
+  },
+  fixtureCenterPillLive: {
+    backgroundColor: colors.state.dangerSoft,
+    borderColor: colors.state.dangerBorder,
   },
   fixtureCenterText: {
     color: colors.brand.blueDark,
@@ -7133,7 +7151,10 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.sm,
   },
   fixtureCenterTextCompleted: {
-    color: colors.text.inverse,
+    color: colors.text.primary,
+  },
+  fixtureCenterTextLive: {
+    color: colors.fantasy.red,
   },
   panel: {
     width: "100%",
