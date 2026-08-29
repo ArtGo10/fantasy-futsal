@@ -10,6 +10,7 @@ type LocalizableClub = {
 type LocalizablePlayerStatusDetails = {
   message?: string | null;
   messageEn?: string | null;
+  messagePl?: string | null;
   messageUk?: string | null;
   updatedAt?: number | null;
 } | null;
@@ -1481,7 +1482,13 @@ function getLocalizedPlayerStatusMessage(
     return details.messageUk ?? details.message ?? details.messageEn ?? null;
   }
   if (language === "pl") {
-    return details.messageEn ?? details.message ?? details.messageUk ?? null;
+    return (
+      details.messagePl ??
+      details.message ??
+      details.messageEn ??
+      details.messageUk ??
+      null
+    );
   }
 
   return details.messageEn ?? details.message ?? details.messageUk ?? null;

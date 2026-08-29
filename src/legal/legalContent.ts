@@ -96,7 +96,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "August 28, 2026",
+      updatedAt: "August 29, 2026",
       sections: [
         {
           title: "How the game works",
@@ -160,6 +160,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Universal player actions: goal +4, assist +3, missed 6-meter penalty -2, yellow card -1, red card -3, own goal -2.",
             "Goalkeeper actions: goal +7, assist +5, saved 6-meter penalty +2, missed 6-meter penalty -2, yellow card -1, red card -3, own goal -2.",
             "Goals conceded by the player's team apply to every player who appeared: 0 conceded = +4, 1 conceded = +2, 2-3 conceded = 0.",
+            "Goals-conceded points are applied only after the match is completed. During live scoring, players receive only appearance points and recorded personal events.",
             "Starting from the fourth goal conceded, players lose 1 point for every 2 goals conceded: 4-5 = -1, 6-7 = -2, 8-9 = -3, and so on.",
             "No fantasy points are awarded for the player's team winning, drawing, losing, or scoring team goals. Negative player points are supported.",
           ],
@@ -253,7 +254,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "28 серпня 2026",
+      updatedAt: "29 серпня 2026",
       sections: [
         {
           title: "Як працює гра",
@@ -317,6 +318,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Дії універсала: гол +4, асист +3, незабитий 6-метровий -2, жовта картка -1, червона картка -3, автогол -2.",
             "Дії воротаря: гол +7, асист +5, відбитий 6-метровий +2, незабитий 6-метровий -2, жовта картка -1, червона картка -3, автогол -2.",
             "Пропущені голи команди застосовуються до кожного гравця, який вийшов на майданчик: 0 пропущених = +4, 1 пропущений = +2, 2-3 пропущені = 0.",
+            "Очки за пропущені голи застосовуються тільки після завершення матчу. Під час live-нарахування гравці отримують лише очки за вихід і записані персональні події.",
             "Починаючи з четвертого пропущеного гола, гравці втрачають 1 очко за кожні 2 пропущені голи: 4-5 = -1, 6-7 = -2, 8-9 = -3 і так далі.",
             "Fantasy-очки не нараховуються за перемогу, нічию, поразку або забиті командою голи. Від'ємні очки гравця підтримуються.",
           ],
@@ -410,7 +412,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "28 sierpnia 2026",
+      updatedAt: "29 sierpnia 2026",
       sections: [
         {
           title: "Jak działa gra",
@@ -474,6 +476,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Akcje zawodnika uniwersalnego: gol +4, asysta +3, niewykorzystany rzut karny z 6 metrów -2, żółta kartka -1, czerwona kartka -3, gol samobójczy -2.",
             "Akcje bramkarza: gol +7, asysta +5, obroniony rzut karny z 6 metrów +2, niewykorzystany rzut karny z 6 metrów -2, żółta kartka -1, czerwona kartka -3, gol samobójczy -2.",
             "Gole stracone przez drużynę zawodnika dotyczą każdego zawodnika, który wystąpił: 0 straconych = +4, 1 stracony = +2, 2-3 stracone = 0.",
+            "Punkty za gole stracone są naliczane dopiero po zakończeniu meczu. W trybie live zawodnicy otrzymują tylko punkty za występ i zapisane wydarzenia indywidualne.",
             "Od czwartego straconego gola zawodnicy tracą 1 punkt za każde 2 stracone gole: 4-5 = -1, 6-7 = -2, 8-9 = -3 i dalej według tej samej zasady.",
             "Punkty fantasy nie są przyznawane za zwycięstwo, remis, porażkę ani gole zdobyte przez drużynę zawodnika. Ujemne punkty zawodnika są obsługiwane.",
           ],

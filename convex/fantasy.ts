@@ -94,6 +94,7 @@ const FANTASY_PRIVATE_LEAGUE_INVITE_CODE_LENGTH = 6;
 const FANTASY_PRIVATE_LEAGUE_INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const FANTASY_PRIVATE_LEAGUE_NAME_MAX_LENGTH = 48;
 const GAMEWEEK_LIVE_PUSH_DELAY_MS = 12 * 60 * 60 * 1000;
+const FIXTURE_AUTO_LIVE_LOOKBACK_MS = 12 * 60 * 60 * 1000;
 const EXTRA_LEAGUE_ACCIDENTAL_DEV_CLUB_NAMES = new Set([
   "Атлетик Футзал",
   "SkyUp Futsal",
@@ -419,6 +420,7 @@ type FantasyPlayerStatusDetailsInput =
   | {
       message?: string;
       messageEn?: string;
+      messagePl?: string;
       messageUk?: string;
       updatedAt?: number;
     }
@@ -433,12 +435,14 @@ function normalizeFantasyPlayerStatusDetails(
 
   const message = toOptionalText(details.message);
   const messageEn = toOptionalText(details.messageEn);
+  const messagePl = toOptionalText(details.messagePl);
   const messageUk = toOptionalText(details.messageUk);
-  if (!message && !messageEn && !messageUk) return undefined;
+  if (!message && !messageEn && !messagePl && !messageUk) return undefined;
 
   return {
     ...(message ? { message } : {}),
     ...(messageEn ? { messageEn } : {}),
+    ...(messagePl ? { messagePl } : {}),
     ...(messageUk ? { messageUk } : {}),
     updatedAt: details.updatedAt ?? updatedAt,
   };
@@ -452,6 +456,7 @@ function toFantasyPlayerStatusDetailsView(
   return {
     message: player.statusDetails.message ?? null,
     messageEn: player.statusDetails.messageEn ?? null,
+    messagePl: player.statusDetails.messagePl ?? null,
     messageUk: player.statusDetails.messageUk ?? null,
     updatedAt: player.statusDetails.updatedAt ?? null,
   };
@@ -2512,7 +2517,11 @@ async function recalculateGameweekScoresInternal(
       }
     }
 
-    if (fixture.homeScore === undefined || fixture.awayScore === undefined)
+    if (
+      fixture.status !== "completed" ||
+      fixture.homeScore === undefined ||
+      fixture.awayScore === undefined
+    )
       continue;
 
     for (const player of players) {
@@ -3726,6 +3735,7 @@ function buildFixturePlayerPointsBreakdown({
   );
 
   if (
+    fixture.status === "completed" &&
     fixture.homeScore !== undefined &&
     fixture.awayScore !== undefined &&
     player.clubId
@@ -5658,6 +5668,135 @@ export const processPassedGameweekDeadlines = internalMutation({
   },
 });
 
+async function processStartedFixturesForSeason(
+  ctx: MutationCtx,
+  season: Doc<"fantasySeasons">,
+  now: number,
+) {
+  const startedAfter = now - FIXTURE_AUTO_LIVE_LOOKBACK_MS;
+  const fixtures = await ctx.db
+    .query("fantasyFixtures")
+    .withIndex("by_season_scheduled_at", (q) =>
+      q
+        .eq("seasonId", season._id)
+        .gte("scheduledAt", startedAfter)
+        .lte("scheduledAt", now),
+    )
+    .collect();
+  const liveGameweekIds = new Set<Id<"fantasyGameweeks">>();
+  let updatedFixtures = 0;
+  let updatedGameweeks = 0;
+
+  for (const fixture of fixtures) {
+    if (fixture.status !== "scheduled") continue;
+
+    await ctx.db.patch(fixture._id, {
+      status: "live",
+      updatedAt: now,
+    });
+    updatedFixtures += 1;
+    if (fixture.gameweekId) {
+      liveGameweekIds.add(fixture.gameweekId);
+    }
+  }
+
+  for (const gameweekId of liveGameweekIds) {
+    const gameweek = await ctx.db.get(gameweekId);
+    if (
+      !gameweek ||
+      gameweek.seasonId !== season._id ||
+      gameweek.status === "completed" ||
+      gameweek.status === "live"
+    ) {
+      continue;
+    }
+
+    await ctx.db.patch(gameweek._id, {
+      status: "live",
+      updatedAt: now,
+    });
+    updatedGameweeks += 1;
+  }
+
+  return {
+    checkedFixtures: fixtures.length,
+    updatedFixtures,
+    updatedGameweeks,
+  };
+}
+
+export const processStartedFixtures = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const seasons = await ctx.db.query("fantasySeasons").collect();
+    let checkedFixtures = 0;
+    let processedSeasons = 0;
+    let updatedFixtures = 0;
+    let updatedGameweeks = 0;
+
+    for (const season of seasons) {
+      if (season.status === "completed" || season.status === "archived") {
+        continue;
+      }
+      const result = await processStartedFixturesForSeason(ctx, season, now);
+      checkedFixtures += result.checkedFixtures;
+      updatedFixtures += result.updatedFixtures;
+      updatedGameweeks += result.updatedGameweeks;
+      processedSeasons += 1;
+    }
+
+    return {
+      checkedFixtures,
+      processedSeasons,
+      updatedFixtures,
+      updatedGameweeks,
+    };
+  },
+});
+
+export const processStartedFixturesNow = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const now = Date.now();
+    if (args.seasonSlug) {
+      const season = await requireExistingSeason(ctx, args.seasonSlug);
+      return {
+        processedSeasons: 1,
+        ...(await processStartedFixturesForSeason(ctx, season, now)),
+      };
+    }
+
+    const seasons = await ctx.db.query("fantasySeasons").collect();
+    let checkedFixtures = 0;
+    let processedSeasons = 0;
+    let updatedFixtures = 0;
+    let updatedGameweeks = 0;
+
+    for (const season of seasons) {
+      if (season.status === "completed" || season.status === "archived") {
+        continue;
+      }
+      const result = await processStartedFixturesForSeason(ctx, season, now);
+      checkedFixtures += result.checkedFixtures;
+      updatedFixtures += result.updatedFixtures;
+      updatedGameweeks += result.updatedGameweeks;
+      processedSeasons += 1;
+    }
+
+    return {
+      checkedFixtures,
+      processedSeasons,
+      updatedFixtures,
+      updatedGameweeks,
+    };
+  },
+});
+
 export const processPassedGameweekDeadlinesNow = mutation({
   args: {
     seasonSlug: v.optional(v.string()),
@@ -6629,6 +6768,8 @@ export const applyPlayerRosterCorrections = mutation({
         playerName: v.optional(v.string()),
         expectedClubName: v.optional(v.string()),
         clubName: v.optional(v.union(v.string(), v.null())),
+        currentTeamExternalIds: v.optional(v.array(v.string())),
+        listedTeamExternalIds: v.optional(v.array(v.string())),
         status: v.optional(fantasyPlayerStatusValidator),
         statusDetails: v.optional(
           v.union(fantasyPlayerStatusDetailsValidator, v.null()),
@@ -6740,6 +6881,12 @@ export const applyPlayerRosterCorrections = mutation({
 
       if (update.status !== undefined) {
         patch.status = update.status;
+      }
+      if (update.currentTeamExternalIds !== undefined) {
+        patch.currentTeamExternalIds = update.currentTeamExternalIds;
+      }
+      if (update.listedTeamExternalIds !== undefined) {
+        patch.listedTeamExternalIds = update.listedTeamExternalIds;
       }
       if (update.statusDetails !== undefined) {
         patch.statusDetails =

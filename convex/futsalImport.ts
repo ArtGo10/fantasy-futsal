@@ -216,12 +216,14 @@ function normalizeImportPlayerStatusDetails(
 ) {
   const message = toOptionalText(details.message);
   const messageEn = toOptionalText(details.messageEn);
+  const messagePl = toOptionalText(details.messagePl);
   const messageUk = toOptionalText(details.messageUk);
-  if (!message && !messageEn && !messageUk) return undefined;
+  if (!message && !messageEn && !messagePl && !messageUk) return undefined;
 
   return {
     ...(message ? { message } : {}),
     ...(messageEn ? { messageEn } : {}),
+    ...(messagePl ? { messagePl } : {}),
     ...(messageUk ? { messageUk } : {}),
     updatedAt: details.updatedAt ?? updatedAt,
   };

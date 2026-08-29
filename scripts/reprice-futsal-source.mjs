@@ -45,6 +45,19 @@ function formatPrice(value) {
   return value.toFixed(1);
 }
 
+function resolveSuggestedPrice(player) {
+  if (typeof player.manualPriceOverride === "number") {
+    return player.manualPriceOverride;
+  }
+
+  return calculateSuggestedPrice({
+    clubExternalId: player.clubExternalId,
+    displayName: player.displayName,
+    position: player.position,
+    statsByCompetition: player.sourceStats,
+  });
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const filePath = resolve(options.file);
@@ -61,12 +74,7 @@ function main() {
   let changed = 0;
 
   for (const player of source.players) {
-    const nextPrice = calculateSuggestedPrice({
-      clubExternalId: player.clubExternalId,
-      displayName: player.displayName,
-      position: player.position,
-      statsByCompetition: player.sourceStats,
-    });
+    const nextPrice = resolveSuggestedPrice(player);
     if (player.suggestedPrice !== nextPrice) changed += 1;
     player.suggestedPrice = nextPrice;
   }

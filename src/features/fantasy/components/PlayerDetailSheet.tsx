@@ -59,6 +59,7 @@ export type PlayerDetail = {
   statusDetails?: {
     message?: string | null;
     messageEn?: string | null;
+    messagePl?: string | null;
     messageUk?: string | null;
     updatedAt?: number | null;
   } | null;

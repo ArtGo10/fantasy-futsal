@@ -24,6 +24,26 @@ const processPassedGameweekDeadlinesInternal = makeFunctionReference<
   Record<string, never>,
   { createdSnapshots: number; grantedTeams: number; processedGameweeks: number }
 >;
+const processStartedFixturesInternal = makeFunctionReference<
+  "mutation",
+  Record<string, never>,
+  {
+    checkedFixtures: number;
+    processedSeasons: number;
+    updatedFixtures: number;
+    updatedGameweeks: number;
+  }
+>("fantasy:processStartedFixtures") as unknown as FunctionReference<
+  "mutation",
+  "internal",
+  Record<string, never>,
+  {
+    checkedFixtures: number;
+    processedSeasons: number;
+    updatedFixtures: number;
+    updatedGameweeks: number;
+  }
+>;
 const processAccountDeletionCleanupJobsInternal = makeFunctionReference<
   "action",
   Record<string, never>,
@@ -44,6 +64,11 @@ crons.interval(
   "process fantasy gameweek deadlines",
   { minutes: 1 },
   processPassedGameweekDeadlinesInternal,
+);
+crons.interval(
+  "process started fantasy fixtures",
+  { minutes: 1 },
+  processStartedFixturesInternal,
 );
 crons.interval(
   "cleanup deleted account data",
