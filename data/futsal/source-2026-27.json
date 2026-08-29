@@ -288,7 +288,8 @@
         "6505",
         "6329",
         "18946",
-        "source-artem-rybak"
+        "source-artem-rybak",
+        "10399"
       ],
       "sortOrder": 10,
       "isActive": true
@@ -485,7 +486,7 @@
       "firstName": "Владислав",
       "lastName": "Гранько",
       "position": "universal",
-      "jerseyNumber": 14,
+      "jerseyNumber": 6,
       "clubExternalId": "3430",
       "currentTeamExternalIds": [
         "3430"
@@ -898,13 +899,9 @@
       "lastName": "Хамдамов",
       "position": "universal",
       "jerseyNumber": 10,
-      "clubExternalId": "3430",
-      "currentTeamExternalIds": [
-        "3430"
-      ],
-      "listedTeamExternalIds": [
-        "3430"
-      ],
+      "clubExternalId": null,
+      "currentTeamExternalIds": [],
+      "listedTeamExternalIds": [],
       "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4140.jpg",
       "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/4140.jpg",
       "sourceStats": {
@@ -923,7 +920,13 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4140.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/khamdalov.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/khamdalov-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/12/khamdalov-150x150.jpg",
+      "status": "unavailable",
+      "statusDetails": {
+        "messageEn": "Retired from playing career.",
+        "messagePl": "Zakończył karierę zawodniczą.",
+        "messageUk": "Завершив кар'єру."
+      }
     },
     {
       "externalId": "4589",
@@ -952,7 +955,13 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4589.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2006/06/khibovskyy.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/06/khibovskyy-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/06/khibovskyy-150x150.jpg",
+      "status": "doubtful",
+      "statusDetails": {
+        "messageEn": "Injury severity unknown.",
+        "messagePl": "Powaga urazu jest nieznana.",
+        "messageUk": "Серйозність травми невідома."
+      }
     },
     {
       "externalId": "4575",
@@ -993,7 +1002,7 @@
       "firstName": "Вадим",
       "lastName": "Данилюк",
       "position": "universal",
-      "jerseyNumber": 8,
+      "jerseyNumber": 10,
       "clubExternalId": "3430",
       "currentTeamExternalIds": [
         "3430"
@@ -1058,7 +1067,7 @@
       "firstName": "Денис",
       "lastName": "Зеленкевич",
       "position": "universal",
-      "jerseyNumber": 19,
+      "jerseyNumber": 12,
       "clubExternalId": "3430",
       "currentTeamExternalIds": [
         "3430"
@@ -1221,7 +1230,13 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4141.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/abzalov.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/abzalov-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/02/abzalov-150x150.jpg",
+      "status": "injured",
+      "statusDetails": {
+        "messageEn": "Serious injury.",
+        "messagePl": "Poważna kontuzja.",
+        "messageUk": "Серйозна травма."
+      }
     },
     {
       "externalId": "4585",
@@ -1360,7 +1375,13 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4566.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/hutsuliak.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/hutsuliak-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2003/09/hutsuliak-150x150.jpg",
+      "status": "doubtful",
+      "statusDetails": {
+        "messageEn": "Injury severity unknown.",
+        "messagePl": "Powaga urazu jest nieznana.",
+        "messageUk": "Серйозність травми невідома."
+      }
     },
     {
       "externalId": "9430",
@@ -1432,7 +1453,13 @@
       "photoCloudflareId": null,
       "photoStorageKey": "players/4583.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2006/12/rostkivskyy.jpg",
-      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/12/rostkivskyy-150x150.jpg"
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2006/12/rostkivskyy-150x150.jpg",
+      "status": "injured",
+      "statusDetails": {
+        "messageEn": "Serious injury.",
+        "messagePl": "Poważna kontuzja.",
+        "messageUk": "Серйозна травма."
+      }
     },
     {
       "externalId": "4143",
@@ -1498,6 +1525,122 @@
       "photoStorageKey": "players/8257.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1999/08/kozhukhovskyy.jpg",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/08/kozhukhovskyy-150x150.jpg"
+    },
+    {
+      "externalId": "sokil-2026-27-maksym-melnyk",
+      "sourceSlug": "sokil-2026-27-maksym-melnyk",
+      "sourceUrl": "",
+      "displayName": "Максим Мельник",
+      "firstName": "Максим",
+      "lastName": "Мельник",
+      "position": "universal",
+      "jerseyNumber": 3,
+      "clubExternalId": "3430",
+      "currentTeamExternalIds": [
+        "3430"
+      ],
+      "listedTeamExternalIds": [
+        "3430"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoCloudflareId": null,
+      "photoStorageKey": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5
+    },
+    {
+      "externalId": "sokil-2026-27-bohdan-hladun",
+      "sourceSlug": "sokil-2026-27-bohdan-hladun",
+      "sourceUrl": "",
+      "displayName": "Богдан Гладун",
+      "firstName": "Богдан",
+      "lastName": "Гладун",
+      "position": "universal",
+      "jerseyNumber": 7,
+      "clubExternalId": "3430",
+      "currentTeamExternalIds": [
+        "3430"
+      ],
+      "listedTeamExternalIds": [
+        "3430"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoCloudflareId": null,
+      "photoStorageKey": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5
+    },
+    {
+      "externalId": "sokil-2026-27-vladyslav-hlushko",
+      "sourceSlug": "sokil-2026-27-vladyslav-hlushko",
+      "sourceUrl": "",
+      "displayName": "Владислав Глушко",
+      "firstName": "Владислав",
+      "lastName": "Глушко",
+      "position": "universal",
+      "jerseyNumber": 14,
+      "clubExternalId": "3430",
+      "currentTeamExternalIds": [
+        "3430"
+      ],
+      "listedTeamExternalIds": [
+        "3430"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoCloudflareId": null,
+      "photoStorageKey": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5
+    },
+    {
+      "externalId": "sokil-2026-27-tymur-hontar",
+      "sourceSlug": "sokil-2026-27-tymur-hontar",
+      "sourceUrl": "",
+      "displayName": "Тимур Гонтар",
+      "firstName": "Тимур",
+      "lastName": "Гонтар",
+      "position": "goalkeeper",
+      "jerseyNumber": 19,
+      "clubExternalId": "3430",
+      "currentTeamExternalIds": [
+        "3430"
+      ],
+      "listedTeamExternalIds": [
+        "3430"
+      ],
+      "photoUrl": null,
+      "photoThumbnailUrl": null,
+      "photoProvider": null,
+      "photoCloudflareId": null,
+      "photoStorageKey": null,
+      "photoSourceUrl": null,
+      "photoSourceThumbnailUrl": null,
+      "sourceStats": {
+        "extraLeague2025_26": null,
+        "firstLeague2025_26": null
+      },
+      "suggestedPrice": 5.5
     },
     {
       "externalId": "4405",
@@ -3698,7 +3841,7 @@
       "firstName": "Назарій-Зеновій",
       "lastName": "Войтович",
       "position": "goalkeeper",
-      "jerseyNumber": 30,
+      "jerseyNumber": 12,
       "clubExternalId": "19235",
       "currentTeamExternalIds": [
         "19235"
@@ -5197,7 +5340,7 @@
       "firstName": "Віталій",
       "lastName": "Радевич",
       "position": "universal",
-      "jerseyNumber": 8,
+      "jerseyNumber": 10,
       "clubExternalId": "19235",
       "currentTeamExternalIds": [
         "19235"
@@ -6512,7 +6655,7 @@
       "firstName": "Микола",
       "lastName": "Грицина",
       "position": "universal",
-      "jerseyNumber": 17,
+      "jerseyNumber": 7,
       "clubExternalId": "19235",
       "currentTeamExternalIds": [
         "19235"
@@ -7424,7 +7567,7 @@
       "position": "universal",
       "status": "active",
       "statusDetails": null,
-      "jerseyNumber": 77,
+      "jerseyNumber": 8,
       "clubExternalId": "3430",
       "currentTeamExternalIds": [
         "3430"
@@ -8040,6 +8183,45 @@
       "photoStorageKey": null,
       "photoSourceUrl": null,
       "photoSourceThumbnailUrl": null
+    },
+    {
+      "externalId": "10399",
+      "sourceSlug": "ihor-kramar",
+      "sourceUrl": "https://futsal.com.ua/гравці/ihor-kramar/",
+      "displayName": "Ігор Крамар",
+      "firstName": "Ігор",
+      "lastName": "Крамар",
+      "position": "universal",
+      "jerseyNumber": 97,
+      "clubExternalId": "21695",
+      "currentTeamExternalIds": [
+        "21695"
+      ],
+      "listedTeamExternalIds": [
+        "21695"
+      ],
+      "photoUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/10399.png",
+      "photoThumbnailUrl": "https://pub-f760869351544bb68232b9172812d043.r2.dev/players/10399.png",
+      "suggestedPrice": 7,
+      "photoProvider": "cloudflare_r2",
+      "photoCloudflareId": null,
+      "photoStorageKey": "players/10399.png",
+      "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/05/Kramar--scaled.png",
+      "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/05/Kramar--scaled.png",
+      "status": "active",
+      "statusDetails": null,
+      "sourceStats": {
+        "extraLeague2025_26": {
+          "goals": 10,
+          "assists": 2,
+          "appearances": 10,
+          "yellowCards": 3,
+          "redCards": 1,
+          "ownGoals": 0
+        },
+        "firstLeague2025_26": null
+      },
+      "manualPriceOverride": 7
     }
   ],
   "fixtures": [
@@ -8049,7 +8231,7 @@
       "sourceUrl": "https://futsal.com.ua/event/ahromat-kyiv-avalon-brovary-2/",
       "title": "Агромат — Авалон",
       "gameweekNumber": 1,
-      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "scheduledAt": "2026-08-29T13:00:00.000+03:00",
       "homeClubExternalId": "5599",
       "awayClubExternalId": "5596",
       "homeClubName": "Агромат",
@@ -8073,7 +8255,7 @@
       "sourceUrl": "https://futsal.com.ua/event/fantom-kyiv-khit-kyiv/",
       "title": "Фантом — ХІТ",
       "gameweekNumber": 1,
-      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "scheduledAt": "2026-08-29T13:00:00.000+03:00",
       "homeClubExternalId": "19258",
       "awayClubExternalId": "3438",
       "homeClubName": "Фантом",
@@ -8097,7 +8279,7 @@
       "sourceUrl": "https://futsal.com.ua/event/urahan-ivano-frankivsk-skayap/",
       "title": "Ураган — SkyUp",
       "gameweekNumber": 1,
-      "scheduledAt": "2026-08-29T12:00:00.000+03:00",
+      "scheduledAt": "2026-08-29T13:00:00.000+03:00",
       "homeClubExternalId": "2892",
       "awayClubExternalId": "21695",
       "homeClubName": "Ураган",

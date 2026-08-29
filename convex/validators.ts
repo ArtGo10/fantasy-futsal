@@ -105,6 +105,7 @@ export const fantasyPlayerStatusValidator = v.union(
 export const fantasyPlayerStatusDetailsValidator = v.object({
   message: v.optional(v.string()),
   messageEn: v.optional(v.string()),
+  messagePl: v.optional(v.string()),
   messageUk: v.optional(v.string()),
   updatedAt: v.optional(v.number()),
 });
