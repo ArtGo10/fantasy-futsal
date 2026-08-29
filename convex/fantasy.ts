@@ -103,6 +103,16 @@ const FANTASY_PRIVATE_LEAGUE_INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ234
 const FANTASY_PRIVATE_LEAGUE_NAME_MAX_LENGTH = 48;
 const GAMEWEEK_LIVE_PUSH_DELAY_MS = 12 * 60 * 60 * 1000;
 const FIXTURE_AUTO_LIVE_LOOKBACK_MS = 12 * 60 * 60 * 1000;
+const FANTASY_SUSPENSION_EVENT_TYPES = new Set<FantasyFixtureEventType>([
+  "red_card",
+  "second_yellow_red",
+]);
+const FANTASY_SUSPENSION_STATUS_DETAILS = {
+  message: "Дискваліфікація",
+  messageEn: "Suspended for 1 gameweek",
+  messagePl: "Dyskwalifikacja na 1 kolejkę",
+  messageUk: "Дискваліфікація на 1 тур",
+} as const;
 const EXTRA_LEAGUE_ACCIDENTAL_DEV_CLUB_NAMES = new Set([
   "Атлетик Футзал",
   "SkyUp Futsal",
@@ -456,9 +466,53 @@ function normalizeFantasyPlayerStatusDetails(
   };
 }
 
-function toFantasyPlayerStatusDetailsView(
-  player: Pick<Doc<"fantasyPlayers">, "statusDetails">,
+type FantasyPlayerAvailabilityContext = {
+  currentGameweekNumber?: number | null;
+};
+
+function getFantasyPlayerSuspensionGameweekNumbers(
+  player: Pick<Doc<"fantasyPlayers">, "suspensionGameweekNumbers">,
 ) {
+  return [...new Set(player.suspensionGameweekNumbers ?? [])]
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((a, b) => a - b);
+}
+
+function isFantasyPlayerSuspendedForGameweek(
+  player: Pick<Doc<"fantasyPlayers">, "suspensionGameweekNumbers">,
+  context?: FantasyPlayerAvailabilityContext,
+) {
+  const currentGameweekNumber = context?.currentGameweekNumber;
+  if (
+    currentGameweekNumber === undefined ||
+    currentGameweekNumber === null ||
+    !Number.isInteger(currentGameweekNumber)
+  ) {
+    return false;
+  }
+
+  return getFantasyPlayerSuspensionGameweekNumbers(player).includes(
+    currentGameweekNumber,
+  );
+}
+
+function toFantasyPlayerStatusDetailsView(
+  player: Pick<
+    Doc<"fantasyPlayers">,
+    "statusDetails" | "suspensionGameweekNumbers" | "suspensionUpdatedAt"
+  >,
+  context?: FantasyPlayerAvailabilityContext,
+) {
+  if (isFantasyPlayerSuspendedForGameweek(player, context)) {
+    return {
+      message: FANTASY_SUSPENSION_STATUS_DETAILS.message,
+      messageEn: FANTASY_SUSPENSION_STATUS_DETAILS.messageEn,
+      messagePl: FANTASY_SUSPENSION_STATUS_DETAILS.messagePl,
+      messageUk: FANTASY_SUSPENSION_STATUS_DETAILS.messageUk,
+      updatedAt: player.suspensionUpdatedAt ?? null,
+    };
+  }
+
   if (!player.statusDetails) return null;
 
   return {
@@ -471,9 +525,17 @@ function toFantasyPlayerStatusDetailsView(
 }
 
 function getEffectiveFantasyPlayerStatus(
-  player: Pick<Doc<"fantasyPlayers">, "clubId" | "status">,
+  player: Pick<
+    Doc<"fantasyPlayers">,
+    "clubId" | "status" | "suspensionGameweekNumbers"
+  >,
+  context?: FantasyPlayerAvailabilityContext,
 ): FantasyPlayerStatus {
-  return player.clubId ? player.status : "unavailable";
+  if (!player.clubId) return "unavailable";
+  if (isFantasyPlayerSuspendedForGameweek(player, context)) {
+    return "suspended";
+  }
+  return player.status;
 }
 
 function getSquadRoleForRosterSlot(rosterSlot: number): FantasySquadRole {
@@ -965,14 +1027,14 @@ function findEditableGameweekFromList(
   );
 }
 
-async function findCurrentGameweek(
-  ctx: QueryCtx | MutationCtx,
+function findCurrentGameweekFromList(
   season: Doc<"fantasySeasons">,
+  gameweeks: Doc<"fantasyGameweeks">[],
   now = Date.now(),
 ) {
-  const gameweeks = await getSeasonGameweeks(ctx, season._id);
+  const sortedGameweeks = [...gameweeks].sort((a, b) => a.number - b.number);
   const gameweeksById = new Map(
-    gameweeks.map((gameweek) => [gameweek._id, gameweek]),
+    sortedGameweeks.map((gameweek) => [gameweek._id, gameweek]),
   );
   const configuredGameweek = season.currentGameweekId
     ? (gameweeksById.get(season.currentGameweekId) ?? null)
@@ -986,15 +1048,31 @@ async function findCurrentGameweek(
   }
 
   const nextAfterConfigured = configuredGameweek
-    ? findEditableGameweekFromList(gameweeks, now, configuredGameweek.number)
+    ? findEditableGameweekFromList(
+        sortedGameweeks,
+        now,
+        configuredGameweek.number,
+      )
     : null;
   if (nextAfterConfigured) return nextAfterConfigured;
 
   return (
-    findEditableGameweekFromList(gameweeks, now) ??
-    gameweeks.find((gameweek) => gameweek.status !== "completed") ??
-    gameweeks[gameweeks.length - 1] ??
+    findEditableGameweekFromList(sortedGameweeks, now) ??
+    sortedGameweeks.find((gameweek) => gameweek.status !== "completed") ??
+    sortedGameweeks[sortedGameweeks.length - 1] ??
     null
+  );
+}
+
+async function findCurrentGameweek(
+  ctx: QueryCtx | MutationCtx,
+  season: Doc<"fantasySeasons">,
+  now = Date.now(),
+) {
+  return findCurrentGameweekFromList(
+    season,
+    await getSeasonGameweeks(ctx, season._id),
+    now,
   );
 }
 
@@ -1538,6 +1616,15 @@ export const listPlayers = query({
         .collect(),
     ]);
     const clubsById = new Map(clubs.map((club) => [club._id, club]));
+    const now = Date.now();
+    const currentGameweek = findCurrentGameweekFromList(
+      season,
+      gameweeks,
+      now,
+    );
+    const availabilityContext = {
+      currentGameweekNumber: currentGameweek?.number ?? null,
+    };
     const latestPriceHistoryByPlayerId = new Map<
       Id<"fantasyPlayers">,
       Doc<"fantasyPlayerPriceHistory">
@@ -1610,7 +1697,12 @@ export const listPlayers = query({
           !args.position ||
           toPublicFantasyPlayerPosition(player.position) === args.position,
       )
-      .filter((player) => (args.status ? player.status === args.status : true))
+      .filter((player) =>
+        args.status
+          ? getEffectiveFantasyPlayerStatus(player, availabilityContext) ===
+            args.status
+          : true,
+      )
       .map((player) => {
         const club = player.clubId ? clubsById.get(player.clubId) : null;
         const stats = statsByPlayerId.get(player._id) ?? getEmptyPlayerStats();
@@ -1654,8 +1746,11 @@ export const listPlayers = query({
               : null,
           priceChangedAt: latestPriceHistory?.createdAt ?? null,
           priceDelta,
-          status: getEffectiveFantasyPlayerStatus(player),
-          statusDetails: toFantasyPlayerStatusDetailsView(player),
+          status: getEffectiveFantasyPlayerStatus(player, availabilityContext),
+          statusDetails: toFantasyPlayerStatusDetailsView(
+            player,
+            availabilityContext,
+          ),
           jerseyNumber: player.jerseyNumber ?? null,
           photoUrl: player.photoUrl ?? null,
           photoThumbnailUrl: player.photoThumbnailUrl ?? null,
@@ -3696,6 +3791,119 @@ function getFixtureResultKind(
   return "draw" as const;
 }
 
+function areNumberArraysEqual(a: number[], b: number[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function areFixtureEventIdArraysEqual(
+  a: Id<"fantasyFixtureEvents">[],
+  b: Id<"fantasyFixtureEvents">[],
+) {
+  return (
+    a.length === b.length &&
+    a.every((value, index) => String(value) === String(b[index]))
+  );
+}
+
+async function syncFantasyPlayerSuspensionsForSeason(
+  ctx: MutationCtx,
+  seasonId: Id<"fantasySeasons">,
+  now = Date.now(),
+) {
+  const [players, gameweeks, events] = await Promise.all([
+    ctx.db
+      .query("fantasyPlayers")
+      .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+      .collect(),
+    getSeasonGameweeks(ctx, seasonId),
+    ctx.db
+      .query("fantasyFixtureEvents")
+      .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+      .collect(),
+  ]);
+  const gameweeksById = new Map(
+    gameweeks.map((gameweek) => [gameweek._id, gameweek]),
+  );
+  const gameweekNumbers = new Set(gameweeks.map((gameweek) => gameweek.number));
+  const suspensionGameweeksByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    Set<number>
+  >();
+  const suspensionEventIdsByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    Id<"fantasyFixtureEvents">[]
+  >();
+
+  for (const event of events) {
+    if (
+      !event.playerId ||
+      !event.gameweekId ||
+      !FANTASY_SUSPENSION_EVENT_TYPES.has(event.type)
+    ) {
+      continue;
+    }
+
+    const gameweek = gameweeksById.get(event.gameweekId);
+    if (!gameweek) continue;
+
+    const suspensionGameweekNumber = gameweek.number + 1;
+    if (!gameweekNumbers.has(suspensionGameweekNumber)) continue;
+
+    const currentGameweeks =
+      suspensionGameweeksByPlayerId.get(event.playerId) ?? new Set<number>();
+    currentGameweeks.add(suspensionGameweekNumber);
+    suspensionGameweeksByPlayerId.set(event.playerId, currentGameweeks);
+
+    const currentEventIds =
+      suspensionEventIdsByPlayerId.get(event.playerId) ?? [];
+    currentEventIds.push(event._id);
+    suspensionEventIdsByPlayerId.set(event.playerId, currentEventIds);
+  }
+
+  const changedPlayers = [];
+  for (const player of players) {
+    const nextGameweekNumbers = [
+      ...(suspensionGameweeksByPlayerId.get(player._id) ?? new Set<number>()),
+    ].sort((a, b) => a - b);
+    const nextSourceEventIds = [
+      ...(suspensionEventIdsByPlayerId.get(player._id) ?? []),
+    ].sort((a, b) => String(a).localeCompare(String(b)));
+    const previousGameweekNumbers =
+      getFantasyPlayerSuspensionGameweekNumbers(player);
+    const previousSourceEventIds = [
+      ...(player.suspensionSourceEventIds ?? []),
+    ].sort((a, b) => String(a).localeCompare(String(b)));
+
+    if (
+      areNumberArraysEqual(previousGameweekNumbers, nextGameweekNumbers) &&
+      areFixtureEventIdArraysEqual(previousSourceEventIds, nextSourceEventIds)
+    ) {
+      continue;
+    }
+
+    await ctx.db.patch(player._id, {
+      suspensionGameweekNumbers:
+        nextGameweekNumbers.length > 0 ? nextGameweekNumbers : undefined,
+      suspensionSourceEventIds:
+        nextSourceEventIds.length > 0 ? nextSourceEventIds : undefined,
+      suspensionUpdatedAt:
+        nextGameweekNumbers.length > 0 ? now : undefined,
+      updatedAt: now,
+    });
+    changedPlayers.push({
+      playerId: player._id,
+      displayName: player.displayName,
+      gameweekNumbers: nextGameweekNumbers,
+      suspended: nextGameweekNumbers.length > 0,
+    });
+  }
+
+  return {
+    changed: changedPlayers.length,
+    players: changedPlayers,
+  };
+}
+
 export const playerProfile = query({
   args: {
     playerId: v.id("fantasyPlayers"),
@@ -3826,6 +4034,14 @@ export const playerProfile = query({
     const gameweeksById = new Map(
       gameweeks.map((gameweek) => [gameweek._id, gameweek]),
     );
+    const currentGameweek = findCurrentGameweekFromList(
+      season,
+      gameweeks,
+      Date.now(),
+    );
+    const availabilityContext = {
+      currentGameweekNumber: currentGameweek?.number ?? null,
+    };
     const matches = teamFixtures
       .map((fixture, index) => {
         const isHome = player.clubId
@@ -3907,8 +4123,11 @@ export const playerProfile = query({
             : null,
         priceChangedAt: latestPriceHistory?.createdAt ?? null,
         priceDelta,
-        status: getEffectiveFantasyPlayerStatus(player),
-        statusDetails: toFantasyPlayerStatusDetailsView(player),
+        status: getEffectiveFantasyPlayerStatus(player, availabilityContext),
+        statusDetails: toFantasyPlayerStatusDetailsView(
+          player,
+          availabilityContext,
+        ),
         appearances: stats.appearances,
         assists: stats.assists,
         averagePointsPerGameweek: averagePointsPerMatch,
@@ -4033,6 +4252,14 @@ export const seasonPlayerStatistics = query({
       );
     }
     const latestScoredGameweek = findLatestScoredGameweekFromList(gameweeks);
+    const currentGameweek = findCurrentGameweekFromList(
+      season,
+      gameweeks,
+      Date.now(),
+    );
+    const availabilityContext = {
+      currentGameweekNumber: currentGameweek?.number ?? null,
+    };
 
     const squadPickLists = await Promise.all(
       fantasyTeams.map((fantasyTeam) =>
@@ -4098,8 +4325,11 @@ export const seasonPlayerStatistics = query({
             : null,
         priceChangedAt: latestPriceHistory?.createdAt ?? null,
         priceDelta,
-        status: getEffectiveFantasyPlayerStatus(player),
-        statusDetails: toFantasyPlayerStatusDetailsView(player),
+        status: getEffectiveFantasyPlayerStatus(player, availabilityContext),
+        statusDetails: toFantasyPlayerStatusDetailsView(
+          player,
+          availabilityContext,
+        ),
         appearances: stats.appearances,
         assists: stats.assists,
         averagePointsPerGameweek: averagePointsPerMatch,
@@ -4363,6 +4593,14 @@ export const myTeam = query({
       gameweeks.map((gameweek) => [gameweek._id, gameweek]),
     );
     const latestScoredGameweek = findLatestScoredGameweekFromList(gameweeks);
+    const currentGameweek = findCurrentGameweekFromList(
+      season,
+      gameweeks,
+      Date.now(),
+    );
+    const availabilityContext = {
+      currentGameweekNumber: currentGameweek?.number ?? null,
+    };
     const snapshotsByGameweekId = new Map<
       Id<"fantasyGameweeks">,
       Doc<"fantasyGameweekSquadPicks">[]
@@ -4577,8 +4815,14 @@ export const myTeam = query({
                   photoSourceUrl: player.photoSourceUrl ?? null,
                   photoSourceThumbnailUrl:
                     player.photoSourceThumbnailUrl ?? null,
-                  status: getEffectiveFantasyPlayerStatus(player),
-                  statusDetails: toFantasyPlayerStatusDetailsView(player),
+                  status: getEffectiveFantasyPlayerStatus(
+                    player,
+                    availabilityContext,
+                  ),
+                  statusDetails: toFantasyPlayerStatusDetailsView(
+                    player,
+                    availabilityContext,
+                  ),
                 }
               : null,
           };
@@ -5578,6 +5822,8 @@ async function processStartedFixturesForSeason(
 
     await ctx.db.patch(fixture._id, {
       status: "live",
+      homeScore: fixture.homeScore ?? 0,
+      awayScore: fixture.awayScore ?? 0,
       updatedAt: now,
     });
     updatedFixtures += 1;
@@ -5850,11 +6096,17 @@ export const upsertFixtureEvent = mutation({
         fixture,
         now,
       );
+      const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+        ctx,
+        fixture.seasonId,
+        now,
+      );
       return {
         created: false,
         eventId: existingEvent._id,
         points: eventPoints ?? null,
         refresh,
+        suspensionSync,
       };
     }
 
@@ -5863,7 +6115,18 @@ export const upsertFixtureEvent = mutation({
       createdAt: now,
     });
     const refresh = await refreshGameweekAfterFixtureChange(ctx, fixture, now);
-    return { created: true, eventId, points: eventPoints ?? null, refresh };
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      fixture.seasonId,
+      now,
+    );
+    return {
+      created: true,
+      eventId,
+      points: eventPoints ?? null,
+      refresh,
+      suspensionSync,
+    };
   },
 });
 
@@ -6095,11 +6358,17 @@ export const deleteFixtureEvent = mutation({
     }
 
     const fixture = await ctx.db.get(event.fixtureId);
+    const now = Date.now();
     await ctx.db.delete(event._id);
     const refresh = fixture
-      ? await refreshGameweekAfterFixtureChange(ctx, fixture, Date.now())
+      ? await refreshGameweekAfterFixtureChange(ctx, fixture, now)
       : null;
-    return { deleted: true, refresh };
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      event.seasonId,
+      now,
+    );
+    return { deleted: true, refresh, suspensionSync };
   },
 });
 
@@ -6253,6 +6522,11 @@ export const resetGameweekSimulation = mutation({
       currentGameweekId: gameweek._id,
       updatedAt: now,
     });
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      season._id,
+      now,
+    );
 
     return {
       deletedEvents: events.length,
@@ -6268,6 +6542,158 @@ export const resetGameweekSimulation = mutation({
         ? participatingTeamIds.size
         : 0,
       resetFixtures: fixtures.length,
+      suspensionSync,
+    };
+  },
+});
+
+export const syncPlayerSuspensions = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    return await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      season._id,
+      Date.now(),
+    );
+  },
+});
+
+export const markGameweekNonParticipantsDoubtful = mutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+    gameweekNumber: v.optional(v.number()),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const gameweekNumber = args.gameweekNumber ?? 1;
+    const gameweek = await findGameweekByNumber(
+      ctx,
+      season._id,
+      gameweekNumber,
+    );
+    if (!gameweek) {
+      throw new Error(`Тур ${gameweekNumber} не найден.`);
+    }
+
+    const [fixtures, players, clubs] = await Promise.all([
+      ctx.db
+        .query("fantasyFixtures")
+        .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayers")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyClubs")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+    ]);
+    const completedFixtures = fixtures.filter(
+      (fixture) => fixture.status === "completed",
+    );
+    const [lineupLists, eventLists] = await Promise.all([
+      Promise.all(
+        completedFixtures.map((fixture) =>
+          ctx.db
+            .query("fantasyFixtureLineups")
+            .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+            .collect(),
+        ),
+      ),
+      Promise.all(
+        completedFixtures.map((fixture) =>
+          ctx.db
+            .query("fantasyFixtureEvents")
+            .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+            .collect(),
+        ),
+      ),
+    ]);
+
+    const eligibleClubIds = new Set<Id<"fantasyClubs">>();
+    const appearedPlayerIds = new Set<Id<"fantasyPlayers">>();
+    const skippedFixturesWithoutLineups: Array<{
+      awayClubName: string;
+      fixtureId: Id<"fantasyFixtures">;
+      homeClubName: string;
+    }> = [];
+    completedFixtures.forEach((fixture, index) => {
+      const lineups = lineupLists[index] ?? [];
+      const events = eventLists[index] ?? [];
+      if (lineups.length === 0) {
+        skippedFixturesWithoutLineups.push({
+          fixtureId: fixture._id,
+          homeClubName: fixture.homeClubName,
+          awayClubName: fixture.awayClubName,
+        });
+        return;
+      }
+
+      if (fixture.homeClubId) eligibleClubIds.add(fixture.homeClubId);
+      if (fixture.awayClubId) eligibleClubIds.add(fixture.awayClubId);
+      for (const lineup of lineups) {
+        if (lineup.playerId) appearedPlayerIds.add(lineup.playerId);
+      }
+      for (const event of events) {
+        if (event.playerId) appearedPlayerIds.add(event.playerId);
+      }
+    });
+
+    const clubsById = new Map(clubs.map((club) => [club._id, club]));
+    const now = Date.now();
+    const statusDetails = normalizeFantasyPlayerStatusDetails(
+      {
+        message: `Не грав у турі ${gameweekNumber}`,
+        messageEn: `Did not play in Gameweek ${gameweekNumber}`,
+        messagePl: `Nie zagrał w ${gameweekNumber}. kolejce`,
+        messageUk: `Не грав у турі ${gameweekNumber}`,
+      },
+      now,
+    );
+    const targets = players
+      .filter((player) =>
+        player.clubId ? eligibleClubIds.has(player.clubId) : false,
+      )
+      .filter((player) => !appearedPlayerIds.has(player._id))
+      .filter((player) => player.status === "active")
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    if (!args.dryRun) {
+      for (const player of targets) {
+        await ctx.db.patch(player._id, {
+          status: "doubtful",
+          statusDetails,
+          updatedAt: now,
+        });
+      }
+    }
+
+    return {
+      dryRun: args.dryRun ?? false,
+      eligibleClubs: [...eligibleClubIds]
+        .map((clubId) => clubsById.get(clubId)?.name ?? String(clubId))
+        .sort((a, b) => a.localeCompare(b)),
+      gameweekId: gameweek._id,
+      gameweekNumber,
+      skippedFixturesWithoutLineups,
+      targetCount: targets.length,
+      targets: targets.map((player) => ({
+        playerId: player._id,
+        displayName: player.displayName,
+        clubName: player.clubId
+          ? (clubsById.get(player.clubId)?.name ?? null)
+          : null,
+      })),
+      updated: args.dryRun ? 0 : targets.length,
     };
   },
 });
@@ -6611,6 +7037,11 @@ export const completeGameweekAndGrantTransfers = mutation({
         });
       }
     }
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      season._id,
+      now,
+    );
 
     return {
       alreadyGranted,
@@ -6619,6 +7050,7 @@ export const completeGameweekAndGrantTransfers = mutation({
       nextGameweekId: nextGameweek?._id ?? null,
       priceChanges,
       scoring,
+      suspensionSync,
     };
   },
 });
