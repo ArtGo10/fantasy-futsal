@@ -164,16 +164,27 @@ const SEASON_SECTIONS: Array<{ id: SeasonSection; labelKey: TranslationKey }> =
     { id: "stats", labelKey: "season.statsTab" },
   ];
 
-const MATCH_EVENT_LABEL_KEYS: Record<MatchDetailEventType, TranslationKey> = {
-  assist: "matchDetails.event.assist",
-  goal: "matchDetails.event.goal",
-  own_goal: "matchDetails.event.own_goal",
-  penalty_missed: "matchDetails.event.penalty_missed",
-  penalty_saved: "matchDetails.event.penalty_saved",
-  red_card: "matchDetails.event.red_card",
-  second_yellow_red: "matchDetails.event.second_yellow_red",
-  yellow_card: "matchDetails.event.yellow_card",
+const MATCH_EVENT_BADGE_LABELS: Record<MatchDetailEventType, string> = {
+  assist: "🅰️",
+  goal: "⚽",
+  own_goal: "🥅",
+  penalty_missed: "❌",
+  penalty_saved: "🧤",
+  red_card: "🟥",
+  second_yellow_red: "🟥",
+  yellow_card: "🟨",
 };
+
+const MATCH_EVENT_BADGE_ORDER: MatchDetailEventType[] = [
+  "goal",
+  "assist",
+  "penalty_saved",
+  "penalty_missed",
+  "own_goal",
+  "yellow_card",
+  "second_yellow_red",
+  "red_card",
+];
 
 const TABLE_MODES: Array<{ id: TableMode; labelKey: TranslationKey }> = [
   { id: "short", labelKey: "season.tableMode.short" },
@@ -258,8 +269,12 @@ function localizeMatchPlayerName(name: string, language: LanguageCode) {
 }
 
 function formatMatchTime(fixture: FantasyFixture, language: LanguageCode) {
+  if (fixture.status === "live") {
+    return `${fixture.homeScore ?? 0}:${fixture.awayScore ?? 0}`;
+  }
+
   if (
-    (fixture.status === "live" || fixture.status === "completed") &&
+    fixture.status === "completed" &&
     fixture.homeScore !== null &&
     fixture.awayScore !== null
   ) {
@@ -273,8 +288,12 @@ function formatMatchTime(fixture: FantasyFixture, language: LanguageCode) {
 }
 
 function shouldShowFixtureScore(fixture: FantasyFixture) {
+  if (fixture.status === "live") {
+    return true;
+  }
+
   return (
-    (fixture.status === "live" || fixture.status === "completed") &&
+    fixture.status === "completed" &&
     fixture.homeScore !== null &&
     fixture.awayScore !== null
   );
@@ -908,6 +927,156 @@ function getMatchFixtureClubName(
   return getLocalizedClubName(clubName, language);
 }
 
+type MatchDetailsEvent = {
+  id: string;
+  minute: number | null;
+  playerId: string | null;
+  playerName: string | null;
+  points: number | null;
+  side: "home" | "away";
+  type: MatchDetailEventType;
+};
+
+type MatchDetailsLineupPlayer = {
+  id: string;
+  isStarter: boolean | null;
+  jerseyNumber: number | null;
+  playerId: string | null;
+  playerName: string;
+  side: "home" | "away";
+};
+
+type MatchDetailsEventBadge = {
+  count: number;
+  type: MatchDetailEventType;
+};
+
+type MatchDetailsLineupRow = MatchDetailsLineupPlayer & {
+  eventBadges: MatchDetailsEventBadge[];
+};
+
+function normalizeMatchEventPlayerKey(value: string | null | undefined) {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+function isMatchEventForLineupPlayer(
+  event: MatchDetailsEvent,
+  lineup: MatchDetailsLineupPlayer,
+) {
+  if (event.side !== lineup.side) return false;
+  if (event.playerId && lineup.playerId && event.playerId === lineup.playerId) {
+    return true;
+  }
+
+  const eventNameKey = normalizeMatchEventPlayerKey(event.playerName);
+  const lineupNameKey = normalizeMatchEventPlayerKey(lineup.playerName);
+  return eventNameKey.length > 0 && eventNameKey === lineupNameKey;
+}
+
+function buildMatchDetailsEventBadges(events: MatchDetailsEvent[]) {
+  const countsByType = new Map<MatchDetailEventType, number>();
+
+  for (const event of events) {
+    countsByType.set(event.type, (countsByType.get(event.type) ?? 0) + 1);
+  }
+
+  return MATCH_EVENT_BADGE_ORDER.flatMap((type) => {
+    const count = countsByType.get(type) ?? 0;
+    return count > 0 ? [{ type, count }] : [];
+  });
+}
+
+function getMatchDetailsEventGroupKey(event: MatchDetailsEvent) {
+  if (event.playerId) return `player:${event.playerId}`;
+
+  const playerNameKey = normalizeMatchEventPlayerKey(event.playerName);
+  return playerNameKey ? `name:${event.side}:${playerNameKey}` : null;
+}
+
+function buildMatchDetailsLineupRows(
+  lineups: MatchDetailsLineupPlayer[],
+  events: MatchDetailsEvent[],
+) {
+  const matchedEventIds = new Set<string>();
+  const rows: MatchDetailsLineupRow[] = lineups.map((lineup) => {
+    const lineupEvents = events.filter((event) => {
+      const isMatch = isMatchEventForLineupPlayer(event, lineup);
+      if (isMatch) matchedEventIds.add(event.id);
+      return isMatch;
+    });
+
+    return {
+      ...lineup,
+      eventBadges: buildMatchDetailsEventBadges(lineupEvents),
+    };
+  });
+  const unmatchedEventsByKey = new Map<string, MatchDetailsEvent[]>();
+
+  for (const event of events) {
+    if (matchedEventIds.has(event.id) || !event.playerName) continue;
+
+    const eventGroupKey = getMatchDetailsEventGroupKey(event);
+    if (!eventGroupKey) continue;
+
+    const group = unmatchedEventsByKey.get(eventGroupKey) ?? [];
+    group.push(event);
+    unmatchedEventsByKey.set(eventGroupKey, group);
+  }
+
+  for (const [eventGroupKey, group] of unmatchedEventsByKey.entries()) {
+    const firstEvent = group[0];
+    if (!firstEvent?.playerName) continue;
+
+    rows.push({
+      id: `event-player:${eventGroupKey}`,
+      eventBadges: buildMatchDetailsEventBadges(group),
+      isStarter: null,
+      jerseyNumber: null,
+      playerId: firstEvent.playerId,
+      playerName: firstEvent.playerName,
+      side: firstEvent.side,
+    });
+  }
+
+  return rows;
+}
+
+function MatchDetailsEventBadges({
+  badges,
+}: {
+  badges: MatchDetailsEventBadge[];
+}) {
+  const fantasyTheme = useFantasySeasonTheme();
+  if (badges.length === 0) return null;
+
+  return (
+    <View style={styles.matchDetailsEventBadges}>
+      {badges.map((badge) => {
+        const baseLabel = MATCH_EVENT_BADGE_LABELS[badge.type];
+
+        return (
+          <View
+            key={badge.type}
+            style={styles.matchDetailsEventBadge}
+          >
+            <Text style={styles.matchDetailsEventBadgeMark}>{baseLabel}</Text>
+            {badge.count > 1 ? (
+              <Text
+                style={[
+                  styles.matchDetailsEventBadgeCount,
+                  { color: fantasyTheme.primaryColor },
+                ]}
+              >
+                {badge.count}
+              </Text>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function MatchDetailsPage({
   clubsById,
   clubsByName,
@@ -919,22 +1088,9 @@ export function MatchDetailsPage({
   clubsByName: Map<string, FantasyClub>;
   details:
     | {
-        events: Array<{
-          id: string;
-          minute: number | null;
-          playerName: string | null;
-          points: number | null;
-          side: "home" | "away";
-          type: MatchDetailEventType;
-        }>;
+        events: MatchDetailsEvent[];
         fixture: FantasyFixture;
-        lineups: Array<{
-          id: string;
-          isStarter: boolean | null;
-          jerseyNumber: number | null;
-          playerName: string;
-          side: "home" | "away";
-        }>;
+        lineups: MatchDetailsLineupPlayer[];
       }
     | null
     | undefined;
@@ -943,9 +1099,6 @@ export function MatchDetailsPage({
 }) {
   const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
-  const { width: windowWidth } = useWindowDimensions();
-  const isDesktopWeb =
-    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const fixture = details?.fixture ?? fallbackFixture;
   const events = details?.events ?? [];
   const homeLineups = (details?.lineups ?? []).filter(
@@ -969,10 +1122,25 @@ export function MatchDetailsPage({
       getMatchFixtureClubName(fixture, "away", clubsById, language))
     : "";
   const matchDetailsHasScore = fixture ? shouldShowFixtureScore(fixture) : false;
-  const matchDetailsIsLive =
-    fixture?.status === "live" && matchDetailsHasScore;
+  const matchDetailsIsLive = fixture?.status === "live";
   const matchDetailsIsCompleted =
     fixture?.status === "completed" && matchDetailsHasScore;
+  const homeLineupRows = useMemo(
+    () =>
+      buildMatchDetailsLineupRows(
+        homeLineups,
+        events.filter((event) => event.side === "home"),
+      ),
+    [events, homeLineups],
+  );
+  const awayLineupRows = useMemo(
+    () =>
+      buildMatchDetailsLineupRows(
+        awayLineups,
+        events.filter((event) => event.side === "away"),
+      ),
+    [awayLineups, events],
+  );
 
   return (
     <View style={styles.matchDetailsPage}>
@@ -1055,109 +1223,45 @@ export function MatchDetailsPage({
             </Text>
           ) : null}
 
-          <View
-            style={[
-              styles.matchDetailsContentGrid,
-              isDesktopWeb ? styles.matchDetailsContentGridDesktop : null,
-            ]}
-          >
-            <View
+          <View style={styles.matchDetailsSection}>
+            <Text
               style={[
-                styles.matchDetailsSection,
-                isDesktopWeb ? styles.matchDetailsContentPaneDesktop : null,
+                styles.teamOverviewTitle,
+                { color: fantasyTheme.primaryColor },
               ]}
             >
-              <Text
-                style={[
-                  styles.teamOverviewTitle,
-                  { color: fantasyTheme.primaryColor },
-                ]}
-              >
-                {t("matchDetails.eventsTitle")}
+              {t("matchDetails.lineupsTitle")}
+            </Text>
+            {homeLineupRows.length === 0 && awayLineupRows.length === 0 ? (
+              <Text style={styles.mutedText}>
+                {t("matchDetails.noLineups")}
               </Text>
-              {events.length === 0 ? (
-                <Text style={styles.mutedText}>
-                  {t("matchDetails.noEvents")}
-                </Text>
-              ) : (
-                <View style={styles.matchDetailsList}>
-                  {events.map((event) => (
-                    <View key={event.id} style={styles.matchDetailsEventRow}>
-                      <View style={styles.matchDetailsEventMain}>
-                        <Text style={styles.matchDetailsEventType}>
-                          {t(MATCH_EVENT_LABEL_KEYS[event.type])}
-                          {event.minute !== null
-                            ? " · " + event.minute + "'"
-                            : ""}
-                        </Text>
-                        <Text style={styles.mutedText}>
-                          {event.playerName
-                            ? localizeMatchPlayerName(
-                                event.playerName,
-                                language,
-                              )
-                            : event.side === "home"
-                              ? homeClubName
-                              : awayClubName}
-                        </Text>
-                      </View>
-                      {event.points !== null ? (
-                        <Text
-                          style={[
-                            styles.matchDetailsEventPoints,
-                            { color: fantasyTheme.primaryColor },
-                          ]}
-                        >
-                          {event.points > 0 ? "+" : ""}
-                          {event.points}
-                        </Text>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View
-              style={[
-                styles.matchDetailsSection,
-                isDesktopWeb ? styles.matchDetailsContentPaneDesktop : null,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.teamOverviewTitle,
-                  { color: fantasyTheme.primaryColor },
-                ]}
-              >
-                {t("matchDetails.lineupsTitle")}
-              </Text>
-              {homeLineups.length === 0 && awayLineups.length === 0 ? (
-                <Text style={styles.mutedText}>
-                  {t("matchDetails.noLineups")}
-                </Text>
-              ) : (
-                <View style={styles.matchDetailsLineupColumns}>
-                  {[
-                    { title: homeClubName, lineups: homeLineups },
-                    { title: awayClubName, lineups: awayLineups },
-                  ].map((column) => (
-                    <View
-                      key={column.title}
-                      style={styles.matchDetailsLineupColumn}
+            ) : (
+              <View style={styles.matchDetailsLineupColumns}>
+                {[
+                  { title: homeClubName, lineups: homeLineupRows },
+                  { title: awayClubName, lineups: awayLineupRows },
+                ].map((column) => (
+                  <View
+                    key={column.title}
+                    style={styles.matchDetailsLineupColumn}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.matchDetailsLineupTitle,
+                        { color: fantasyTheme.primaryColor },
+                      ]}
                     >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.matchDetailsLineupTitle,
-                          { color: fantasyTheme.primaryColor },
-                        ]}
+                      {column.title}
+                    </Text>
+                    {column.lineups.map((lineup) => (
+                      <View
+                        key={lineup.id}
+                        style={styles.matchDetailsLineupPlayerRow}
                       >
-                        {column.title}
-                      </Text>
-                      {column.lineups.map((lineup) => (
                         <Text
-                          key={lineup.id}
+                          numberOfLines={1}
                           style={styles.matchDetailsLineupPlayer}
                         >
                           {lineup.jerseyNumber !== null
@@ -1165,12 +1269,13 @@ export function MatchDetailsPage({
                             : ""}
                           {localizeMatchPlayerName(lineup.playerName, language)}
                         </Text>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+                        <MatchDetailsEventBadges badges={lineup.eventBadges} />
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </>
       )}
@@ -1566,7 +1671,7 @@ function SeasonCalendar({
                   clubsByName,
                 );
                 const hasScore = shouldShowFixtureScore(fixture);
-                const isLive = fixture.status === "live" && hasScore;
+                const isLive = fixture.status === "live";
                 const isCompleted = fixture.status === "completed" && hasScore;
 
                 return (

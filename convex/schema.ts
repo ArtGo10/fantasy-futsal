@@ -243,6 +243,11 @@ export default defineSchema({
     price: v.number(),
     status: fantasyPlayerStatusValidator,
     statusDetails: v.optional(fantasyPlayerStatusDetailsValidator),
+    suspensionGameweekNumbers: v.optional(v.array(v.number())),
+    suspensionSourceEventIds: v.optional(
+      v.array(v.id("fantasyFixtureEvents")),
+    ),
+    suspensionUpdatedAt: v.optional(v.number()),
     jerseyNumber: v.optional(v.number()),
     photoUrl: v.optional(v.string()),
     photoThumbnailUrl: v.optional(v.string()),

@@ -246,17 +246,6 @@ const POINT_LINE_LABEL_KEYS: Record<PlayerPointLineKind, TranslationKey> = {
   yellow_card: "team.pointsLine.yellow_card",
 };
 
-const EVENT_BADGE_LABELS: Partial<Record<PlayerPointLineKind, string>> = {
-  assist: "A",
-  goal: "G",
-  own_goal: "OG",
-  penalty_missed: "PM",
-  penalty_saved: "PS",
-  red_card: "R",
-  second_yellow_red: "2Y",
-  yellow_card: "Y",
-};
-
 function formatViewerNumber(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
@@ -364,69 +353,6 @@ function formatMatchScore(match: PlayerProfileMatch, fallback: string) {
   const { awayScore, homeScore } = match.fixture;
   if (homeScore === null || awayScore === null) return fallback;
   return `${homeScore} - ${awayScore}`;
-}
-
-function getEventBadgeStyle(kind: PlayerPointLineKind) {
-  if (kind === "assist") return styles.gameweekViewerEventBadgeAssist;
-  if (kind === "yellow_card") return styles.gameweekViewerEventBadgeYellow;
-  if (kind === "penalty_saved") return styles.gameweekViewerEventBadgeSaved;
-  if (kind === "red_card" || kind === "second_yellow_red") {
-    return styles.gameweekViewerEventBadgeRed;
-  }
-  if (kind === "own_goal" || kind === "penalty_missed") {
-    return styles.gameweekViewerEventBadgeNegative;
-  }
-  return null;
-}
-
-function EventBadges({
-  lines,
-  size = "md",
-}: {
-  lines: PointLine[];
-  size?: "sm" | "md";
-}) {
-  const fantasyTheme = useFantasySeasonTheme();
-  const visibleLines = lines.filter((line) => {
-    if (!EVENT_BADGE_LABELS[line.kind]) return false;
-    return (line.count ?? 0) > 0 || Math.abs(line.points) >= 0.001;
-  });
-  if (visibleLines.length === 0) return null;
-
-  return (
-    <View
-      style={[
-        styles.gameweekViewerEventBadges,
-        size === "sm" ? styles.gameweekViewerEventBadgesSm : null,
-      ]}
-    >
-      {visibleLines.slice(0, 4).map((line) => {
-        const baseLabel = EVENT_BADGE_LABELS[line.kind] ?? "";
-        const count = line.count ?? 0;
-        const label =
-          count > 1 && baseLabel.length <= 2
-            ? `${baseLabel}${count}`
-            : baseLabel;
-
-        return (
-          <Text
-            key={line.kind}
-            style={[
-              styles.gameweekViewerEventBadge,
-              { backgroundColor: fantasyTheme.primaryColor },
-              size === "sm" ? styles.gameweekViewerEventBadgeSm : null,
-              getEventBadgeStyle(line.kind),
-              line.kind === "yellow_card"
-                ? { color: fantasyTheme.primaryColor }
-                : null,
-            ]}
-          >
-            {label}
-          </Text>
-        );
-      })}
-    </View>
-  );
 }
 
 function ViewerStat({
@@ -908,7 +834,6 @@ function ReadonlyList({
                     >
                       <FantasyPlayerListRow
                         club={getClubForPlayer(player)}
-                        nameAccessory={<EventBadges lines={item.lines} />}
                         onPress={() => onPlayerPress(player.id)}
                         player={rowPlayer}
                         stateLabel={

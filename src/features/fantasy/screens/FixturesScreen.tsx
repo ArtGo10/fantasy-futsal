@@ -79,6 +79,10 @@ function formatDateTime(value: number | null | undefined, language: LanguageCode
 }
 
 function formatFixtureCenter(fixture: FantasyFixture, language: LanguageCode) {
+  if (fixture.status === "live") {
+    return `${fixture.homeScore ?? 0}:${fixture.awayScore ?? 0}`;
+  }
+
   if (shouldShowFixtureScore(fixture)) {
     return fixture.homeScore + ":" + fixture.awayScore;
   }
@@ -90,8 +94,12 @@ function formatFixtureCenter(fixture: FantasyFixture, language: LanguageCode) {
 }
 
 function shouldShowFixtureScore(fixture: FantasyFixture) {
+  if (fixture.status === "live") {
+    return true;
+  }
+
   return (
-    (fixture.status === "live" || fixture.status === "completed") &&
+    fixture.status === "completed" &&
     fixture.homeScore !== null &&
     fixture.awayScore !== null
   );
@@ -172,7 +180,7 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                 <View style={styles.fixtureRows}>
                   {gameweekFixtures.map((fixture) => {
                     const hasScore = shouldShowFixtureScore(fixture);
-                    const isLive = fixture.status === "live" && hasScore;
+                    const isLive = fixture.status === "live";
                     const isCompleted = fixture.status === "completed" && hasScore;
 
                     return (
