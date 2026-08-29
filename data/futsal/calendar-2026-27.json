@@ -280,9 +280,9 @@
       "awayClubExternalId": "5596",
       "homeClubName": "Агромат",
       "awayClubName": "Авалон",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 1,
+      "awayScore": 1,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -304,9 +304,9 @@
       "awayClubExternalId": "3438",
       "homeClubName": "Фантом",
       "awayClubName": "ХІТ",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 0,
+      "awayScore": 0,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -328,9 +328,9 @@
       "awayClubExternalId": "21695",
       "homeClubName": "Ураган",
       "awayClubName": "SkyUp",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 1,
+      "awayScore": 1,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -352,9 +352,9 @@
       "awayClubExternalId": "19235",
       "homeClubName": "Сокіл",
       "awayClubName": "Альянс",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 0,
+      "awayScore": 2,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -376,9 +376,9 @@
       "awayClubExternalId": "5584",
       "homeClubName": "Атлетік Футзал",
       "awayClubName": "Суха Балка",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 3,
+      "awayScore": 2,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"

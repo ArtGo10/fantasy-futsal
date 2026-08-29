@@ -44,6 +44,14 @@ type ExtraLeaguePlayerTemplate = {
   position: FantasyPlayerPosition;
   price: number;
 };
+const fantasyPlayerSourceStatCorrectionValidator = v.object({
+  goals: v.number(),
+  assists: v.number(),
+  appearances: v.number(),
+  yellowCards: v.number(),
+  redCards: v.number(),
+  ownGoals: v.number(),
+});
 
 const STATUS_PRIORITY: Record<SeasonStatus, number> = {
   active: 0,
@@ -3229,9 +3237,9 @@ function findCurrentScoringGameweekFromList(
 
   return (
     liveGameweek ??
+    latestCompletedGameweek ??
     configuredGameweek ??
     nextOpenGameweek ??
-    latestCompletedGameweek ??
     sortedGameweeks[0] ??
     null
   );
@@ -4759,30 +4767,10 @@ export const listFantasyTeams = query({
           : latest,
       0,
     );
-    const sortedGameweeks = [...gameweeks].sort((a, b) => a.number - b.number);
-    const configuredGameweek = season.currentGameweekId
-      ? (sortedGameweeks.find(
-          (gameweek) => gameweek._id === season.currentGameweekId,
-        ) ?? null)
-      : null;
-    const liveGameweek =
-      sortedGameweeks.find((gameweek) => gameweek.status === "live") ?? null;
-    const nextOpenGameweek =
-      sortedGameweeks.find(
-        (gameweek) =>
-          gameweek.status !== "completed" && gameweek.status !== "live",
-      ) ?? null;
-    const latestCompletedGameweek =
-      [...sortedGameweeks]
-        .reverse()
-        .find((gameweek) => gameweek.status === "completed") ?? null;
-    const currentScoringGameweek =
-      liveGameweek ??
-      configuredGameweek ??
-      nextOpenGameweek ??
-      latestCompletedGameweek ??
-      sortedGameweeks[0] ??
-      null;
+    const currentScoringGameweek = findCurrentScoringGameweekFromList(
+      season,
+      gameweeks,
+    );
 
     const scoresByTeamId = new Map<
       string,
@@ -6042,6 +6030,139 @@ export const upsertFixtureLineup = mutation({
   },
 });
 
+export const replaceFixtureLineups = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+    fixtureId: v.optional(v.id("fantasyFixtures")),
+    fixtureExternalId: v.optional(v.string()),
+    lineups: v.array(
+      v.object({
+        side: fantasyFixtureSideValidator,
+        playerExternalId: v.optional(v.string()),
+        playerName: v.optional(v.string()),
+        jerseyNumber: v.optional(v.union(v.number(), v.null())),
+        position: v.optional(fantasyPlayerPositionValidator),
+        isStarter: v.optional(v.boolean()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const externalId = toOptionalText(args.fixtureExternalId);
+    const fixture = args.fixtureId
+      ? await ctx.db.get(args.fixtureId)
+      : externalId
+        ? await ctx.db
+            .query("fantasyFixtures")
+            .withIndex("by_season_external_id", (q) =>
+              q.eq("seasonId", season._id).eq("externalId", externalId),
+            )
+            .first()
+        : null;
+    if (!fixture || fixture.seasonId !== season._id) {
+      throw new Error("Матч не найден.");
+    }
+
+    const [players, existingLineups] = await Promise.all([
+      ctx.db
+        .query("fantasyPlayers")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureLineups")
+        .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+        .collect(),
+    ]);
+    const playersByExternalId = new Map(
+      players
+        .filter((player) => player.externalId)
+        .map((player) => [player.externalId as string, player]),
+    );
+    const now = Date.now();
+
+    for (const lineup of existingLineups) {
+      await ctx.db.delete(lineup._id);
+    }
+
+    const created = [];
+    for (const lineup of args.lineups) {
+      const playerExternalId = toOptionalText(lineup.playerExternalId);
+      const sideClubId = getFixtureClubIdBySide(fixture, lineup.side);
+      const playerByExternalId = playerExternalId
+        ? playersByExternalId.get(playerExternalId)
+        : undefined;
+      const normalizedPlayerName = normalizeText(
+        lineup.playerName ?? "",
+      ).toLowerCase();
+      const matchingPlayers = playerByExternalId
+        ? [playerByExternalId]
+        : players.filter((player) => {
+            if (sideClubId && player.clubId !== sideClubId) return false;
+            const names = [
+              player.displayName,
+              player.lastName,
+              [player.firstName, player.lastName].filter(Boolean).join(" "),
+            ]
+              .filter(Boolean)
+              .map((value) => normalizeText(value).toLowerCase());
+            return normalizedPlayerName
+              ? names.includes(normalizedPlayerName)
+              : false;
+          });
+
+      if (matchingPlayers.length === 0) {
+        throw new Error(
+          `Игрок ${lineup.playerName ?? playerExternalId ?? "без имени"} не найден.`,
+        );
+      }
+      if (matchingPlayers.length > 1) {
+        throw new Error(
+          `Найдено несколько игроков для ${lineup.playerName}: ${matchingPlayers
+            .map((player) => player.displayName)
+            .join(", ")}.`,
+        );
+      }
+
+      const player = matchingPlayers[0];
+      const payload = {
+        seasonId: fixture.seasonId,
+        fixtureId: fixture._id,
+        clubId: player.clubId ?? sideClubId,
+        playerId: player._id,
+        playerName: normalizeText(lineup.playerName ?? player.displayName),
+        side: lineup.side,
+        jerseyNumber:
+          lineup.jerseyNumber === undefined
+            ? player.jerseyNumber
+            : (lineup.jerseyNumber ?? undefined),
+        position: lineup.position ?? player.position,
+        isStarter: lineup.isStarter ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const lineupId = await ctx.db.insert("fantasyFixtureLineups", payload);
+      created.push({
+        id: lineupId,
+        playerId: player._id,
+        playerName: payload.playerName,
+        side: payload.side,
+        jerseyNumber: payload.jerseyNumber ?? null,
+        isStarter: payload.isStarter,
+      });
+    }
+
+    const refresh = await refreshGameweekAfterFixtureChange(ctx, fixture, now);
+    return {
+      deleted: existingLineups.length,
+      created: created.length,
+      lineups: created,
+      refresh,
+    };
+  },
+});
+
 export const deleteFixtureLineup = mutation({
   args: {
     lineupId: v.id("fantasyFixtureLineups"),
@@ -6413,6 +6534,85 @@ export const recalculateGameweekScores = mutation({
       gameweek,
       Date.now(),
     );
+  },
+});
+
+export const reapplyGameweekPriceChanges = mutation({
+  args: {
+    gameweekNumber: v.number(),
+    requireCompletedFixtures: v.optional(v.boolean()),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const gameweek = await findGameweekByNumber(
+      ctx,
+      season._id,
+      args.gameweekNumber,
+    );
+    if (!gameweek) {
+      throw new Error(`Тур ${args.gameweekNumber} не найден.`);
+    }
+
+    const fixtures = await ctx.db
+      .query("fantasyFixtures")
+      .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+      .collect();
+    const unresolvedFixtures = fixtures.filter(
+      (fixture) =>
+        fixture.status !== "cancelled" &&
+        fixture.status !== "postponed" &&
+        fixture.status !== "completed",
+    );
+    if (
+      (args.requireCompletedFixtures ?? true) &&
+      unresolvedFixtures.length > 0
+    ) {
+      throw new Error("Нельзя пересчитать цены: не все матчи завершены.");
+    }
+
+    const now = Date.now();
+    const priceHistories = await ctx.db
+      .query("fantasyPlayerPriceHistory")
+      .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+      .collect();
+    const gameweekPriceHistories = priceHistories.filter(
+      (history) => history.reason === "gameweek_recalculation",
+    );
+
+    let revertedPriceChanges = 0;
+    for (const history of gameweekPriceHistories) {
+      const player = await ctx.db.get(history.playerId);
+      if (player) {
+        await ctx.db.patch(player._id, {
+          price: history.oldPrice,
+          updatedAt: now,
+        });
+        revertedPriceChanges += 1;
+      }
+      await ctx.db.delete(history._id);
+    }
+
+    const scoring = await recalculateGameweekScoresInternal(
+      ctx,
+      season,
+      gameweek,
+      now,
+    );
+    const priceChanges = await applyGameweekPriceChanges(
+      ctx,
+      season,
+      gameweek,
+      now,
+    );
+
+    return {
+      priceChanges,
+      revertedPriceChanges,
+      scoring,
+    };
   },
 });
 
@@ -6915,6 +7115,173 @@ export const applyPlayerRosterCorrections = mutation({
                   statusDetails: patch.statusDetails,
                 })
               : null,
+      });
+    }
+
+    return { updated: results.length, results };
+  },
+});
+
+export const applyPlayerSourceCorrections = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+    updates: v.array(
+      v.object({
+        currentExternalId: v.string(),
+        externalId: v.optional(v.string()),
+        sourceSlug: v.optional(v.union(v.string(), v.null())),
+        sourceUrl: v.optional(v.union(v.string(), v.null())),
+        firstName: v.optional(v.union(v.string(), v.null())),
+        lastName: v.optional(v.string()),
+        displayName: v.optional(v.string()),
+        position: v.optional(fantasyPlayerPositionValidator),
+        jerseyNumber: v.optional(v.union(v.number(), v.null())),
+        photoUrl: v.optional(v.union(v.string(), v.null())),
+        photoThumbnailUrl: v.optional(v.union(v.string(), v.null())),
+        photoProvider: v.optional(v.union(v.string(), v.null())),
+        photoCloudflareId: v.optional(v.union(v.string(), v.null())),
+        photoStorageKey: v.optional(v.union(v.string(), v.null())),
+        photoSourceUrl: v.optional(v.union(v.string(), v.null())),
+        photoSourceThumbnailUrl: v.optional(v.union(v.string(), v.null())),
+        currentTeamExternalIds: v.optional(v.array(v.string())),
+        listedTeamExternalIds: v.optional(v.array(v.string())),
+        sourceStats: v.optional(
+          v.object({
+            extraLeague2025_26: v.optional(
+              v.union(fantasyPlayerSourceStatCorrectionValidator, v.null()),
+            ),
+            firstLeague2025_26: v.optional(
+              v.union(fantasyPlayerSourceStatCorrectionValidator, v.null()),
+            ),
+          }),
+        ),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const now = Date.now();
+    const players = await ctx.db
+      .query("fantasyPlayers")
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+      .collect();
+    const playersByExternalId = new Map(
+      players
+        .filter((player) => player.externalId)
+        .map((player) => [player.externalId as string, player]),
+    );
+    const results = [];
+
+    const setOptionalText = (
+      patch: Partial<Doc<"fantasyPlayers">>,
+      field:
+        | "sourceSlug"
+        | "sourceUrl"
+        | "firstName"
+        | "photoUrl"
+        | "photoThumbnailUrl"
+        | "photoProvider"
+        | "photoCloudflareId"
+        | "photoStorageKey"
+        | "photoSourceUrl"
+        | "photoSourceThumbnailUrl",
+      value: string | null | undefined,
+    ) => {
+      if (value === undefined) return;
+      patch[field] = value === null ? undefined : toOptionalText(value);
+    };
+
+    for (const update of args.updates) {
+      const nextExternalId = toOptionalText(update.externalId);
+      const player =
+        playersByExternalId.get(update.currentExternalId) ??
+        (nextExternalId ? playersByExternalId.get(nextExternalId) : undefined);
+      if (!player) {
+        throw new Error(
+          `Игрок с externalId ${update.currentExternalId} не найден.`,
+        );
+      }
+
+      if (nextExternalId && nextExternalId !== player.externalId) {
+        const conflict = playersByExternalId.get(nextExternalId);
+        if (conflict && conflict._id !== player._id) {
+          throw new Error(
+            `externalId ${nextExternalId} уже используется игроком ${conflict.displayName}.`,
+          );
+        }
+      }
+
+      const patch: Partial<Doc<"fantasyPlayers">> = {
+        updatedAt: now,
+        sourceUpdatedAt: now,
+      };
+
+      if (nextExternalId) {
+        patch.externalId = nextExternalId;
+      }
+      if (update.displayName !== undefined) {
+        patch.displayName = normalizeText(update.displayName);
+      }
+      if (update.lastName !== undefined) {
+        patch.lastName = normalizeText(update.lastName);
+      }
+      if (update.position !== undefined) {
+        patch.position = update.position;
+      }
+      if (update.jerseyNumber !== undefined) {
+        patch.jerseyNumber = update.jerseyNumber ?? undefined;
+      }
+      if (update.currentTeamExternalIds !== undefined) {
+        patch.currentTeamExternalIds = update.currentTeamExternalIds;
+      }
+      if (update.listedTeamExternalIds !== undefined) {
+        patch.listedTeamExternalIds = update.listedTeamExternalIds;
+      }
+      if (update.sourceStats !== undefined) {
+        patch.sourceStats = {
+          extraLeague2025_26:
+            update.sourceStats.extraLeague2025_26 ?? undefined,
+          firstLeague2025_26:
+            update.sourceStats.firstLeague2025_26 ?? undefined,
+        };
+      }
+
+      setOptionalText(patch, "sourceSlug", update.sourceSlug);
+      setOptionalText(patch, "sourceUrl", update.sourceUrl);
+      setOptionalText(patch, "firstName", update.firstName);
+      setOptionalText(patch, "photoUrl", update.photoUrl);
+      setOptionalText(patch, "photoThumbnailUrl", update.photoThumbnailUrl);
+      setOptionalText(patch, "photoProvider", update.photoProvider);
+      setOptionalText(patch, "photoCloudflareId", update.photoCloudflareId);
+      setOptionalText(patch, "photoStorageKey", update.photoStorageKey);
+      setOptionalText(patch, "photoSourceUrl", update.photoSourceUrl);
+      setOptionalText(
+        patch,
+        "photoSourceThumbnailUrl",
+        update.photoSourceThumbnailUrl,
+      );
+
+      await ctx.db.patch(player._id, patch);
+
+      if (player.externalId) {
+        playersByExternalId.delete(player.externalId);
+      }
+      if (nextExternalId) {
+        playersByExternalId.set(nextExternalId, { ...player, ...patch });
+      }
+
+      results.push({
+        id: player._id,
+        previousExternalId: player.externalId ?? null,
+        externalId: nextExternalId ?? player.externalId ?? null,
+        previousDisplayName: player.displayName,
+        displayName: patch.displayName ?? player.displayName,
+        photoUrl:
+          update.photoUrl === undefined
+            ? (player.photoUrl ?? null)
+            : (patch.photoUrl ?? null),
       });
     }
 
