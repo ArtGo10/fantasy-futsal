@@ -654,6 +654,22 @@ function ReadonlySquadSlot({
           >
             {getPlayerSurnameLabel(player.displayName)}
           </Text>
+          <View
+            style={[
+              styles.gameweekViewerSlotScoreFooter,
+              { backgroundColor: fantasyTheme.softColor },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.gameweekViewerSlotScore,
+                { color: fantasyTheme.primaryColor },
+              ]}
+            >
+              {item ? formatSlotPoints(item) : ""}
+            </Text>
+          </View>
         </>
       ) : (
         <Text
