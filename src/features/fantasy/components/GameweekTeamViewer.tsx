@@ -1,7 +1,7 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { Image } from "expo-image";
-import { ArrowLeft, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Plus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -637,7 +637,6 @@ function ReadonlySquadSlot({
           {leadershipLabel}
         </Text>
       ) : null}
-      {item ? <EventBadges lines={item.lines} size="sm" /> : null}
       {player ? (
         <>
           <TeamKitAvatar
@@ -655,17 +654,6 @@ function ReadonlySquadSlot({
           >
             {getPlayerSurnameLabel(player.displayName)}
           </Text>
-          <View style={styles.gameweekViewerSlotScoreFooter}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.gameweekViewerSlotScore,
-                { color: fantasyTheme.primaryColor },
-              ]}
-            >
-              {item ? formatSlotPoints(item) : "0 (0)"}
-            </Text>
-          </View>
         </>
       ) : (
         <Text
@@ -1395,6 +1383,7 @@ function PlayerProfilePage({
                   {formatViewerNumber(match.points)}
                 </Text>
                 <Pressable
+                  accessibilityLabel={t("team.viewer.more")}
                   accessibilityRole="button"
                   onPress={() => setSelectedMatch(match)}
                   style={[
@@ -1402,14 +1391,11 @@ function PlayerProfilePage({
                     styles.playerProfileMatchMoreColumn,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.playerProfileMoreButtonText,
-                      { color: fantasyTheme.primaryColor },
-                    ]}
-                  >
-                    +
-                  </Text>
+                  <Plus
+                    color={fantasyTheme.primaryColor}
+                    size={22}
+                    strokeWidth={3}
+                  />
                 </Pressable>
               </View>
             ))}

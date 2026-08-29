@@ -3488,17 +3488,28 @@ export function MyTeamScreen({
   const dashboardLeagueTeam = fantasyTeam
     ? ((fantasyTeams ?? []).find((team) => team.id === fantasyTeam.id) ?? null)
     : null;
-  const dashboardCurrentGameweekId = dashboardLeagueTeam?.currentGameweekId
-    ? (dashboardLeagueTeam.currentGameweekId as Id<"fantasyGameweeks">)
-    : null;
-  const dashboardCurrentGameweekNumber =
-    dashboardLeagueTeam?.currentGameweekNumber ??
-    liveGameweek?.number ??
-    currentGameweek?.number ??
-    null;
   const dashboardSortedGameweeks = (fantasyGameweeks ?? [])
     .slice()
     .sort((a, b) => a.number - b.number);
+  const dashboardFallbackGameweek =
+    liveGameweek ??
+    [...dashboardSortedGameweeks]
+      .reverse()
+      .find((gameweek) => gameweek.status === "completed") ??
+    currentGameweek ??
+    dashboardSortedGameweeks.find(
+      (gameweek) => gameweek.status !== "completed",
+    ) ??
+    null;
+  const dashboardCurrentGameweekId = dashboardLeagueTeam?.currentGameweekId
+    ? (dashboardLeagueTeam.currentGameweekId as Id<"fantasyGameweeks">)
+    : dashboardFallbackGameweek?.id
+      ? (dashboardFallbackGameweek.id as Id<"fantasyGameweeks">)
+      : null;
+  const dashboardCurrentGameweekNumber =
+    dashboardLeagueTeam?.currentGameweekNumber ??
+    dashboardFallbackGameweek?.number ??
+    null;
   const dashboardGameweekTeams =
     dashboardCurrentGameweekNumber === null
       ? (fantasyTeams ?? [])

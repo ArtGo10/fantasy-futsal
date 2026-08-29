@@ -55,7 +55,7 @@ type FantasyLeagueTeam = {
 };
 
 type FantasyLeagueGameweek = {
-  id: string;
+  id: Id<"fantasyGameweeks">;
   name: string;
   number: number;
   status: string;
@@ -263,13 +263,20 @@ export function LeagueScreen({
     const sortedGameweeks = [...(gameweeks ?? [])].sort(
       (a, b) => a.number - b.number,
     );
+    const latestCompletedGameweek =
+      [...sortedGameweeks]
+        .reverse()
+        .find((gameweek) => gameweek.status === "completed") ?? null;
+
     return (
       sortedGameweeks.find((gameweek) => gameweek.status === "live") ??
+      latestCompletedGameweek ??
       sortedGameweeks[0] ??
       null
     );
   }, [gameweeks, selectedScopeGameweek]);
   const tableGameweekId = tableGameweek?.id ?? null;
+  const viewerGameweekId = selectedGameweekId ?? tableGameweekId;
   const tableGameweekLabel = tableGameweek
     ? t("team.dashboard.gameweekLabel").replace(
         "{number}",
@@ -384,6 +391,18 @@ export function LeagueScreen({
     [selectedGameweekId, visibleTeams],
   );
   const selectedLeagueLeader = sortedTeams[0] ?? null;
+  const selectedViewerLeader = useMemo(
+    () =>
+      [...visibleTeams].sort(
+        (a, b) =>
+          getTeamGameweekPoints(b, viewerGameweekId) -
+            getTeamGameweekPoints(a, viewerGameweekId) ||
+          normalizeLeagueMetric(b.totalPoints) -
+            normalizeLeagueMetric(a.totalPoints) ||
+          a.name.localeCompare(b.name),
+      )[0] ?? null,
+    [viewerGameweekId, visibleTeams],
+  );
   const rankedTeams = useMemo(() => {
     let previousScore: number | null = null;
     let previousRank = 0;
@@ -408,7 +427,8 @@ export function LeagueScreen({
   const canOpenTeam = (teamId: string) =>
     isAdmin ||
     teamId === currentFantasyTeamId ||
-    teamId === selectedLeagueLeader?.id;
+    teamId === selectedLeagueLeader?.id ||
+    teamId === selectedViewerLeader?.id;
   const openTeam = (teamId: Id<"fantasyTeams">) => {
     if (!canOpenTeam(teamId)) return;
     setSelectedTeamId(teamId);
@@ -806,21 +826,21 @@ export function LeagueScreen({
         <GameweekTeamViewer
           clubs={clubs}
           fantasyTeamId={selectedTeamId}
-          gameweekId={selectedGameweekId}
+          gameweekId={viewerGameweekId}
           highestPointsOverride={
-            selectedLeagueLeader
+            selectedViewerLeader
               ? getTeamGameweekPoints(
-                  selectedLeagueLeader,
-                  selectedGameweekId,
+                  selectedViewerLeader,
+                  viewerGameweekId,
                 )
               : undefined
           }
           highestTeamIdOverride={
-            selectedLeagueLeader
-              ? (selectedLeagueLeader.id as Id<"fantasyTeams">)
+            selectedViewerLeader
+              ? (selectedViewerLeader.id as Id<"fantasyTeams">)
               : undefined
           }
-          key={`${selectedTeamId}:${selectedGameweekId ?? "current"}`}
+          key={`${selectedTeamId}:${viewerGameweekId ?? "current"}`}
           onBack={() => setSelectedTeamId(null)}
           onOpenTeam={openTeam}
           seasonSlug={seasonSlug}
