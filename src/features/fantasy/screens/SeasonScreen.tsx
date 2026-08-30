@@ -967,6 +967,7 @@ function isMatchEventForLineupPlayer(
   if (event.playerId && lineup.playerId && event.playerId === lineup.playerId) {
     return true;
   }
+  if (event.playerId) return false;
 
   const eventNameKey = normalizeMatchEventPlayerKey(event.playerName);
   const lineupNameKey = normalizeMatchEventPlayerKey(lineup.playerName);
