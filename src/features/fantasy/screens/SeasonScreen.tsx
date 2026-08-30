@@ -27,6 +27,10 @@ import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import { FantasyClubLogo } from "../components/FantasyPlayerListRow";
+import {
+  PlayerDetailSheet,
+  type PlayerDetail,
+} from "../components/PlayerDetailSheet";
 import { TeamKitAvatar } from "../components/TeamKitAvatar";
 import {
   getLocalizedClubName,
@@ -930,7 +934,7 @@ function getMatchFixtureClubName(
 type MatchDetailsEvent = {
   id: string;
   minute: number | null;
-  playerId: string | null;
+  playerId: Id<"fantasyPlayers"> | null;
   playerName: string | null;
   points: number | null;
   side: "home" | "away";
@@ -941,7 +945,7 @@ type MatchDetailsLineupPlayer = {
   id: string;
   isStarter: boolean | null;
   jerseyNumber: number | null;
-  playerId: string | null;
+  playerId: Id<"fantasyPlayers"> | null;
   playerName: string;
   side: "home" | "away";
 };
@@ -1001,6 +1005,8 @@ function buildMatchDetailsLineupRows(
   const matchedEventIds = new Set<string>();
   const rows: MatchDetailsLineupRow[] = lineups.map((lineup) => {
     const lineupEvents = events.filter((event) => {
+      if (matchedEventIds.has(event.id)) return false;
+
       const isMatch = isMatchEventForLineupPlayer(event, lineup);
       if (isMatch) matchedEventIds.add(event.id);
       return isMatch;
@@ -1084,6 +1090,7 @@ export function MatchDetailsPage({
   details,
   fallbackFixture,
   onBack,
+  onPlayerPress,
 }: {
   clubsById: Map<string, FantasyClub>;
   clubsByName: Map<string, FantasyClub>;
@@ -1097,6 +1104,7 @@ export function MatchDetailsPage({
     | undefined;
   fallbackFixture: FantasyFixture | null;
   onBack: () => void;
+  onPlayerPress?: (playerId: Id<"fantasyPlayers">) => void;
 }) {
   const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
@@ -1256,23 +1264,46 @@ export function MatchDetailsPage({
                     >
                       {column.title}
                     </Text>
-                    {column.lineups.map((lineup) => (
-                      <View
-                        key={lineup.id}
-                        style={styles.matchDetailsLineupPlayerRow}
-                      >
+                    {column.lineups.map((lineup) => {
+                      const playerLabel =
+                        (lineup.jerseyNumber !== null
+                          ? lineup.jerseyNumber + ". "
+                          : "") +
+                        localizeMatchPlayerName(lineup.playerName, language);
+                      const playerName = (
                         <Text
                           numberOfLines={1}
-                          style={styles.matchDetailsLineupPlayer}
+                          style={[
+                            styles.matchDetailsLineupPlayer,
+                            onPlayerPress && lineup.playerId
+                              ? styles.matchDetailsLineupPlayerLink
+                              : null,
+                          ]}
                         >
-                          {lineup.jerseyNumber !== null
-                            ? lineup.jerseyNumber + ". "
-                            : ""}
-                          {localizeMatchPlayerName(lineup.playerName, language)}
+                          {playerLabel}
                         </Text>
-                        <MatchDetailsEventBadges badges={lineup.eventBadges} />
-                      </View>
-                    ))}
+                      );
+
+                      return (
+                        <View
+                          key={lineup.id}
+                          style={styles.matchDetailsLineupPlayerRow}
+                        >
+                          {onPlayerPress && lineup.playerId ? (
+                            <Pressable
+                              accessibilityRole="button"
+                              onPress={() => onPlayerPress(lineup.playerId!)}
+                              style={styles.matchDetailsLineupPlayerButton}
+                            >
+                              {playerName}
+                            </Pressable>
+                          ) : (
+                            playerName
+                          )}
+                          <MatchDetailsEventBadges badges={lineup.eventBadges} />
+                        </View>
+                      );
+                    })}
                   </View>
                 ))}
               </View>
@@ -2195,6 +2226,8 @@ export function SeasonScreen({
   const [openPicker, setOpenPicker] = useState<PickerKind | null>(null);
   const [selectedFixtureDetailsId, setSelectedFixtureDetailsId] =
     useState<Id<"fantasyFixtures"> | null>(null);
+  const [selectedMatchPlayerId, setSelectedMatchPlayerId] =
+    useState<Id<"fantasyPlayers"> | null>(null);
 
   useDismissKeyboardOnChange([
     activeSection,
@@ -2203,6 +2236,7 @@ export function SeasonScreen({
     selectedGameweekId,
     selectedCalendarClubId,
     selectedFixtureDetailsId,
+    selectedMatchPlayerId,
   ]);
   const isLoading =
     clubs === undefined || fixtures === undefined || gameweeks === undefined;
@@ -2337,6 +2371,10 @@ export function SeasonScreen({
       ) ?? null,
     [fixtures, selectedFixtureDetailsId],
   );
+  const selectedMatchPlayerProfile = useQuery(
+    api.fantasy.playerProfile,
+    selectedMatchPlayerId ? { playerId: selectedMatchPlayerId } : "skip",
+  ) as { player: PlayerDetail } | null | undefined;
 
   const pickerOptions = useMemo<PickerOption[]>(() => {
     if (openPicker === "calendarGameweek") {
@@ -2418,6 +2456,7 @@ export function SeasonScreen({
           details={selectedFixtureDetails}
           fallbackFixture={selectedFixtureDetailsFallback}
           onBack={() => setSelectedFixtureDetailsId(null)}
+          onPlayerPress={setSelectedMatchPlayerId}
         />
       ) : (
         <>
@@ -2508,6 +2547,12 @@ export function SeasonScreen({
           />
         </>
       )}
+      <PlayerDetailSheet
+        mode="market"
+        onClose={() => setSelectedMatchPlayerId(null)}
+        player={selectedMatchPlayerProfile?.player ?? null}
+        visible={selectedMatchPlayerId !== null}
+      />
     </FantasyScreenFrame>
   );
 }

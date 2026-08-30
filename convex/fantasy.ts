@@ -3036,6 +3036,20 @@ export const fixtureDetails = query({
         .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
         .collect(),
     ]);
+    const playerIds = new Set([
+      ...lineups.flatMap((lineup) =>
+        lineup.playerId ? [lineup.playerId] : [],
+      ),
+      ...events.flatMap((event) => (event.playerId ? [event.playerId] : [])),
+    ]);
+    const players = await Promise.all(
+      [...playerIds].map((playerId) => ctx.db.get(playerId)),
+    );
+    const playersById = new Map(
+      players
+        .filter((player): player is Doc<"fantasyPlayers"> => Boolean(player))
+        .map((player) => [player._id, player]),
+    );
 
     return {
       fixture: {
@@ -3058,16 +3072,22 @@ export const fixtureDetails = query({
       homeClub: homeClub ? toClubView(homeClub) : null,
       awayClub: awayClub ? toClubView(awayClub) : null,
       lineups: lineups
-        .map((lineup) => ({
-          id: lineup._id,
-          clubId: lineup.clubId ?? null,
-          playerId: lineup.playerId ?? null,
-          playerName: lineup.playerName,
-          side: lineup.side,
-          jerseyNumber: lineup.jerseyNumber ?? null,
-          position: lineup.position ?? null,
-          isStarter: lineup.isStarter ?? null,
-        }))
+        .map((lineup) => {
+          const player = lineup.playerId
+            ? playersById.get(lineup.playerId)
+            : null;
+
+          return {
+            id: lineup._id,
+            clubId: lineup.clubId ?? player?.clubId ?? null,
+            playerId: lineup.playerId ?? null,
+            playerName: player?.displayName ?? lineup.playerName,
+            side: lineup.side,
+            jerseyNumber: lineup.jerseyNumber ?? player?.jerseyNumber ?? null,
+            position: lineup.position ?? player?.position ?? null,
+            isStarter: lineup.isStarter ?? null,
+          };
+        })
         .sort(
           (a, b) =>
             a.side.localeCompare(b.side) ||
@@ -3075,18 +3095,22 @@ export const fixtureDetails = query({
             a.playerName.localeCompare(b.playerName),
         ),
       events: events
-        .map((event) => ({
-          id: event._id,
-          gameweekId: event.gameweekId ?? null,
-          clubId: event.clubId ?? null,
-          playerId: event.playerId ?? null,
-          playerName: event.playerName ?? null,
-          side: event.side,
-          type: event.type,
-          minute: event.minute ?? null,
-          period: event.period ?? null,
-          points: event.points ?? null,
-        }))
+        .map((event) => {
+          const player = event.playerId ? playersById.get(event.playerId) : null;
+
+          return {
+            id: event._id,
+            gameweekId: event.gameweekId ?? null,
+            clubId: event.clubId ?? player?.clubId ?? null,
+            playerId: event.playerId ?? null,
+            playerName: player?.displayName ?? event.playerName ?? null,
+            side: event.side,
+            type: event.type,
+            minute: event.minute ?? null,
+            period: event.period ?? null,
+            points: event.points ?? null,
+          };
+        })
         .sort(
           (a, b) =>
             (a.minute ?? 999) - (b.minute ?? 999) ||
@@ -6080,7 +6104,7 @@ export const upsertFixtureEvent = mutation({
       gameweekId: fixture.gameweekId,
       clubId: eventClubId,
       playerId: player?._id,
-      playerName: toOptionalText(args.playerName) ?? player?.displayName,
+      playerName: player?.displayName ?? toOptionalText(args.playerName),
       side: args.side,
       type: args.type,
       minute: args.minute,
@@ -6124,6 +6148,273 @@ export const upsertFixtureEvent = mutation({
       created: true,
       eventId,
       points: eventPoints ?? null,
+      refresh,
+      suspensionSync,
+    };
+  },
+});
+
+function normalizeFixtureEventPlayerLookup(value: string) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getFixtureEventPlayerNameCandidates(player: Doc<"fantasyPlayers">) {
+  return [
+    player.displayName,
+    player.lastName,
+    [player.firstName, player.lastName].filter(Boolean).join(" "),
+  ].filter(Boolean);
+}
+
+function matchesFixtureEventPlayerName(
+  player: Doc<"fantasyPlayers">,
+  lookupName: string,
+) {
+  const normalizedLookup = normalizeFixtureEventPlayerLookup(lookupName);
+  if (!normalizedLookup) return false;
+
+  return getFixtureEventPlayerNameCandidates(player).some((candidate) => {
+    const normalizedCandidate = normalizeFixtureEventPlayerLookup(candidate);
+    return (
+      normalizedCandidate === normalizedLookup ||
+      normalizedCandidate.split(" ").includes(normalizedLookup)
+    );
+  });
+}
+
+export const replaceFixtureEvents = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+    fixtureId: v.optional(v.id("fantasyFixtures")),
+    fixtureExternalId: v.optional(v.string()),
+    homeScore: v.optional(v.number()),
+    awayScore: v.optional(v.number()),
+    status: v.optional(fantasyFixtureStatusValidator),
+    events: v.array(
+      v.object({
+        type: fantasyFixtureEventTypeValidator,
+        side: fantasyFixtureSideValidator,
+        playerId: v.optional(v.id("fantasyPlayers")),
+        playerName: v.optional(v.string()),
+        clubId: v.optional(v.id("fantasyClubs")),
+        minute: v.optional(v.number()),
+        period: v.optional(
+          v.union(
+            v.literal("first_half"),
+            v.literal("second_half"),
+            v.literal("extra_time"),
+            v.literal("penalty_shootout"),
+          ),
+        ),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const externalId = toOptionalText(args.fixtureExternalId);
+    const fixture = args.fixtureId
+      ? await ctx.db.get(args.fixtureId)
+      : externalId
+        ? await ctx.db
+            .query("fantasyFixtures")
+            .withIndex("by_season_external_id", (q) =>
+              q.eq("seasonId", season._id).eq("externalId", externalId),
+            )
+            .first()
+        : null;
+    if (!fixture || fixture.seasonId !== season._id) {
+      throw new Error("Матч не найден.");
+    }
+    if (
+      args.homeScore !== undefined &&
+      (!Number.isInteger(args.homeScore) || args.homeScore < 0)
+    ) {
+      throw new Error("Счет хозяев должен быть неотрицательным целым числом.");
+    }
+    if (
+      args.awayScore !== undefined &&
+      (!Number.isInteger(args.awayScore) || args.awayScore < 0)
+    ) {
+      throw new Error("Счет гостей должен быть неотрицательным целым числом.");
+    }
+    for (const event of args.events) {
+      if (
+        event.minute !== undefined &&
+        (!Number.isFinite(event.minute) || event.minute < 0)
+      ) {
+        throw new Error("Минута события должна быть неотрицательным числом.");
+      }
+    }
+
+    const [players, lineups, existingEvents, scoringRule] = await Promise.all([
+      ctx.db
+        .query("fantasyPlayers")
+        .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureLineups")
+        .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureEvents")
+        .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+        .collect(),
+      getSeasonScoringRules(ctx, fixture.seasonId),
+    ]);
+    const playersById = new Map(players.map((player) => [player._id, player]));
+    const lineupPlayerIdsBySide = new Map<
+      FantasyFixtureSide,
+      Set<Id<"fantasyPlayers">>
+    >([
+      ["home", new Set()],
+      ["away", new Set()],
+    ]);
+    for (const lineup of lineups) {
+      if (!lineup.playerId) continue;
+      lineupPlayerIdsBySide.get(lineup.side)?.add(lineup.playerId);
+    }
+
+    const resolveEventPlayer = async (event: {
+      clubId?: Id<"fantasyClubs">;
+      playerId?: Id<"fantasyPlayers">;
+      playerName?: string;
+      side: FantasyFixtureSide;
+    }) => {
+      const sideClubId = getFixtureClubIdBySide(fixture, event.side);
+      if (event.clubId) {
+        const club = await ctx.db.get(event.clubId);
+        if (!club || club.seasonId !== season._id) {
+          throw new Error("Клуб события не найден в сезоне этого матча.");
+        }
+      }
+      if (event.playerId) {
+        const player = playersById.get(event.playerId);
+        if (!player) {
+          throw new Error("Игрок не найден в сезоне этого матча.");
+        }
+        if (sideClubId && player.clubId && player.clubId !== sideClubId) {
+          throw new Error(
+            `Игрок ${player.displayName} не относится к стороне ${event.side}.`,
+          );
+        }
+        return player;
+      }
+
+      const playerName = toOptionalText(event.playerName);
+      if (!playerName) return null;
+
+      const lineupPlayerIds = lineupPlayerIdsBySide.get(event.side);
+      let matchingPlayers = players.filter((player) => {
+        if (sideClubId && player.clubId !== sideClubId) return false;
+        if (lineupPlayerIds?.size && !lineupPlayerIds.has(player._id)) {
+          return false;
+        }
+        return matchesFixtureEventPlayerName(player, playerName);
+      });
+
+      if (matchingPlayers.length === 0 && lineupPlayerIds?.size) {
+        matchingPlayers = players.filter((player) => {
+          if (sideClubId && player.clubId !== sideClubId) return false;
+          return matchesFixtureEventPlayerName(player, playerName);
+        });
+      }
+
+      if (matchingPlayers.length === 0) {
+        throw new Error(`Игрок ${playerName} не найден.`);
+      }
+      if (matchingPlayers.length > 1) {
+        throw new Error(
+          `Найдено несколько игроков для ${playerName}: ${matchingPlayers
+            .map((player) => player.displayName)
+            .join(", ")}.`,
+        );
+      }
+
+      return matchingPlayers[0];
+    };
+
+    const scoringRuleValues = getScoringRuleValues(scoringRule);
+    const resolvedEvents = [];
+    for (const event of args.events) {
+      const player = await resolveEventPlayer(event);
+      const eventClubId =
+        event.clubId ??
+        player?.clubId ??
+        getFixtureClubIdBySide(fixture, event.side);
+      const points = player
+        ? getFixtureEventPoints(event.type, player, scoringRuleValues)
+        : undefined;
+
+      resolvedEvents.push({
+        clubId: eventClubId,
+        player,
+        points,
+        source: event,
+      });
+    }
+
+    const now = Date.now();
+    for (const event of existingEvents) {
+      await ctx.db.delete(event._id);
+    }
+
+    const fixturePatch: Partial<Doc<"fantasyFixtures">> = { updatedAt: now };
+    if (args.homeScore !== undefined) fixturePatch.homeScore = args.homeScore;
+    if (args.awayScore !== undefined) fixturePatch.awayScore = args.awayScore;
+    if (args.status !== undefined) fixturePatch.status = args.status;
+    await ctx.db.patch(fixture._id, fixturePatch);
+
+    const created = [];
+    for (const event of resolvedEvents) {
+      const eventId = await ctx.db.insert("fantasyFixtureEvents", {
+        seasonId: fixture.seasonId,
+        fixtureId: fixture._id,
+        gameweekId: fixture.gameweekId,
+        clubId: event.clubId,
+        playerId: event.player?._id,
+        playerName:
+          event.player?.displayName ?? toOptionalText(event.source.playerName),
+        side: event.source.side,
+        type: event.source.type,
+        minute: event.source.minute,
+        period: event.source.period,
+        points: event.points,
+        createdAt: now,
+        updatedAt: now,
+      });
+      created.push({
+        id: eventId,
+        playerId: event.player?._id ?? null,
+        playerName:
+          event.player?.displayName ?? toOptionalText(event.source.playerName),
+        points: event.points ?? null,
+        side: event.source.side,
+        type: event.source.type,
+      });
+    }
+
+    const updatedFixture = (await ctx.db.get(fixture._id)) ?? fixture;
+    const refresh = await refreshGameweekAfterFixtureChange(
+      ctx,
+      updatedFixture,
+      now,
+    );
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      fixture.seasonId,
+      now,
+    );
+
+    return {
+      deleted: existingEvents.length,
+      created: created.length,
+      events: created,
+      fixtureId: fixture._id,
       refresh,
       suspensionSync,
     };
@@ -6292,7 +6583,7 @@ export const replaceFixtureLineups = mutation({
         fixtureId: fixture._id,
         clubId: player.clubId ?? sideClubId,
         playerId: player._id,
-        playerName: normalizeText(lineup.playerName ?? player.displayName),
+        playerName: player.displayName,
         side: lineup.side,
         jerseyNumber:
           lineup.jerseyNumber === undefined

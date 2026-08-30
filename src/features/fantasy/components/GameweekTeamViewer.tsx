@@ -1467,6 +1467,11 @@ export function GameweekTeamViewer({
           setSelectedFixtureId(null);
           setSelectedFixtureFallback(null);
         }}
+        onPlayerPress={(playerId) => {
+          setSelectedFixtureId(null);
+          setSelectedFixtureFallback(null);
+          setSelectedPlayerId(playerId);
+        }}
       />
     );
   }
