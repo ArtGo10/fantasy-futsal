@@ -6392,6 +6392,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
+  matchDetailsLineupPlayerButton: {
+    flex: 1,
+    minWidth: 0,
+  },
   matchDetailsLineupPlayer: {
     flex: 1,
     minWidth: 0,
@@ -6399,6 +6403,9 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.sm,
+  },
+  matchDetailsLineupPlayerLink: {
+    color: colors.brand.blueDark,
   },
   matchDetailsEventBadges: {
     flexShrink: 0,
