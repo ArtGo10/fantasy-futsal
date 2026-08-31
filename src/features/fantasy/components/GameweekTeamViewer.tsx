@@ -1,10 +1,8 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
 import { Image } from "expo-image";
 import { ArrowLeft, ChevronRight, Plus } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   BackHandler,
   Platform,
   Pressable,
@@ -17,6 +15,8 @@ import {
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import type { TranslationKey } from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
+import { useSafeQuery } from "../../../hooks/useSafeQuery";
 import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
@@ -157,6 +157,26 @@ type TeamGameweekView =
     }
   | null
   | undefined;
+
+function useLastDefinedTeamGameweekView(
+  value: TeamGameweekView,
+  cacheKey: string | undefined,
+) {
+  const cachedRef = useRef<{
+    cacheKey: string | undefined;
+    value: TeamGameweekView;
+  }>({ cacheKey, value: undefined });
+
+  if (cachedRef.current.cacheKey !== cacheKey) {
+    cachedRef.current = { cacheKey, value: undefined };
+  }
+
+  if (value !== undefined) {
+    cachedRef.current.value = value;
+  }
+
+  return value === undefined ? cachedRef.current.value : value;
+}
 
 type PlayerProfileMatch = {
   fixture: {
@@ -696,7 +716,7 @@ function ReadonlyPitch({
         <View
           style={[
             styles.futsalBenchRail,
-            { backgroundColor: fantasyTheme.primaryColor },
+            { backgroundColor: colors.brand.blueDark },
           ]}
         >
           {bench.map((slot) => (
@@ -709,7 +729,7 @@ function ReadonlyPitch({
       <View
         style={[
           styles.futsalReserveRail,
-          { backgroundColor: fantasyTheme.primaryColor },
+          { backgroundColor: colors.brand.blueDark },
         ]}
       >
         {reserve.map((slot) => (
@@ -1066,7 +1086,7 @@ function PlayerProfilePage({
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
-  const profile = useQuery(
+  const profile = useSafeQuery(
     api.fantasy.playerProfile,
     canQueryPrivateData
       ? seasonSlug
@@ -1097,8 +1117,7 @@ function PlayerProfilePage({
   if (profile === undefined) {
     return (
       <View style={styles.gameweekViewerLoading}>
-        <ActivityIndicator color={fantasyTheme.primaryColor} />
-        <Text style={styles.mutedText}>{t("common.loading")}</Text>
+        <LoadingBlock />
       </View>
     );
   }
@@ -1406,11 +1425,18 @@ export function GameweekTeamViewer({
     },
     [fantasyTeamId, gameweekId, seasonSlug],
   );
-  const data = useQuery(
+  const teamViewCacheKey = `${fantasyTeamId}:${gameweekId ?? "current"}:${
+    seasonSlug ?? "default"
+  }`;
+  const dataQuery = useSafeQuery(
     api.fantasy.fantasyTeamGameweekView,
     canQueryPrivateData ? teamViewArgs : "skip",
   ) as TeamGameweekView;
-  const selectedFixtureDetails = useQuery(
+  const data = useLastDefinedTeamGameweekView(
+    dataQuery,
+    canQueryPrivateData ? teamViewCacheKey : undefined,
+  );
+  const selectedFixtureDetails = useSafeQuery(
     api.fantasy.fixtureDetails,
     canQueryPrivateData && selectedFixtureId
       ? { fixtureId: selectedFixtureId }
@@ -1504,8 +1530,7 @@ export function GameweekTeamViewer({
   if (data === undefined) {
     return (
       <View style={styles.gameweekViewerLoading}>
-        <ActivityIndicator color={fantasyTheme.primaryColor} />
-        <Text style={styles.mutedText}>{t("common.loading")}</Text>
+        <LoadingBlock />
       </View>
     );
   }

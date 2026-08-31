@@ -6,6 +6,7 @@ import { action, internalAction, internalMutation, internalQuery, mutation, quer
 import type { MutationCtx } from "./_generated/server";
 import {
   getCurrentUser,
+  getCurrentUserIfAuthenticated,
   isAdminUser,
   requireAdmin,
   requireIdentity,
@@ -497,7 +498,14 @@ export const updateFavoriteFantasyClub = mutation({
 export const me = query({
   args: {},
   handler: async (ctx) => {
-    const { identity, user } = await getCurrentUser(ctx);
+    const currentUser = await getCurrentUserIfAuthenticated(ctx);
+    if (!currentUser) {
+      return {
+        isAdmin: false,
+        user: null,
+      };
+    }
+    const { identity, user } = currentUser;
 
     return {
       isAdmin: isAdminUser(identity, user),
@@ -644,7 +652,9 @@ export const listFeedback = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { identity, user } = await getCurrentUser(ctx);
+    const currentUser = await getCurrentUserIfAuthenticated(ctx);
+    if (!currentUser) return [];
+    const { identity, user } = currentUser;
     if (!isAdminUser(identity, user)) return [];
 
     const limit = Math.min(Math.max(Math.floor(args.limit ?? 20), 1), 50);

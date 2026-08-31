@@ -1,5 +1,4 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -17,6 +16,8 @@ import {
 } from "react-native";
 
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
+import { useSafeQuery } from "../../../hooks/useSafeQuery";
 import { BottomSheet } from "../components/BottomSheet";
 import { DesktopSelect } from "../components/DesktopSelect";
 import { useI18n } from "../../../i18n/I18nProvider";
@@ -789,8 +790,7 @@ function SeasonStats({
   if (!localizedStatistics) {
     return (
       <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>{t("common.loading")}</Text>
-        <Text style={styles.mutedText}>{t("season.statsLoading")}</Text>
+        <LoadingBlock />
       </View>
     );
   }
@@ -1190,7 +1190,7 @@ export function MatchDetailsPage({
 
       {!fixture ? (
         <View style={styles.panel}>
-          <Text style={styles.mutedText}>{t("matchDetails.loading")}</Text>
+          <LoadingBlock />
         </View>
       ) : (
         <>
@@ -2367,7 +2367,7 @@ export function SeasonScreen({
     );
     setCalendarGameweekDirty(false);
   };
-  const selectedFixtureDetails = useQuery(
+  const selectedFixtureDetails = useSafeQuery(
     api.fantasy.fixtureDetails,
     selectedFixtureDetailsId ? { fixtureId: selectedFixtureDetailsId } : "skip",
   );
@@ -2378,7 +2378,7 @@ export function SeasonScreen({
       ) ?? null,
     [fixtures, selectedFixtureDetailsId],
   );
-  const selectedMatchPlayerProfile = useQuery(
+  const selectedMatchPlayerProfile = useSafeQuery(
     api.fantasy.playerProfile,
     selectedMatchPlayerId ? { playerId: selectedMatchPlayerId } : "skip",
   ) as { player: PlayerDetail } | null | undefined;
@@ -2495,10 +2495,7 @@ export function SeasonScreen({
 
           {isLoading ? (
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>{t("common.loading")}</Text>
-              <Text style={styles.mutedText}>
-                {t("fixtures.loadingDescription")}
-              </Text>
+              <LoadingBlock />
             </View>
           ) : null}
 

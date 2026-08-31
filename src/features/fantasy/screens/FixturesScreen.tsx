@@ -6,6 +6,7 @@ import type { LanguageCode } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
 
 export type FantasyGameweekFixtureProfile = {
   hasBlankTeams: boolean;
@@ -135,8 +136,7 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
     <>
       {isLoading ? (
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>{t("common.loading")}</Text>
-          <Text style={styles.mutedText}>{t("fixtures.loadingDescription")}</Text>
+          <LoadingBlock />
         </View>
       ) : null}
 

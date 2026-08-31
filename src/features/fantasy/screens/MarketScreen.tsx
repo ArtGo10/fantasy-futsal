@@ -13,6 +13,7 @@ import {
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
@@ -383,8 +384,7 @@ export function MarketScreen({
   const emptyState =
     players === undefined ? (
       <View style={styles.marketEmptyPanel}>
-        <Text style={styles.marketEmptyTitle}>{t("players.loadingTitle")}</Text>
-        <Text style={styles.mutedText}>{t("players.loadingDescription")}</Text>
+        <LoadingBlock />
       </View>
     ) : (
       <View style={styles.marketEmptyPanel}>

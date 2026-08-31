@@ -9,6 +9,7 @@ const GLOBAL_HANDLER_FALLBACK_DELAY_MS = 800;
 export type CrashReportSource =
   | "errorBoundary"
   | "globalError"
+  | "queryError"
   | "unhandledRejection";
 
 export type StoredCrashReport = {

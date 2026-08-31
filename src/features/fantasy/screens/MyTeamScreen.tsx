@@ -21,7 +21,6 @@ import {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   BackHandler,
   Keyboard,
   Platform,
@@ -37,7 +36,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
-import { LoadingLogo } from "../../../components/common/LoadingLogo";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
 import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
 import {
   LegalTextSheet,
@@ -1567,8 +1566,7 @@ function TeamPointsDetailsScreen({
 
       {breakdown === undefined ? (
         <View style={[styles.teamBuilderPanel, styles.centerBlock]}>
-          <ActivityIndicator color={fantasyTheme.primaryColor} />
-          <Text style={styles.mutedText}>{t("common.loading")}</Text>
+          <LoadingBlock />
         </View>
       ) : !breakdown || !hasContent ? (
         <View style={styles.teamBuilderPanel}>
@@ -5485,8 +5483,7 @@ export function MyTeamScreen({
 
       {fantasyPlayers === undefined ? (
         <View style={styles.playerPickerLoadingState}>
-          <LoadingLogo style={styles.playerPickerLoadingLogo} />
-          <Text style={styles.mutedText}>{t("common.loading")}</Text>
+          <LoadingBlock />
         </View>
       ) : (
         <View style={styles.playerPickerListFrame}>
