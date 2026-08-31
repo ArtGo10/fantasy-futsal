@@ -9,6 +9,7 @@ const CRASH_REPORT_NAME_LIMIT = 120;
 const crashReportSourceValidator = v.union(
   v.literal("errorBoundary"),
   v.literal("globalError"),
+  v.literal("queryError"),
   v.literal("unhandledRejection"),
 );
 

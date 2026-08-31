@@ -1,6 +1,6 @@
 import { useAuth, useClerk, useUser } from "@clerk/expo";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation } from "convex/react";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -33,6 +33,7 @@ import {
 } from "../../components/legal/LegalTextSheet";
 import { useCurrentUserBootstrap } from "../../hooks/useCurrentUserBootstrap";
 import { useDismissKeyboardOnChange } from "../../hooks/useDismissKeyboardOnChange";
+import { useSafeQuery } from "../../hooks/useSafeQuery";
 import { LEGAL_VERSION } from "../../legal/legalContent";
 import { clearStoredLegalAcceptance } from "../../legal/legalAcceptanceStorage";
 import { useExpoPushTokenRegistration } from "../../hooks/usePushNotifications";
@@ -224,6 +225,7 @@ const CONNECTION_TOAST_RESUME_GRACE_MS = 8000;
 const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
+const NATIVE_FOREGROUND_SESSION_REFRESH_GRACE_MS = 60 * 1000;
 const WEB_FOREGROUND_SESSION_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
 function waitForNextPaint() {
@@ -696,6 +698,9 @@ export function FantasyHome({
   } = useAuth();
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
+  const suspendedAtRef = useRef<number | null>(
+    /inactive|background/.test(AppState.currentState) ? Date.now() : null,
+  );
   const lastForegroundResumeAtRef = useRef(0);
   const lastForegroundSessionRefreshAtRef = useRef(Date.now());
   const wasOfflineRef = useRef(isOffline);
@@ -785,47 +790,47 @@ export function FantasyHome({
     shouldQuerySelectedSeasonData && selectedSeasonSlug
       ? { seasonSlug: selectedSeasonSlug }
       : "skip";
-  const fantasySeasonsQuery = useQuery(
+  const fantasySeasonsQuery = useSafeQuery(
     api.fantasy.listSeasons,
     shouldQuerySeasonCatalog ? {} : "skip",
   );
-  const fantasyOverviewQuery = useQuery(
+  const fantasyOverviewQuery = useSafeQuery(
     api.fantasy.overview,
     selectedSeasonQueryArgs,
   );
-  const fantasyTeamQuery = useQuery(
+  const fantasyTeamQuery = useSafeQuery(
     api.fantasy.myTeam,
     selectedSeasonQueryArgs,
   );
-  const fantasyPlayersQuery = useQuery(
+  const fantasyPlayersQuery = useSafeQuery(
     api.fantasy.listPlayers,
     selectedSeasonQueryArgs,
   );
-  const fantasyTeamsQuery = useQuery(
+  const fantasyTeamsQuery = useSafeQuery(
     api.fantasy.listFantasyTeams,
     selectedSeasonQueryArgs,
   );
-  const fantasyPrivateLeaguesQuery = useQuery(
+  const fantasyPrivateLeaguesQuery = useSafeQuery(
     api.fantasy.listMyPrivateLeagues,
     selectedSeasonQueryArgs,
   );
-  const fantasyClubsQuery = useQuery(
+  const fantasyClubsQuery = useSafeQuery(
     api.fantasy.listClubs,
     selectedSeasonQueryArgs,
   );
-  const fantasyGameweeksQuery = useQuery(
+  const fantasyGameweeksQuery = useSafeQuery(
     api.fantasy.listGameweeks,
     selectedSeasonQueryArgs,
   );
-  const fantasyFixturesQuery = useQuery(
+  const fantasyFixturesQuery = useSafeQuery(
     api.fantasy.listFixtures,
     selectedSeasonQueryArgs,
   );
-  const seasonPlayerStatisticsQuery = useQuery(
+  const seasonPlayerStatisticsQuery = useSafeQuery(
     api.fantasy.seasonPlayerStatistics,
     selectedSeasonQueryArgs,
   );
-  const favoritePlayerIdsQuery = useQuery(
+  const favoritePlayerIdsQuery = useSafeQuery(
     api.fantasy.myFavoritePlayerIds,
     selectedSeasonQueryArgs,
   );
@@ -841,11 +846,11 @@ export function FantasyHome({
       fantasyFixturesQuery !== undefined &&
       seasonPlayerStatisticsQuery !== undefined &&
       favoritePlayerIdsQuery !== undefined);
-  const currentUserProfileQuery = useQuery(
+  const currentUserProfileQuery = useSafeQuery(
     api.users.me,
     shouldQueryPrivateData ? {} : "skip",
   );
-  const notificationSummaryQuery = useQuery(
+  const notificationSummaryQuery = useSafeQuery(
     api.notifications.currentUserNotificationSummary,
     shouldQueryPrivateData ? {} : "skip",
   );
@@ -1138,15 +1143,32 @@ export function FantasyHome({
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
 
+      if (/inactive|background/.test(nextAppState)) {
+        if (!/inactive|background/.test(previousAppState)) {
+          suspendedAtRef.current = Date.now();
+        }
+        return;
+      }
+
       if (
         nextAppState === "active" &&
         /inactive|background/.test(previousAppState)
       ) {
         const now = Date.now();
+        const suspendedAt = suspendedAtRef.current;
+        suspendedAtRef.current = null;
         lastForegroundResumeAtRef.current = now;
         setIsConnectionToastVisible(false);
 
         if (userIsSignedIn) {
+          if (
+            Platform.OS !== "web" &&
+            suspendedAt &&
+            now - suspendedAt < NATIVE_FOREGROUND_SESSION_REFRESH_GRACE_MS
+          ) {
+            return;
+          }
+
           if (
             Platform.OS === "web" &&
             now - lastForegroundSessionRefreshAtRef.current <
@@ -1565,13 +1587,11 @@ export function FantasyHome({
         : { isFavorite, playerId };
       void toggleFavoritePlayer(mutationArgs).catch(
         (error: unknown) => {
-          setAsyncError(
-            error instanceof Error ? error.message : t("common.loading"),
-          );
+          setAsyncError(getErrorMessage(error, language));
         },
       );
     },
-    [selectedSeasonSlug, setAsyncError, t, toggleFavoritePlayer],
+    [language, selectedSeasonSlug, setAsyncError, toggleFavoritePlayer],
   );
 
   const isLeagueTabActive = activeTab === "league";

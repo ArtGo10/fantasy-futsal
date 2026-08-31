@@ -114,6 +114,7 @@ export default defineSchema({
     source: v.union(
       v.literal("errorBoundary"),
       v.literal("globalError"),
+      v.literal("queryError"),
       v.literal("unhandledRejection"),
     ),
     fatal: v.union(v.boolean(), v.null()),

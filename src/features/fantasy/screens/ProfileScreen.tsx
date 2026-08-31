@@ -1,5 +1,5 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Linking,
@@ -14,9 +14,11 @@ import {
 import { ArrowLeft } from "lucide-react-native";
 
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
 import { SUPPORT_EMAIL, WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnChange";
+import { useSafeQuery } from "../../../hooks/useSafeQuery";
 import type { LanguageCode, TranslationKey } from "../../../i18n/translations";
 import { api } from "../../../lib/convexApi";
 import { LanguageSwitcher } from "../../../components/common/LanguageSwitcher";
@@ -258,13 +260,13 @@ export function ProfileScreen({
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteErrorText, setDeleteErrorText] = useState<string | null>(null);
 
-  const selectedFixtureDetails = useQuery(
+  const selectedFixtureDetails = useSafeQuery(
     api.fantasy.fixtureDetails,
     isAdmin && mode === "adminActions" && selectedAdminFixtureId
       ? { fixtureId: selectedAdminFixtureId }
       : "skip",
   );
-  const adminFeedbackItems = useQuery(
+  const adminFeedbackItems = useSafeQuery(
     api.users.listFeedback,
     isAdmin && mode === "adminActions" && canQueryPrivateData
       ? { limit: 10 }
@@ -680,7 +682,7 @@ export function ProfileScreen({
           {t("profile.feedbackAdminTitle")}
         </Text>
         {adminFeedbackItems === undefined ? (
-          <Text style={styles.mutedText}>{t("common.loading")}</Text>
+          <LoadingBlock />
         ) : adminFeedbackItems.length === 0 ? (
           <Text style={styles.mutedText}>
             {t("profile.feedbackAdminEmpty")}

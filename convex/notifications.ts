@@ -3,7 +3,10 @@ import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { action, internalAction, mutation, query } from "./_generated/server";
-import { getCurrentUser } from "./authHelpers";
+import {
+  getCurrentUser,
+  getCurrentUserIfAuthenticated,
+} from "./authHelpers";
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -421,10 +424,11 @@ export const listCurrentUserNotifications = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { user } = await getCurrentUser(ctx);
-    if (!user) {
+    const currentUser = await getCurrentUserIfAuthenticated(ctx);
+    if (!currentUser?.user) {
       return { items: [], unreadCount: 0 };
     }
+    const { user } = currentUser;
 
     const limit = normalizeLimit(args.limit);
     const [items, unreadItems] = await Promise.all([
@@ -451,8 +455,9 @@ export const listCurrentUserNotifications = query({
 export const currentUserNotificationSummary = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getCurrentUser(ctx);
-    if (!user) return { unreadCount: 0 };
+    const currentUser = await getCurrentUserIfAuthenticated(ctx);
+    if (!currentUser?.user) return { unreadCount: 0 };
+    const { user } = currentUser;
 
     const unreadItems = await ctx.db
       .query("userNotifications")

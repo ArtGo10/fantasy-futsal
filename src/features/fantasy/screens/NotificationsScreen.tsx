@@ -1,7 +1,9 @@
-import { useMutation, useQuery } from "convex/react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useMutation } from "convex/react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { BellOff, BellRing, CheckCheck, ChevronLeft } from "lucide-react-native";
 
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
+import { useSafeQuery } from "../../../hooks/useSafeQuery";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { LanguageCode } from "../../../i18n/translations";
 import { api } from "../../../lib/convexApi";
@@ -27,9 +29,12 @@ function formatNotificationDate(value: number, language: LanguageCode) {
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
   const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
-  const notifications = useQuery(api.notifications.listCurrentUserNotifications, {
-    limit: 50,
-  });
+  const notifications = useSafeQuery(
+    api.notifications.listCurrentUserNotifications,
+    {
+      limit: 50,
+    },
+  );
   const markNotificationRead = useMutation(
     api.notifications.markCurrentUserNotificationRead,
   );
@@ -81,10 +86,7 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
 
       {notifications === undefined ? (
         <View style={styles.notificationsLoadingState}>
-          <ActivityIndicator color={fantasyTheme.primaryColor} />
-          <Text style={styles.notificationsEmptyText}>
-            {t("notifications.loading")}
-          </Text>
+          <LoadingBlock />
         </View>
       ) : notifications.items.length === 0 ? (
         <View style={styles.notificationsEmptyState}>

@@ -20,6 +20,7 @@ import {
 } from "react-native";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { LoadingBlock } from "../../../components/common/LoadingBlock";
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
@@ -852,7 +853,7 @@ export function LeagueScreen({
         <>
           {isLoading ? (
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>{t("common.loading")}</Text>
+              <LoadingBlock />
             </View>
           ) : null}
 
