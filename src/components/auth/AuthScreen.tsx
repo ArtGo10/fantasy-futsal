@@ -1,4 +1,4 @@
-import { useSSO } from "@clerk/expo";
+import { useSSO, type StartSSOFlowReturnType } from "@clerk/expo";
 import { useSignIn, useSignUp } from "@clerk/expo/legacy";
 import * as WebBrowser from "expo-web-browser";
 import { Image as ExpoImage } from "expo-image";
@@ -191,6 +191,18 @@ type ClerkSignUpAttempt = {
   missingFields?: string[];
 };
 
+type ClerkSocialSignUpAttempt = ClerkSignUpAttempt & {
+  emailAddress?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  unsafeMetadata?: {
+    displayName?: unknown;
+  };
+  update?: (
+    params: ClerkSignUpCompletionParams,
+  ) => Promise<ClerkSignUpAttempt | void>;
+};
+
 type ClerkSignUpCompletionParams = {
   firstName?: string;
   lastName?: string;
@@ -216,6 +228,10 @@ type ClerkSignUpCreator = {
   missingFields?: string[];
 };
 
+function getTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function splitDisplayNameForClerk(value: string) {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   const firstName = parts[0] ?? "";
@@ -235,10 +251,69 @@ function createUsernameFromEmail(value: string) {
 
 function getSignUpMissingFields(
   attempt: ClerkSignUpAttempt,
-  signUp: ClerkSignUpCreator,
+  signUp: Pick<ClerkSignUpCreator, "missingFields">,
 ) {
   const fields = attempt.missingFields ?? signUp.missingFields ?? [];
   return fields.map((field) => String(field)).filter(Boolean);
+}
+
+function getSocialSignUpDisplayName(
+  signUp: ClerkSocialSignUpAttempt,
+  fallbackDisplayName: string,
+  fallbackEmail: string,
+) {
+  const formDisplayName = fallbackDisplayName.trim();
+  if (formDisplayName) return formDisplayName;
+
+  const metadataDisplayName = getTrimmedString(
+    signUp.unsafeMetadata?.displayName,
+  );
+  if (metadataDisplayName) return metadataDisplayName;
+
+  const providerDisplayName = [signUp.firstName, signUp.lastName]
+    .map(getTrimmedString)
+    .filter(Boolean)
+    .join(" ");
+  if (providerDisplayName) return providerDisplayName;
+
+  const emailLocalPart = fallbackEmail.split("@")[0]?.trim();
+  return emailLocalPart || `user_${Date.now()}`;
+}
+
+async function completeNativeSocialSignUp(
+  result: StartSSOFlowReturnType,
+  displayName: string,
+  email: string,
+) {
+  let createdSessionId = result.createdSessionId;
+  let signUpAttempt = result.signUp as ClerkSocialSignUpAttempt | undefined;
+
+  if (
+    !createdSessionId &&
+    signUpAttempt?.status === "missing_requirements" &&
+    typeof signUpAttempt.update === "function"
+  ) {
+    const fallbackEmail = signUpAttempt.emailAddress ?? email.trim();
+    const missingFields = getSignUpMissingFields(
+      signUpAttempt,
+      signUpAttempt,
+    );
+    const completionParams = buildSignUpCompletionParams(
+      missingFields,
+      getSocialSignUpDisplayName(signUpAttempt, displayName, fallbackEmail),
+      fallbackEmail,
+    );
+    const updatedSignUp = await signUpAttempt.update(completionParams);
+
+    signUpAttempt =
+      (updatedSignUp as ClerkSocialSignUpAttempt | undefined) ?? signUpAttempt;
+    createdSessionId = signUpAttempt.createdSessionId ?? null;
+  }
+
+  return {
+    createdSessionId,
+    signUpAttempt,
+  };
 }
 
 function buildSignUpCompletionParams(
@@ -931,16 +1006,50 @@ export function AuthScreen({ title = "Fantasy Futsal" }: { title?: string }) {
         return;
       }
 
+      const trimmedDisplayName = displayName.trim();
       const result = await startSSOFlow({
         strategy,
         redirectUrl: getNativeOAuthRedirectUrl(),
+        unsafeMetadata: trimmedDisplayName
+          ? {
+              displayName: trimmedDisplayName,
+            }
+          : undefined,
       });
+      const { createdSessionId, signUpAttempt } =
+        await completeNativeSocialSignUp(result, displayName, email);
 
-      shouldKeepHandoffScreen = true;
-
-      if (result.createdSessionId && result.setActive) {
-        await result.setActive({ session: result.createdSessionId });
+      if (createdSessionId && result.setActive) {
+        shouldKeepHandoffScreen = true;
+        await result.setActive({ session: createdSessionId });
+        return;
       }
+
+      const authSessionType = result.authSessionResult?.type;
+      if (authSessionType === "cancel" || authSessionType === "dismiss") {
+        setErrorText(t("auth.socialCanceled"));
+        return;
+      }
+
+      const missingFields = signUpAttempt
+        ? getSignUpMissingFields(signUpAttempt, signUpAttempt)
+        : [];
+      console.warn("[auth:social-incomplete]", {
+        strategy,
+        authSessionType,
+        signInStatus: result.signIn?.status,
+        signUpStatus: signUpAttempt?.status,
+        missingFields,
+      });
+      setErrorText(
+        signUpAttempt?.status === "missing_requirements"
+          ? getIncompleteSignUpMessage(
+              signUpAttempt.status,
+              missingFields,
+              language,
+            )
+          : t("auth.socialFailed"),
+      );
     } catch (error) {
       logAuthError("social-auth", error);
       setErrorText(getErrorMessage(error, language));
