@@ -15,6 +15,7 @@ import { TOKEN_FETCH_TIMEOUT_MS } from "../constants";
 
 type ClerkGetToken = ReturnType<typeof useAuth>["getToken"];
 
+const NATIVE_BACKGROUND_TOKEN_REFRESH_GRACE_MS = 60 * 1000;
 const WEB_FOREGROUND_TOKEN_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
@@ -73,6 +74,9 @@ function useClerkConvexAuth() {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth();
   const getTokenRef = useRef(getToken);
   const appStateRef = useRef(AppState.currentState);
+  const suspendedAtRef = useRef<number | null>(
+    /inactive|background/.test(AppState.currentState) ? Date.now() : null,
+  );
   const lastForegroundTokenRefreshAtRef = useRef(Date.now());
   const [foregroundRefreshNonce, setForegroundRefreshNonce] = useState(0);
   const preferDefaultToken = sessionClaims?.aud === "convex";
@@ -86,12 +90,29 @@ function useClerkConvexAuth() {
       const previousAppState = appStateRef.current;
       appStateRef.current = nextAppState;
 
+      if (/inactive|background/.test(nextAppState)) {
+        if (!/inactive|background/.test(previousAppState)) {
+          suspendedAtRef.current = Date.now();
+        }
+        return;
+      }
+
       if (
         isSignedIn &&
         nextAppState === "active" &&
         /inactive|background/.test(previousAppState)
       ) {
         const now = Date.now();
+        const suspendedAt = suspendedAtRef.current;
+        suspendedAtRef.current = null;
+
+        if (
+          Platform.OS !== "web" &&
+          suspendedAt &&
+          now - suspendedAt < NATIVE_BACKGROUND_TOKEN_REFRESH_GRACE_MS
+        ) {
+          return;
+        }
 
         if (
           Platform.OS === "web" &&

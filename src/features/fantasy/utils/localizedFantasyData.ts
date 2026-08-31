@@ -233,6 +233,35 @@ const LEGACY_LEFT_CLUB_STATUS_MESSAGES = new Set([
   "покинув клуб",
 ]);
 
+const LATIN_ASCII_CHAR_REPLACEMENTS: Record<string, string> = {
+  Æ: "AE",
+  æ: "ae",
+  Ð: "D",
+  ð: "d",
+  Đ: "D",
+  đ: "d",
+  Ħ: "H",
+  ħ: "h",
+  Ĳ: "IJ",
+  ĳ: "ij",
+  Ł: "L",
+  ł: "l",
+  Ŋ: "N",
+  ŋ: "n",
+  Œ: "OE",
+  œ: "oe",
+  Ø: "O",
+  ø: "o",
+  ẞ: "SS",
+  ß: "ss",
+  Þ: "Th",
+  þ: "th",
+  Ŧ: "T",
+  ŧ: "t",
+  İ: "I",
+  ı: "i",
+};
+
 function normalizePlayerStatusMessage(value: string | null | undefined) {
   return (value ?? "")
     .replace(/[\s.!?:;]+/g, " ")
@@ -437,18 +466,29 @@ function normalizeLookup(value: string | null | undefined) {
   return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("uk-UA");
 }
 
-function normalizePlayerNameLookup(value: string | null | undefined) {
-  return normalizeLookup(value)
-    .replace(/[ł]/g, "l")
-    .replace(/[đð]/g, "d")
-    .replace(/[æ]/g, "ae")
-    .replace(/[œ]/g, "oe")
+export function transliterateLatinNameToEnglish(
+  value: string | null | undefined,
+) {
+  return Array.from(value ?? "")
+    .map((character) => LATIN_ASCII_CHAR_REPLACEMENTS[character] ?? character)
+    .join("")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function normalizeFantasySearchValue(value: string | null | undefined) {
+  return transliterateLatinNameToEnglish(value)
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("uk-UA")
     .replace(/\([^)]*\)/g, " ")
     .replace(/[´`'’ʼ]/g, "")
     .replace(/[^a-zа-яіїєґ0-9]+/giu, " ")
     .trim();
+}
+
+function normalizePlayerNameLookup(value: string | null | undefined) {
+  return normalizeFantasySearchValue(value);
 }
 
 const PLAYER_NAME_LOCALIZATIONS: Record<
@@ -1413,11 +1453,15 @@ function getLocalizedPlayerNames(
   if (localizedName) {
     const fallbackLocalizedNames = splitDisplayName(localizedName.displayName);
 
-    return {
+    const localizedNames = {
       displayName: localizedName.displayName,
       firstName: localizedName.firstName ?? fallbackLocalizedNames.firstName,
       lastName: localizedName.lastName ?? fallbackLocalizedNames.lastName,
     };
+
+    return language === "en"
+      ? getEnglishFriendlyPlayerNames(localizedNames)
+      : localizedNames;
   }
 
   const fallbackNames = splitDisplayName(player.displayName);
@@ -1432,10 +1476,28 @@ function getLocalizedPlayerNames(
       ? firstName + " " + lastName
       : localizeText(player.displayName, language);
 
-  return {
+  const localizedNames = {
     displayName,
     firstName,
     lastName,
+  };
+
+  return language === "en"
+    ? getEnglishFriendlyPlayerNames(localizedNames)
+    : localizedNames;
+}
+
+function getEnglishFriendlyPlayerNames(names: PlayerNameLocalization) {
+  return {
+    displayName: transliterateLatinNameToEnglish(names.displayName),
+    firstName:
+      names.firstName === null || names.firstName === undefined
+        ? names.firstName
+        : transliterateLatinNameToEnglish(names.firstName),
+    lastName:
+      names.lastName === null || names.lastName === undefined
+        ? names.lastName
+        : transliterateLatinNameToEnglish(names.lastName),
   };
 }
 

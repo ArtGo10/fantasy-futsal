@@ -35,6 +35,7 @@ import { TeamKitAvatar } from "../components/TeamKitAvatar";
 import {
   getLocalizedClubName,
   localizeFantasyPlayer,
+  transliterateLatinNameToEnglish,
 } from "../utils/localizedFantasyData";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import type {
@@ -960,7 +961,13 @@ type MatchDetailsLineupRow = MatchDetailsLineupPlayer & {
 };
 
 function normalizeMatchEventPlayerKey(value: string | null | undefined) {
-  return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return transliterateLatinNameToEnglish(value)
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("uk-UA")
+    .replace(/[´`'’ʼ]/g, "")
+    .replace(/[^a-zа-яіїєґ0-9]+/giu, " ")
+    .trim();
 }
 
 function isMatchEventForLineupPlayer(

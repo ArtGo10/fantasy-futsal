@@ -1658,6 +1658,7 @@ export function FantasyHome({
   const leagueScreen = useMemo(
     () => (
       <LeagueScreen
+        canQueryPrivateData={shouldQueryPrivateData}
         clubs={localizedFantasyClubs}
         currentFantasyTeamId={
           localizedFantasyTeam?.id
@@ -1681,11 +1682,13 @@ export function FantasyHome({
       localizedFantasyGameweeks,
       localizedFantasyTeam?.id,
       selectedSeasonSlug,
+      shouldQueryPrivateData,
     ],
   );
   const teamScreen = useMemo(
     () => (
       <MyTeamScreen
+        canQueryPrivateData={shouldQueryPrivateData}
         fantasyClubs={localizedFantasyClubs}
         fantasyOverview={fantasyOverview}
         fantasyPlayers={localizedActiveClubFantasyPlayers}
@@ -1713,6 +1716,7 @@ export function FantasyHome({
       setAreBottomTabsHidden,
       setIsShellHeaderHidden,
       onTopEdgeToEdgeChange,
+      shouldQueryPrivateData,
     ],
   );
   const marketScreen = useMemo(

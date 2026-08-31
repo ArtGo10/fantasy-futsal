@@ -45,9 +45,10 @@ import { api } from "./src/lib/convexApi";
 import { styles } from "./src/styles";
 import {
   clearStoredCrashReport,
+  createCrashReport,
   getStoredCrashReport,
   installGlobalCrashReporter,
-  storeCrashReportForError,
+  storeCrashReport,
   type StoredCrashReport,
 } from "./src/utils/crashReporter";
 import {
@@ -365,6 +366,7 @@ function AppBootLoading() {
 
 type AppRuntimeErrorBoundaryProps = {
   children: ReactNode;
+  onErrorReport?: (report: StoredCrashReport) => void;
 };
 
 type AppRuntimeErrorBoundaryState = {
@@ -382,12 +384,20 @@ class AppRuntimeErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
-    console.warn("[app-runtime-error]", error, errorInfo.componentStack);
-    void storeCrashReportForError({
+    const report = createCrashReport({
       componentStack: errorInfo.componentStack,
       error,
       fatal: false,
       source: "errorBoundary",
+    });
+    console.warn(
+      "[app-runtime-error]",
+      report.id,
+      error,
+      errorInfo.componentStack,
+    );
+    void storeCrashReport(report).finally(() => {
+      this.props.onErrorReport?.(report);
     });
   }
 
@@ -413,6 +423,26 @@ class AppRuntimeErrorBoundary extends Component<
       </View>
     );
   }
+}
+
+function RuntimeErrorBoundaryReporter({ children }: { children: ReactNode }) {
+  const submitCrashReport = useMutation(api.appDiagnostics.submitCrashReport);
+  const handleRuntimeErrorReport = useCallback(
+    (report: StoredCrashReport) => {
+      void submitCrashReport({ report })
+        .then(() => clearStoredCrashReport())
+        .catch((error) => {
+          console.warn("[runtime-error-report-submit-failed]", error);
+        });
+    },
+    [submitCrashReport],
+  );
+
+  return (
+    <AppRuntimeErrorBoundary onErrorReport={handleRuntimeErrorReport}>
+      {children}
+    </AppRuntimeErrorBoundary>
+  );
 }
 
 function ClerkSessionGate({
@@ -596,7 +626,7 @@ function ConfiguredApp({
                     report={initialCrashReport}
                   />
                 ) : (
-                  <AppRuntimeErrorBoundary>
+                  <RuntimeErrorBoundaryReporter>
                     {isCompletingOAuthRedirect ? (
                       <AppContent
                         isOffline={isOffline}
@@ -618,7 +648,7 @@ function ConfiguredApp({
                         />
                       </ClerkSessionGate>
                     )}
-                  </AppRuntimeErrorBoundary>
+                  </RuntimeErrorBoundaryReporter>
                 )}
               </KeyboardAvoidingView>
 

@@ -28,6 +28,7 @@ import {
   FantasyPlayerListSeparator,
 } from "../components/FantasyPlayerListRow";
 import { PlayerDetailSheet } from "../components/PlayerDetailSheet";
+import { normalizeFantasySearchValue } from "../utils/localizedFantasyData";
 import { formatFantasyMoney } from "../utils/money";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
@@ -111,7 +112,7 @@ const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
 };
 
 function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLocaleLowerCase();
+  return normalizeFantasySearchValue(value);
 }
 
 export function MarketScreen({

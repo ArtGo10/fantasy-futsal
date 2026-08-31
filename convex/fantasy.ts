@@ -6155,10 +6155,49 @@ export const upsertFixtureEvent = mutation({
 });
 
 function normalizeFixtureEventPlayerLookup(value: string) {
-  return normalizeText(value)
+  return foldLatinDiacriticsToAscii(normalizeText(value))
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[´`'’ʼ]/g, "")
+    .replace(/[^a-zа-яіїєґ0-9]+/giu, " ")
+    .trim();
+}
+
+const LATIN_ASCII_CHAR_REPLACEMENTS: Record<string, string> = {
+  Æ: "AE",
+  æ: "ae",
+  Ð: "D",
+  ð: "d",
+  Đ: "D",
+  đ: "d",
+  Ħ: "H",
+  ħ: "h",
+  Ĳ: "IJ",
+  ĳ: "ij",
+  Ł: "L",
+  ł: "l",
+  Ŋ: "N",
+  ŋ: "n",
+  Œ: "OE",
+  œ: "oe",
+  Ø: "O",
+  ø: "o",
+  ẞ: "SS",
+  ß: "ss",
+  Þ: "Th",
+  þ: "th",
+  Ŧ: "T",
+  ŧ: "t",
+  İ: "I",
+  ı: "i",
+};
+
+function foldLatinDiacriticsToAscii(value: string) {
+  return Array.from(value)
+    .map((character) => LATIN_ASCII_CHAR_REPLACEMENTS[character] ?? character)
+    .join("");
 }
 
 function getFixtureEventPlayerNameCandidates(player: Doc<"fantasyPlayers">) {

@@ -69,6 +69,7 @@ import {
 import type { HeaderActionOverlayConfig } from "../components/HeaderActionOverlay";
 import { TeamKitAvatar } from "../components/TeamKitAvatar";
 import { PlayerDetailSheet } from "../components/PlayerDetailSheet";
+import { normalizeFantasySearchValue } from "../utils/localizedFantasyData";
 import { formatFantasyMoney } from "../utils/money";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import { getFantasySeasonDisplayTitle } from "../utils/seasonDisplay";
@@ -2151,7 +2152,7 @@ function TransferReviewScreen({
 }
 
 function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLocaleLowerCase();
+  return normalizeFantasySearchValue(value);
 }
 
 function formatPlayerCurrentSeasonPoints(
@@ -3120,6 +3121,7 @@ function CompactSquadSection({
 }
 
 export function MyTeamScreen({
+  canQueryPrivateData = true,
   fantasyClubs,
   fantasyOverview,
   fantasyPlayers,
@@ -3149,6 +3151,7 @@ export function MyTeamScreen({
   ) => void;
   onShellHeaderHiddenChange?: (isHidden: boolean) => void;
   onTopEdgeToEdgeChange?: (isEnabled: boolean) => void;
+  canQueryPrivateData?: boolean;
 }) {
   const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
@@ -5663,6 +5666,7 @@ export function MyTeamScreen({
         ) : teamWorkspaceMode === "pointsDetails" ? (
           pointsViewerTeamId || fantasyTeam?.id ? (
             <GameweekTeamViewer
+              canQueryPrivateData={canQueryPrivateData}
               clubs={fantasyClubs}
               fantasyTeamId={
                 (pointsViewerTeamId ?? fantasyTeam?.id) as Id<"fantasyTeams">

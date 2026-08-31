@@ -32,6 +32,7 @@ import {
   getErrorMessage,
 } from "../../../utils/auth";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
+import { normalizeFantasySearchValue } from "../utils/localizedFantasyData";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import type { FantasyFixture, FantasyGameweek } from "./FixturesScreen";
 
@@ -101,7 +102,7 @@ const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
 };
 
 function normalizeSearchValue(value: string | null | undefined) {
-  return (value ?? "").trim().toLocaleLowerCase();
+  return normalizeFantasySearchValue(value);
 }
 
 function formatAdminDateTime(

@@ -23,6 +23,9 @@ const FUTSAL_POLSKA_ROSTER_INDEX_URLS = [
   `${FUTSAL_POLSKA_BASE_URL}/i-liga-grupa-i`,
   `${FUTSAL_POLSKA_BASE_URL}/i-liga-grupa-ii`,
 ];
+const TRANSFER_PLAYER_POSITION_OVERRIDES = new Map([
+  ["1164695:jewhenij-kozlow", "goalkeeper"],
+]);
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -1873,12 +1876,16 @@ async function applyTransferUpdates(players, playersByClub, warnings) {
       movedCount += 1;
     }
 
+    const transferPlayerSlug = slugify(transfer.displayName);
     const player = createPlayer({
-      externalId: `pol-fp-transfer:${transfer.clubExternalId}:${slugify(transfer.displayName)}`,
-      sourceSlug: slugify(transfer.displayName),
+      externalId: `pol-fp-transfer:${transfer.clubExternalId}:${transferPlayerSlug}`,
+      sourceSlug: transferPlayerSlug,
       sourceUrl,
       displayName: transfer.displayName,
-      position: "universal",
+      position:
+        TRANSFER_PLAYER_POSITION_OVERRIDES.get(
+          `${transfer.clubExternalId}:${transferPlayerSlug}`,
+        ) ?? "universal",
       jerseyNumber: null,
       clubExternalId: transfer.clubExternalId,
       photoUrl: null,

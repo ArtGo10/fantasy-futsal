@@ -1049,11 +1049,13 @@ function PlayerMatchBreakdownSheet({
 }
 
 function PlayerProfilePage({
+  canQueryPrivateData = true,
   onBack,
   onOpenFixture,
   playerId,
   seasonSlug,
 }: {
+  canQueryPrivateData?: boolean;
   onBack: () => void;
   onOpenFixture: (match: PlayerProfileMatch) => void;
   playerId: Id<"fantasyPlayers">;
@@ -1066,7 +1068,11 @@ function PlayerProfilePage({
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
   const profile = useQuery(
     api.fantasy.playerProfile,
-    seasonSlug ? { playerId, seasonSlug } : { playerId },
+    canQueryPrivateData
+      ? seasonSlug
+        ? { playerId, seasonSlug }
+        : { playerId }
+      : "skip",
   ) as PlayerProfileData;
   const [selectedMatch, setSelectedMatch] = useState<PlayerProfileMatch | null>(
     null,
@@ -1359,6 +1365,7 @@ function PlayerProfilePage({
 }
 
 export function GameweekTeamViewer({
+  canQueryPrivateData = true,
   clubs,
   fantasyTeamId,
   gameweekId,
@@ -1368,6 +1375,7 @@ export function GameweekTeamViewer({
   onOpenTeam,
   seasonSlug,
 }: {
+  canQueryPrivateData?: boolean;
   clubs: ViewerClub[] | undefined;
   fantasyTeamId: Id<"fantasyTeams">;
   gameweekId?: Id<"fantasyGameweeks"> | null;
@@ -1400,11 +1408,13 @@ export function GameweekTeamViewer({
   );
   const data = useQuery(
     api.fantasy.fantasyTeamGameweekView,
-    teamViewArgs,
+    canQueryPrivateData ? teamViewArgs : "skip",
   ) as TeamGameweekView;
   const selectedFixtureDetails = useQuery(
     api.fantasy.fixtureDetails,
-    selectedFixtureId ? { fixtureId: selectedFixtureId } : "skip",
+    canQueryPrivateData && selectedFixtureId
+      ? { fixtureId: selectedFixtureId }
+      : "skip",
   );
   const clubsById = useMemo<MatchDetailsPageProps["clubsById"]>(
     () =>
@@ -1479,6 +1489,7 @@ export function GameweekTeamViewer({
   if (selectedPlayerId) {
     return (
       <PlayerProfilePage
+        canQueryPrivateData={canQueryPrivateData}
         onBack={() => setSelectedPlayerId(null)}
         onOpenFixture={(match) => {
           setSelectedFixtureFallback(match.fixture);

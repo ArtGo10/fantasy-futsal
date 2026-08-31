@@ -163,6 +163,7 @@ function getLeagueActionErrorMessage(
 }
 
 export function LeagueScreen({
+  canQueryPrivateData = true,
   clubs,
   currentFantasyTeamId,
   gameweeks,
@@ -173,6 +174,7 @@ export function LeagueScreen({
   seasonSlug,
   teams,
 }: {
+  canQueryPrivateData?: boolean;
   clubs: FantasyClub[] | undefined;
   currentFantasyTeamId?: Id<"fantasyTeams"> | null;
   gameweeks: FantasyLeagueGameweek[] | undefined;
@@ -824,6 +826,7 @@ export function LeagueScreen({
         </>
       ) : selectedTeamId ? (
         <GameweekTeamViewer
+          canQueryPrivateData={canQueryPrivateData}
           clubs={clubs}
           fantasyTeamId={selectedTeamId}
           gameweekId={viewerGameweekId}
