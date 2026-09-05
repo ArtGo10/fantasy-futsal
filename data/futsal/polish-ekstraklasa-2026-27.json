@@ -66,7 +66,7 @@
     "country": "Poland",
     "displayName": "Ekstraklasa",
     "shortName": "Ekstraklasa",
-    "description": "Fantasy-футзал польської Ekstraklasa.",
+    "description": "Fantasy futsal for the Polish Ekstraklasa.",
     "logoKey": "polish-ekstraklasa",
     "primaryColor": "#E30613",
     "secondaryColor": "#980612",
@@ -11198,7 +11198,7 @@
       "number": 2,
       "name": "Тур 2",
       "status": "upcoming",
-      "deadlineAt": "2026-09-05T13:59:00.000Z",
+      "deadlineAt": "2026-09-05T13:00:00.000Z",
       "startsAt": "2026-09-05T14:00:00.000Z",
       "endsAt": "2026-09-06T18:00:00.000Z"
     },
@@ -11206,7 +11206,7 @@
       "number": 3,
       "name": "Тур 3",
       "status": "upcoming",
-      "deadlineAt": "2026-09-10T16:59:00.000Z",
+      "deadlineAt": "2026-09-10T16:00:00.000Z",
       "startsAt": "2026-09-10T17:00:00.000Z",
       "endsAt": "2026-09-13T17:00:00.000Z"
     },

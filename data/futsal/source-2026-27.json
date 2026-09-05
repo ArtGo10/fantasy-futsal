@@ -8707,7 +8707,7 @@
       "sourceUrl": "https://fchit.kyiv.ua/39400",
       "title": "Авалон — Суха Балка",
       "gameweekNumber": 2,
-      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "scheduledAt": "2026-09-06T14:00:00.000+03:00",
       "homeClubExternalId": "5596",
       "awayClubExternalId": "5584",
       "homeClubName": "Авалон",
@@ -8736,9 +8736,9 @@
       "awayClubExternalId": "5586",
       "homeClubName": "Сокіл",
       "awayClubName": "Атлетік Футзал",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 7,
+      "awayScore": 4,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -8755,14 +8755,14 @@
       "sourceUrl": "https://fchit.kyiv.ua/39400",
       "title": "Альянс — SkyUp",
       "gameweekNumber": 2,
-      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "scheduledAt": "2026-09-05T15:00:00.000+03:00",
       "homeClubExternalId": "19235",
       "awayClubExternalId": "21695",
       "homeClubName": "Альянс",
       "awayClubName": "SkyUp",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 1,
+      "awayScore": 2,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -8779,14 +8779,14 @@
       "sourceUrl": "https://fchit.kyiv.ua/39400",
       "title": "ХІТ — Ураган",
       "gameweekNumber": 2,
-      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "scheduledAt": "2026-09-05T13:00:00.000+03:00",
       "homeClubExternalId": "3438",
       "awayClubExternalId": "2892",
       "homeClubName": "ХІТ",
       "awayClubName": "Ураган",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 3,
+      "awayScore": 2,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -8803,14 +8803,14 @@
       "sourceUrl": "https://fchit.kyiv.ua/39400",
       "title": "Агромат — Фантом",
       "gameweekNumber": 2,
-      "scheduledAt": "2026-09-05T12:00:00.000+03:00",
+      "scheduledAt": "2026-09-04T16:00:00.000+03:00",
       "homeClubExternalId": "5599",
       "awayClubExternalId": "19258",
       "homeClubName": "Агромат",
       "awayClubName": "Фантом",
-      "homeScore": null,
-      "awayScore": null,
-      "status": "scheduled",
+      "homeScore": 2,
+      "awayScore": 5,
+      "status": "completed",
       "venue": null,
       "leagueExternalIds": [
         "810"
@@ -12140,10 +12140,10 @@
     {
       "number": 2,
       "name": "Тур 2",
-      "status": "upcoming",
-      "deadlineAt": "2026-09-04T23:59:00.000+03:00",
-      "startsAt": "2026-09-05T00:00:00.000+03:00",
-      "endsAt": "2026-09-05T23:59:00.000+03:00"
+      "status": "live",
+      "deadlineAt": "2026-09-04T15:00:00.000+03:00",
+      "startsAt": "2026-09-04T16:00:00.000+03:00",
+      "endsAt": "2026-09-06T17:00:00.000+03:00"
     },
     {
       "number": 3,

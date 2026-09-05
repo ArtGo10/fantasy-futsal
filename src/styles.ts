@@ -1256,7 +1256,7 @@ export const styles = StyleSheet.create({
   playerDetailSheet: {
     width: "100%",
     maxWidth: 720,
-    maxHeight: "90%",
+    maxHeight: "94%",
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
@@ -1269,13 +1269,17 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadows.card,
   },
+  playerDetailSheetMobile: {
+    maxHeight: "96%",
+  },
   playerDetailScroll: {
     width: "100%",
     flexShrink: 1,
+    minHeight: 0,
   },
   playerDetailScrollContent: {
     gap: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingBottom: 0,
   },
   playerDetailTopStack: {
     width: "100%",
@@ -1482,7 +1486,7 @@ export const styles = StyleSheet.create({
     borderColor: colors.border.default,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
-    gap: spacing.sm,
+    gap: spacing.xs,
     padding: spacing.sm,
   },
   playerDetailSectionTitle: {
@@ -1510,6 +1514,12 @@ export const styles = StyleSheet.create({
     gap: spacing.xxs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
+  },
+  playerDetailStatCellCompact: {
+    flexBasis: "31%",
+    minWidth: 84,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
   playerDetailStatCellDesktop: {
     flexBasis: "23%",
@@ -1575,9 +1585,12 @@ export const styles = StyleSheet.create({
   },
   playerDetailActions: {
     width: "100%",
+    flexShrink: 0,
     flexDirection: "row",
     flexWrap: "nowrap",
     gap: spacing.xs,
+    paddingTop: spacing.xs,
+    backgroundColor: colors.surface,
   },
   playerDetailActionPrimary: {
     flex: 1,
@@ -4606,7 +4619,7 @@ export const styles = StyleSheet.create({
   playerPickerScreen: {
     flex: 1,
     width: "100%",
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     gap: spacing.md,
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -4843,11 +4856,13 @@ export const styles = StyleSheet.create({
   playerPickerListFrame: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: colors.surface,
   },
   playerPickerHorizontalScroll: {
     flex: 1,
     minHeight: 0,
     width: "100%",
+    backgroundColor: colors.surface,
   },
   playerPickerHorizontalScrollContent: {
     flexGrow: 1,
@@ -4856,7 +4871,7 @@ export const styles = StyleSheet.create({
     width: "100%",
     flex: 1,
     minWidth: 660,
-    backgroundColor: "transparent",
+    backgroundColor: colors.surface,
   },
   playerPickerLoadingState: {
     flex: 1,
@@ -4873,6 +4888,7 @@ export const styles = StyleSheet.create({
   playerPickerVirtualList: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: colors.surface,
   },
   playerPickerList: {
     paddingBottom: 0,
@@ -6282,9 +6298,9 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.brand.blueSoft,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   matchDetailsTeamNameGroup: {
     flex: 1,
@@ -6301,17 +6317,17 @@ export const styles = StyleSheet.create({
   matchDetailsTeamName: {
     flexShrink: 1,
     color: colors.text.primary,
-    fontSize: typography.size.base,
+    fontSize: typography.size.md,
     fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.base,
+    lineHeight: typography.lineHeight.md,
     textAlign: "center",
   },
   matchDetailsScoreText: {
-    minWidth: 70,
+    minWidth: 62,
     color: colors.brand.blueDark,
-    fontSize: typography.size.xxl,
+    fontSize: typography.size.xl,
     fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.xxl,
+    lineHeight: typography.lineHeight.lg,
     textAlign: "center",
   },
   matchDetailsScoreTextCompleted: {
@@ -6387,22 +6403,25 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.base,
   },
   matchDetailsLineupPlayerRow: {
-    minHeight: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
   },
-  matchDetailsLineupPlayerButton: {
+  matchDetailsLineupPlayerNameSlot: {
     flex: 1,
     minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   matchDetailsLineupPlayer: {
-    flex: 1,
     minWidth: 0,
     color: colors.text.primary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.medium,
     lineHeight: typography.lineHeight.sm,
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   matchDetailsLineupPlayerLink: {
     color: colors.brand.blueDark,
@@ -6412,6 +6431,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
+    alignContent: "center",
     justifyContent: "flex-end",
     gap: spacing.xs,
     maxWidth: 96,
@@ -6419,7 +6439,7 @@ export const styles = StyleSheet.create({
   matchDetailsEventBadge: {
     position: "relative",
     minWidth: 22,
-    minHeight: 20,
+    height: 22,
     alignItems: "center",
     justifyContent: "center",
     paddingRight: 6,
@@ -6427,8 +6447,10 @@ export const styles = StyleSheet.create({
   matchDetailsEventBadgeMark: {
     fontSize: 15,
     fontWeight: typography.weight.black,
-    lineHeight: 20,
+    lineHeight: 18,
     textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   matchDetailsEventBadgeCount: {
     position: "absolute",

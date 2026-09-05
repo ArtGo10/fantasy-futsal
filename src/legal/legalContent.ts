@@ -1,7 +1,7 @@
 import type { LanguageCode } from "../i18n/translations";
 
-export const LEGAL_VERSION = "2026-08-13";
-export const LEGAL_EFFECTIVE_DATE = "August 13, 2026";
+export const LEGAL_VERSION = "2026-09-05";
+export const LEGAL_EFFECTIVE_DATE = "September 5, 2026";
 export const FUTSAL_DATA_SOURCE_URL = "https://futsal.com.ua";
 
 type LegalSection = {
@@ -38,7 +38,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Fantasy data",
           body: [
-            "Player, club, fixture, match, and statistics data may be compiled from publicly available sources for the selected league. For the Ukrainian Extra-liga, this may include futsal.com.ua. Third-party rights remain with their respective owners.",
+            "Player, club, fixture, match, and statistics data may be compiled from publicly available sources for the selected league. For the Ukrainian Extra-liga, this may include futsal.com.ua. For the Polish Futsal Ekstraklasa, this may include public league, club, and statistics sources such as futsalekstraklasa.pl, futsal-polska.pl, Statscore, and official club roster pages. Third-party rights remain with their respective owners.",
             "Fantasy data can be incomplete, delayed, or corrected after review. We may recalculate points when source data changes or an error is found.",
           ],
         },
@@ -77,7 +77,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Sources",
           body: [
-            "Player, club, fixture, match, and statistics data may be compiled from publicly available sources for the selected league. For the Ukrainian Extra-liga, futsal.com.ua may be one of those sources. This data is used only to run the fantasy experience.",
+            "Player, club, fixture, match, and statistics data may be compiled from publicly available sources for the selected league. For the Ukrainian Extra-liga, futsal.com.ua may be one of those sources. For the Polish Futsal Ekstraklasa, sources may include public league, club, and statistics websites such as futsalekstraklasa.pl, futsal-polska.pl, Statscore, and official club roster pages. This data is used only to run the fantasy experience.",
           ],
         },
         {
@@ -174,7 +174,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
   },
   uk: {
     terms: {
-      updatedAt: "11 серпня 2026",
+      updatedAt: "5 вересня 2026",
       sections: [
         {
           title: "Сервіс",
@@ -193,7 +193,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Fantasy-дані",
           body: [
-            "Дані гравців, клубів, матчів і статистики можуть збиратися з відкритих джерел для вибраної ліги. Для української Екстра-ліги таким джерелом може бути futsal.com.ua. Права третіх сторін залишаються за їхніми власниками.",
+            "Дані гравців, клубів, матчів і статистики можуть збиратися з відкритих джерел для вибраної ліги. Для української Екстра-ліги таким джерелом може бути futsal.com.ua. Для польської Futsal Ekstraklasa це можуть бути відкриті джерела ліги, клубів і статистики, зокрема futsalekstraklasa.pl, futsal-polska.pl, Statscore та офіційні сторінки складів клубів. Права третіх сторін залишаються за їхніми власниками.",
             "Fantasy-дані можуть бути неповними, оновлюватися із затримкою або виправлятися після перевірки. Ми можемо перераховувати очки, якщо джерело оновило дані або була знайдена помилка.",
           ],
         },
@@ -213,7 +213,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     privacy: {
-      updatedAt: "11 серпня 2026",
+      updatedAt: "5 вересня 2026",
       sections: [
         {
           title: "Дані, які ми використовуємо",
@@ -232,7 +232,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Джерела",
           body: [
-            "Дані гравців, клубів, матчів і статистики можуть збиратися з відкритих джерел для вибраної ліги. Для української Екстра-ліги futsal.com.ua може бути одним із таких джерел. Ці дані використовуються лише для fantasy-досвіду.",
+            "Дані гравців, клубів, матчів і статистики можуть збиратися з відкритих джерел для вибраної ліги. Для української Екстра-ліги futsal.com.ua може бути одним із таких джерел. Для польської Futsal Ekstraklasa джерелами можуть бути відкриті сайти ліги, клубів і статистики, зокрема futsalekstraklasa.pl, futsal-polska.pl, Statscore та офіційні сторінки складів клубів. Ці дані використовуються лише для fantasy-досвіду.",
           ],
         },
         {
@@ -329,7 +329,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
   },
   pl: {
     terms: {
-      updatedAt: "13 sierpnia 2026",
+      updatedAt: "5 września 2026",
       sections: [
         {
           title: "Usługa",
@@ -368,7 +368,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     privacy: {
-      updatedAt: "13 sierpnia 2026",
+      updatedAt: "5 września 2026",
       sections: [
         {
           title: "Dane, których używamy",
@@ -387,7 +387,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
         {
           title: "Źródła",
           body: [
-            "Dane zawodników, klubów, meczów i statystyk mogą być kompilowane z publicznie dostępnych źródeł dla wybranej ligi. Dane te są używane tylko do obsługi doświadczenia fantasy.",
+            "Dane zawodników, klubów, meczów i statystyk mogą być kompilowane z publicznie dostępnych źródeł dla wybranej ligi. Dla ukraińskiej Extra-ligi jednym ze źródeł może być futsal.com.ua. Dla polskiej Futsal Ekstraklasy źródła mogą obejmować publiczne strony ligi, klubów i statystyk, w tym futsalekstraklasa.pl, futsal-polska.pl, Statscore oraz oficjalne strony kadr klubowych. Dane te są używane tylko do obsługi doświadczenia fantasy.",
           ],
         },
         {

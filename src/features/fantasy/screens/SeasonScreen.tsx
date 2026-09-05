@@ -1300,12 +1300,14 @@ export function MatchDetailsPage({
                             <Pressable
                               accessibilityRole="button"
                               onPress={() => onPlayerPress(lineup.playerId!)}
-                              style={styles.matchDetailsLineupPlayerButton}
+                              style={styles.matchDetailsLineupPlayerNameSlot}
                             >
                               {playerName}
                             </Pressable>
                           ) : (
-                            playerName
+                            <View style={styles.matchDetailsLineupPlayerNameSlot}>
+                              {playerName}
+                            </View>
                           )}
                           <MatchDetailsEventBadges badges={lineup.eventBadges} />
                         </View>

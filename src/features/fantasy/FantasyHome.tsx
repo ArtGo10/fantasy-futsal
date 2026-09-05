@@ -82,6 +82,7 @@ import {
   storeFantasySeasonSlug,
 } from "./utils/seasonSelectionStorage";
 import {
+  getFantasySeasonDisplayDescription,
   getFantasySeasonDisplaySubtitle,
   getFantasySeasonDisplayTitle,
 } from "./utils/seasonDisplay";
@@ -303,6 +304,11 @@ function FantasySeasonOptionCard({
   const { t } = useI18n();
   const title = getFantasySeasonDisplayTitle(season, t, t("app.title"));
   const subtitle = getFantasySeasonDisplaySubtitle(season, t);
+  const description = getFantasySeasonDisplayDescription(
+    season,
+    t,
+    season.description,
+  );
   const seasonPrimaryColor = getFantasySeasonPrimaryColor(season);
   const seasonAccentColor = getFantasySeasonAccentColor(season);
   const isLocked = Boolean(season.isLocked);
@@ -334,9 +340,9 @@ function FantasySeasonOptionCard({
             {subtitle}
           </Text>
         ) : null}
-        {season.description ? (
+        {description ? (
           <Text numberOfLines={2} style={styles.seasonSelectionCardDescription}>
-            {season.description}
+            {description}
           </Text>
         ) : null}
       </View>
