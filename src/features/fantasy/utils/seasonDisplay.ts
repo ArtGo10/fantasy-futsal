@@ -51,3 +51,21 @@ export function getFantasySeasonDisplaySubtitle(
 
   return fallback ?? season?.name ?? season?.displayName ?? season?.leagueName ?? "";
 }
+
+export function getFantasySeasonDisplayDescription(
+  season: FantasySeasonVisualSource | null | undefined,
+  t: Translate,
+  fallback?: string | null,
+) {
+  const assetKey = getFantasySeasonAssetKey(season);
+
+  if (assetKey === "polish-ekstraklasa") {
+    return t("competition.polishEkstraklasa.description");
+  }
+
+  if (assetKey === "extra-liga") {
+    return t("competition.extraLiga.description");
+  }
+
+  return fallback ?? "";
+}

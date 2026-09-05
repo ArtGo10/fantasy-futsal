@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
 import type { TranslationKey } from "../../../i18n/translations";
@@ -310,6 +311,7 @@ export function PlayerDetailSheet({
 }: PlayerDetailSheetProps) {
   const { t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
@@ -336,6 +338,14 @@ export function PlayerDetailSheet({
       ? statusMessage
       : fallbackStatusReason;
   const isDoubtful = publicStatus === "doubtful";
+  const handleSetCaptainPress = () => {
+    onSetCaptain?.();
+    onClose();
+  };
+  const handleSetViceCaptainPress = () => {
+    onSetViceCaptain?.();
+    onClose();
+  };
   const quickStatsSection = (
     <View
       style={[
@@ -409,7 +419,7 @@ export function PlayerDetailSheet({
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: Boolean(isCaptain) }}
-          onPress={onSetCaptain}
+          onPress={handleSetCaptainPress}
           style={styles.playerDetailLeadershipOption}
         >
           <CheckBoxMark checked={Boolean(isCaptain)} />
@@ -420,7 +430,7 @@ export function PlayerDetailSheet({
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: Boolean(isViceCaptain) }}
-          onPress={onSetViceCaptain}
+          onPress={handleSetViceCaptainPress}
           style={styles.playerDetailLeadershipOption}
         >
           <CheckBoxMark checked={Boolean(isViceCaptain)} />
@@ -430,12 +440,79 @@ export function PlayerDetailSheet({
         </Pressable>
       </View>
     ) : null;
+  const actionBottomPadding = !isDesktopWeb ? Math.max(insets.bottom, 0) : 0;
+  const actionsSection =
+    mode === "squad" && (onRemove || onReplace || onSwap) ? (
+      <View
+        style={[
+          styles.playerDetailActions,
+          actionBottomPadding > 0
+            ? { paddingBottom: actionBottomPadding }
+            : null,
+        ]}
+      >
+        {onRemove ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRemove}
+            style={styles.playerDetailActionDanger}
+          >
+            <Text
+              numberOfLines={1}
+              style={styles.playerDetailActionDangerText}
+            >
+              {t("playerDetails.remove")}
+            </Text>
+          </Pressable>
+        ) : null}
+        {onReplace ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onReplace}
+            style={[
+              styles.playerDetailActionSecondary,
+              { borderColor: fantasyTheme.borderColor },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.playerDetailActionSecondaryText,
+                { color: fantasyTheme.primaryColor },
+              ]}
+            >
+              {t("playerDetails.replace")}
+            </Text>
+          </Pressable>
+        ) : null}
+        {onSwap ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onSwap}
+            style={[
+              styles.playerDetailActionPrimary,
+              { backgroundColor: fantasyTheme.primaryColor },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={styles.playerDetailActionPrimaryText}
+            >
+              {t("playerDetails.swap")}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+    ) : null;
 
   return (
     <BottomSheet
       contentScrollEnabled={false}
       onClose={onClose}
-      sheetStyle={styles.playerDetailSheet}
+      sheetStyle={[
+        styles.playerDetailSheet,
+        !isDesktopWeb ? styles.playerDetailSheetMobile : null,
+      ]}
       visible={visible && Boolean(player)}
     >
       <ScrollView
@@ -512,6 +589,7 @@ export function PlayerDetailSheet({
                 key={item.key}
                 style={[
                   styles.playerDetailStatCell,
+                  !isDesktopWeb ? styles.playerDetailStatCellCompact : null,
                   isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
                 ]}
               >
@@ -528,63 +606,8 @@ export function PlayerDetailSheet({
             ))}
           </View>
         </View>
-
-        {mode === "squad" && (onRemove || onReplace || onSwap) ? (
-          <View style={styles.playerDetailActions}>
-            {onRemove ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={onRemove}
-                style={styles.playerDetailActionDanger}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={styles.playerDetailActionDangerText}
-                >
-                  {t("playerDetails.remove")}
-                </Text>
-              </Pressable>
-            ) : null}
-            {onReplace ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={onReplace}
-                style={[
-                  styles.playerDetailActionSecondary,
-                  { borderColor: fantasyTheme.borderColor },
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.playerDetailActionSecondaryText,
-                    { color: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  {t("playerDetails.replace")}
-                </Text>
-              </Pressable>
-            ) : null}
-            {onSwap ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={onSwap}
-                style={[
-                  styles.playerDetailActionPrimary,
-                  { backgroundColor: fantasyTheme.primaryColor },
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={styles.playerDetailActionPrimaryText}
-                >
-                  {t("playerDetails.swap")}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
       </ScrollView>
+      {actionsSection}
     </BottomSheet>
   );
 }

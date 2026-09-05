@@ -5,8 +5,12 @@ const en = {
   "competition.extraLiga.title": "Fantasy Extra-liga",
   "competition.extraLiga.shortTitle": "Extra-liga",
   "competition.extraLiga.seasonName": "Ukrainian Extra-liga",
+  "competition.extraLiga.description":
+    "Fantasy futsal for the Ukrainian Extra-liga.",
   "competition.polishEkstraklasa.shortTitle": "Ekstraklasa",
   "competition.polishEkstraklasa.seasonName": "Polish Ekstraklasa",
+  "competition.polishEkstraklasa.description":
+    "Fantasy futsal for the Polish Ekstraklasa.",
   "common.clearInput": "Clear input",
   "auth.back": "Back",
   "auth.backToSignIn": "Back to sign in",
@@ -723,8 +727,12 @@ const uk: Record<TranslationKey, string> = {
   "competition.extraLiga.title": "Fantasy Extra-liga",
   "competition.extraLiga.shortTitle": "Екстра-ліга",
   "competition.extraLiga.seasonName": "Українська Екстра-ліга",
+  "competition.extraLiga.description":
+    "Fantasy-футзал української Екстра-ліги.",
   "competition.polishEkstraklasa.shortTitle": "Екстракласа",
   "competition.polishEkstraklasa.seasonName": "Польська Екстракласа",
+  "competition.polishEkstraklasa.description":
+    "Fantasy-футзал польської Екстракласи.",
   "common.clearInput": "Очистити поле",
   "auth.back": "Назад",
   "auth.backToSignIn": "Повернутися до входу",
@@ -1442,8 +1450,12 @@ const pl: Record<TranslationKey, string> = {
   "competition.extraLiga.title": "Fantasy Extra-liga",
   "competition.extraLiga.shortTitle": "Ekstraliga",
   "competition.extraLiga.seasonName": "Ukraińska Ekstraliga",
+  "competition.extraLiga.description":
+    "Fantasy futsal ukraińskiej Ekstraligi.",
   "competition.polishEkstraklasa.shortTitle": "Ekstraklasa",
   "competition.polishEkstraklasa.seasonName": "Polska Ekstraklasa",
+  "competition.polishEkstraklasa.description":
+    "Fantasy futsal polskiej Ekstraklasy.",
   "common.clearInput": "Wyczyść pole",
   "common.language": "Język",
   "common.loading": "Ładowanie...",

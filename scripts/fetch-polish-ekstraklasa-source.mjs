@@ -2078,7 +2078,7 @@ function buildGameweeks(fixtures) {
       const endsAt = timestamps.at(-1)
         ? addMinutes(new Date(timestamps.at(-1)).toISOString(), 120)
         : null;
-      const deadlineAt = startsAt ? addMinutes(startsAt, -1) : null;
+      const deadlineAt = startsAt ? addMinutes(startsAt, -60) : null;
       const deadlineTime = deadlineAt ? Date.parse(deadlineAt) : Infinity;
       const endTime = endsAt ? Date.parse(endsAt) : -Infinity;
       const status =
@@ -2260,7 +2260,7 @@ async function buildSource() {
       country: "Poland",
       displayName: "Futsal Ekstraklasa",
       shortName: "Ekstraklasa",
-      description: "Fantasy-футзал польської Futsal Ekstraklasa.",
+      description: "Fantasy futsal for the Polish Ekstraklasa.",
       logoKey: "polish-ekstraklasa",
       primaryColor: "#E30613",
       secondaryColor: "#980612",
