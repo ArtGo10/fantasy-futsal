@@ -183,6 +183,7 @@ type FantasyPlayer = {
   activeGameweeks?: number | null;
   averagePointsPerGameweek?: number | null;
   cleanSheets?: number | null;
+  form?: number | null;
   goals?: number | null;
   goalsConceded?: number | null;
   lastGameweekPoints?: number | null;
@@ -726,6 +727,10 @@ function formatSignedFantasyPoints(value: number | null | undefined) {
 function formatSquadListMetric(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function getFantasyPlayerForm(player: FantasyPlayer) {
+  return player.form ?? player.averagePointsPerGameweek ?? 0;
 }
 
 function formatSquadListPercent(value: number | null | undefined) {
@@ -1994,7 +1999,7 @@ function IncomingTransferCard({
                 {t("team.list.form")}
               </Text>
               <Text style={styles.squadListStatText}>
-                {formatSquadListMetric(player.lastGameweekPoints)}
+                {formatSquadListMetric(getFantasyPlayerForm(player))}
               </Text>
             </View>
             <View style={styles.squadListPriceCell}>
@@ -3404,12 +3409,6 @@ export function MyTeamScreen({
       null,
     [fantasyGameweeks],
   );
-  const liveGameweekNotice = liveGameweek
-    ? t("team.liveGameweekNotice").replace(
-        "{number}",
-        String(liveGameweek.number),
-      )
-    : null;
   const deadlineAt = currentGameweek
     ? currentGameweek.deadlineAt
     : (fantasyOverview?.nextDeadlineAt ?? null);
@@ -5575,14 +5574,6 @@ export function MyTeamScreen({
             />
           ) : (
             <>
-              {liveGameweekNotice ? (
-                <View style={styles.teamLiveGameweekNotice}>
-                  <Text style={styles.teamLiveGameweekNoticeText}>
-                    {liveGameweekNotice}
-                  </Text>
-                </View>
-              ) : null}
-
               <View
                 style={
                   shouldUseTeamOverviewWideLayout

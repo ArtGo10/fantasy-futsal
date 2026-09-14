@@ -1290,12 +1290,17 @@ export const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   playerDetailTopPaneDesktop: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     minWidth: 0,
   },
   playerDetailSidePaneDesktop: {
-    flex: 1,
-    minWidth: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    width: "42%",
+    maxWidth: 300,
+    minWidth: 270,
     gap: spacing.sm,
   },
   playerDetailHero: {
@@ -1330,6 +1335,7 @@ export const styles = StyleSheet.create({
   },
   playerDetailHeroTextDesktop: {
     gap: spacing.sm,
+    paddingRight: 0,
   },
   playerDetailPosition: {
     alignSelf: "flex-start",
@@ -1343,6 +1349,10 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     textTransform: "uppercase",
+  },
+  playerDetailNameGroup: {
+    width: "100%",
+    gap: 0,
   },
   playerDetailName: {
     color: colors.text.inverse,
@@ -1432,19 +1442,11 @@ export const styles = StyleSheet.create({
   playerDetailQuickValueDown: {
     color: colors.state.danger,
   },
-  playerDetailPriceDeltaUp: {
-    color: colors.state.success,
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.xs,
-    textAlign: "center",
-  },
-  playerDetailPriceDeltaDown: {
-    color: colors.state.danger,
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.xs,
-    textAlign: "center",
+  playerDetailPriceTrendGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
   },
   playerDetailQuickValueSmall: {
     color: colors.text.primary,
@@ -2212,22 +2214,6 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.heavy,
     lineHeight: typography.lineHeight.base,
   },
-  teamLiveGameweekNotice: {
-    width: "100%",
-    borderRadius: radii.sm,
-    backgroundColor: colors.state.success,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 3,
-    paddingHorizontal: spacing.sm,
-  },
-  teamLiveGameweekNoticeText: {
-    color: colors.text.inverse,
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.xs,
-    textTransform: "uppercase",
-  },
   teamOverviewStack: {
     width: "100%",
     gap: spacing.md,
@@ -2673,8 +2659,17 @@ export const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 0,
   },
+  gameweekViewerSlotButtonCompact: {
+    width: 54,
+    height: 64,
+    paddingTop: 2,
+  },
   gameweekViewerSlotButtonSide: {
     height: 76,
+  },
+  gameweekViewerSlotNameCompact: {
+    fontSize: 6,
+    lineHeight: 10,
   },
   gameweekViewerSlotScoreFooter: {
     alignSelf: "stretch",
@@ -2691,6 +2686,10 @@ export const styles = StyleSheet.create({
     lineHeight: 13,
     paddingHorizontal: 1,
     textAlign: "center",
+  },
+  gameweekViewerSlotScoreCompact: {
+    fontSize: 7,
+    lineHeight: 10,
   },
   gameweekViewerListPanel: {
     width: "100%",
@@ -3849,25 +3848,44 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     transform: [{ translateX: -34 }, { translateY: -37 }],
   },
+  futsalFieldSlotCompact: {
+    width: 56,
+    transform: [{ translateX: -28 }, { translateY: -32 }],
+  },
   futsalFieldSlotGoalkeeper: {
     top: "13%",
     left: "50%",
+  },
+  futsalFieldSlotGoalkeeperCompact: {
+    top: "13%",
   },
   futsalFieldSlotLeftDeep: {
     top: "34%",
     left: "29%",
   },
+  futsalFieldSlotLeftDeepCompact: {
+    top: "40%",
+  },
   futsalFieldSlotRightDeep: {
     top: "34%",
     left: "71%",
+  },
+  futsalFieldSlotRightDeepCompact: {
+    top: "40%",
   },
   futsalFieldSlotLeftHigh: {
     top: "59%",
     left: "29%",
   },
+  futsalFieldSlotLeftHighCompact: {
+    top: "67%",
+  },
   futsalFieldSlotRightHigh: {
     top: "59%",
     left: "71%",
+  },
+  futsalFieldSlotRightHighCompact: {
+    top: "67%",
   },
   futsalBenchRail: {
     width: 62,
@@ -4619,7 +4637,7 @@ export const styles = StyleSheet.create({
   playerPickerScreen: {
     flex: 1,
     width: "100%",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     gap: spacing.md,
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -4856,13 +4874,13 @@ export const styles = StyleSheet.create({
   playerPickerListFrame: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   playerPickerHorizontalScroll: {
     flex: 1,
     minHeight: 0,
     width: "100%",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   playerPickerHorizontalScrollContent: {
     flexGrow: 1,

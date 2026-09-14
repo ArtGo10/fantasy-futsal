@@ -1,4 +1,4 @@
-import { Star } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Star } from "lucide-react-native";
 import {
   Platform,
   Pressable,
@@ -14,7 +14,7 @@ import type { TranslationKey } from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
-import { formatFantasyMoney, formatFantasyMoneyDelta } from "../utils/money";
+import { formatFantasyMoney } from "../utils/money";
 import { getPlayerPhoto } from "../utils/playerStats";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import { BottomSheet } from "./BottomSheet";
@@ -39,6 +39,7 @@ export type PlayerDetail = {
   assists?: number | null;
   averagePointsPerGameweek?: number | null;
   cleanSheets?: number | null;
+  form?: number | null;
   goals?: number | null;
   goalsConceded?: number | null;
   managerAveragePointsPerGameweek?: number | null;
@@ -222,6 +223,16 @@ function normalizeStatusText(value: string | null | undefined) {
     .toLocaleLowerCase();
 }
 
+function getPlayerDetailNameLines(displayName: string) {
+  const parts = displayName.replace(/\s+/g, " ").trim().split(" ");
+
+  if (parts.length <= 1) {
+    return [displayName];
+  }
+
+  return [parts[0], parts.slice(1).join(" ")];
+}
+
 type PlayerDetailHeroProps = {
   isDesktopWeb?: boolean;
   isFavorite?: boolean;
@@ -238,6 +249,7 @@ function PlayerDetailHero({
   t,
 }: PlayerDetailHeroProps) {
   const fantasyTheme = useFantasySeasonTheme();
+  const playerNameLines = getPlayerDetailNameLines(player.displayName);
 
   return (
     <View
@@ -282,9 +294,23 @@ function PlayerDetailHero({
         <Text style={styles.playerDetailPosition}>
           {t(POSITION_LABEL_KEYS[player.position])}
         </Text>
-        <Text numberOfLines={2} style={styles.playerDetailName}>
-          {player.displayName}
-        </Text>
+        <View
+          accessibilityLabel={player.displayName}
+          accessible
+          style={styles.playerDetailNameGroup}
+        >
+          {playerNameLines.map((line, index) => (
+            <Text
+              adjustsFontSizeToFit
+              key={`${line}-${index}`}
+              minimumFontScale={0.82}
+              numberOfLines={1}
+              style={styles.playerDetailName}
+            >
+              {line}
+            </Text>
+          ))}
+        </View>
         <Text numberOfLines={1} style={styles.playerDetailClub}>
           {player.clubName ?? t("players.noClub")}
         </Text>
@@ -321,7 +347,9 @@ export function PlayerDetailSheet({
   const selectedPercent = formatPlayerDetailNumber(player.selectedPercent);
   const priceDelta = Number((player.priceDelta ?? 0).toFixed(1));
   const hasPriceTrend = Math.abs(priceDelta) >= 0.1;
-  const formattedPriceDelta = formatFantasyMoneyDelta(priceDelta);
+  const PriceTrendIcon = priceDelta > 0 ? ArrowUp : ArrowDown;
+  const priceTrendColor =
+    priceDelta > 0 ? colors.state.success : colors.state.danger;
   const seasonStatItems = getPlayerDetailSeasonStatItems(player, t);
   const publicStatus = getPublicPlayerStatus(player.status);
   const statusLabel = t(STATUS_LABEL_KEYS[publicStatus]);
@@ -357,33 +385,27 @@ export function PlayerDetailSheet({
         <Text style={styles.playerDetailQuickLabel}>
           {t("players.priceLabel")}
         </Text>
-        <Text
-          style={[
-            styles.playerDetailQuickValue,
-            !hasPriceTrend
-              ? { color: fantasyTheme.primaryColor }
-              : null,
-            hasPriceTrend && priceDelta > 0
-              ? styles.playerDetailQuickValueUp
-              : null,
-            hasPriceTrend && priceDelta < 0
-              ? styles.playerDetailQuickValueDown
-              : null,
-          ]}
-        >
-          {formatFantasyMoney(player.price)}
-        </Text>
-        {hasPriceTrend ? (
+        <View style={styles.playerDetailPriceTrendGroup}>
           <Text
-            style={
-              priceDelta > 0
-                ? styles.playerDetailPriceDeltaUp
-                : styles.playerDetailPriceDeltaDown
-            }
+            style={[
+              styles.playerDetailQuickValue,
+              !hasPriceTrend
+                ? { color: fantasyTheme.primaryColor }
+                : null,
+              hasPriceTrend && priceDelta > 0
+                ? styles.playerDetailQuickValueUp
+                : null,
+              hasPriceTrend && priceDelta < 0
+                ? styles.playerDetailQuickValueDown
+                : null,
+            ]}
           >
-            {formattedPriceDelta}
+            {formatFantasyMoney(player.price)}
           </Text>
-        ) : null}
+          {hasPriceTrend ? (
+            <PriceTrendIcon color={priceTrendColor} size={14} strokeWidth={3} />
+          ) : null}
+        </View>
       </View>
       <View style={styles.playerDetailQuickStat}>
         <Text style={styles.playerDetailQuickLabel}>

@@ -89,8 +89,8 @@
       "translucent": false
     },
     "androidNavigationBar": {
-      "backgroundColor": "#160932",
-      "barStyle": "light-content"
+      "backgroundColor": "#F6F8FC",
+      "barStyle": "dark-content"
     },
     "extra": {
       "eas": {

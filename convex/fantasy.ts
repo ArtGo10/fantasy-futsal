@@ -64,11 +64,7 @@ const STATUS_PRIORITY: Record<SeasonStatus, number> = {
 
 const LEGACY_EXTRA_LEAGUE_2025_26_SLUG = "ukrainian-extra-league-2025-26";
 const EXTRA_LEAGUE_2026_27_SLUG = "ukrainian-extra-league-2026-27";
-const POLISH_FUTSAL_EKSTRAKLASA_2026_27_SLUG =
-  "polish-futsal-ekstraklasa-2026-27";
-const FANTASY_ADMIN_ONLY_SEASON_SLUGS = new Set([
-  POLISH_FUTSAL_EKSTRAKLASA_2026_27_SLUG,
-]);
+const FANTASY_ADMIN_ONLY_SEASON_SLUGS = new Set<string>();
 const FANTASY_SQUAD_SIZE = 12;
 const FANTASY_ACTIVE_SLOTS = 9;
 const FANTASY_STARTING_SLOTS = 5;
@@ -93,6 +89,9 @@ const FANTASY_VALUE_PRICE_DEADBAND = 0.75;
 const FANTASY_VALUE_RISE_RATIO = 1.35;
 const FANTASY_VALUE_FALL_RATIO = 0.65;
 const FANTASY_VALUE_MIN_MARKET_PLAYERS = 5;
+const FANTASY_VALUE_PRICE_CENTER_LOW = 7.5;
+const FANTASY_VALUE_PRICE_CENTER_HIGH = 9.0;
+const FANTASY_EXPENSIVE_PRICE = 12.0;
 const FANTASY_DEFAULT_SEASON_LOGO_KEY = "extra-liga";
 const FANTASY_DEFAULT_SEASON_THEME = {
   primaryColor: "#004494",
@@ -414,13 +413,7 @@ function isAdminOnlyFantasySeason(
     .filter(Boolean);
 
   return candidates.some(
-    (candidate) =>
-      FANTASY_ADMIN_ONLY_SEASON_SLUGS.has(candidate) ||
-      candidate === "polish-ekstraklasa" ||
-      candidate.includes("polish-futsal-ekstraklasa") ||
-      candidate.includes("polish-ekstraklasa") ||
-      candidate.includes("polish ekstraklasa") ||
-      candidate.includes("polska ekstraklasa"),
+    (candidate) => FANTASY_ADMIN_ONLY_SEASON_SLUGS.has(candidate),
   );
 }
 
@@ -506,16 +499,42 @@ function isAutomaticNonParticipationStatusDetails(
     );
 }
 
-function hasCurrentNonParticipationStatusDetails(
+function getFantasyNonParticipationStatusDetails(
+  gameweekNumber: number,
+  updatedAt: number,
+) {
+  if (!Number.isInteger(gameweekNumber) || gameweekNumber <= 0) {
+    return normalizeFantasyPlayerStatusDetails(
+      FANTASY_NON_PARTICIPATION_STATUS_DETAILS,
+      updatedAt,
+    );
+  }
+
+  return normalizeFantasyPlayerStatusDetails(
+    {
+      message: `Не грав у турі ${gameweekNumber}`,
+      messageEn: `Did not play in Gameweek ${gameweekNumber}`,
+      messagePl: `Nie zagrał w ${gameweekNumber}. kolejce`,
+      messageUk: `Не грав у турі ${gameweekNumber}`,
+    },
+    updatedAt,
+  );
+}
+
+function hasNonParticipationStatusDetailsForGameweek(
   details: Doc<"fantasyPlayers">["statusDetails"],
+  gameweekNumber: number,
 ) {
   if (!details) return false;
 
+  const expected = getFantasyNonParticipationStatusDetails(gameweekNumber, 0);
+  if (!expected) return false;
+
   return (
-    details.message === FANTASY_NON_PARTICIPATION_STATUS_DETAILS.message &&
-    details.messageEn === FANTASY_NON_PARTICIPATION_STATUS_DETAILS.messageEn &&
-    details.messagePl === FANTASY_NON_PARTICIPATION_STATUS_DETAILS.messagePl &&
-    details.messageUk === FANTASY_NON_PARTICIPATION_STATUS_DETAILS.messageUk
+    details.message === expected.message &&
+    details.messageEn === expected.messageEn &&
+    details.messagePl === expected.messagePl &&
+    details.messageUk === expected.messageUk
   );
 }
 
@@ -671,8 +690,53 @@ function areGameweekFixturesReadyForPriceChanges(
   );
 }
 
+function getFantasyPriceAdjustmentProfile(price: number) {
+  if (price < FANTASY_VALUE_PRICE_CENTER_LOW) {
+    return {
+      fallGap: FANTASY_VALUE_PRICE_DEADBAND * 2,
+      fallRatio: 0.35,
+      maxFallGameweekPoints: -1,
+      minRiseGameweekPoints: 4,
+      riseGap: FANTASY_VALUE_PRICE_DEADBAND * 0.75,
+      riseRatio: 1.1,
+    };
+  }
+
+  if (price <= FANTASY_VALUE_PRICE_CENTER_HIGH) {
+    return {
+      fallGap: FANTASY_VALUE_PRICE_DEADBAND,
+      fallRatio: FANTASY_VALUE_FALL_RATIO,
+      maxFallGameweekPoints: 1,
+      minRiseGameweekPoints: 5,
+      riseGap: FANTASY_VALUE_PRICE_DEADBAND,
+      riseRatio: FANTASY_VALUE_RISE_RATIO,
+    };
+  }
+
+  if (price < FANTASY_EXPENSIVE_PRICE) {
+    return {
+      fallGap: FANTASY_VALUE_PRICE_DEADBAND * 0.75,
+      fallRatio: 0.8,
+      maxFallGameweekPoints: 3,
+      minRiseGameweekPoints: 8,
+      riseGap: FANTASY_VALUE_PRICE_DEADBAND * 1.75,
+      riseRatio: 1.75,
+    };
+  }
+
+  return {
+    fallGap: FANTASY_VALUE_PRICE_DEADBAND * 0.5,
+    fallRatio: 0.95,
+    maxFallGameweekPoints: 4,
+    minRiseGameweekPoints: 10,
+    riseGap: FANTASY_VALUE_PRICE_DEADBAND * 2.5,
+    riseRatio: 2.1,
+  };
+}
+
 function getValueBasedGameweekPriceDelta(args: {
   appearances: number;
+  gameweekPoints: number;
   medianValueScore: number;
   points: number;
   price: number;
@@ -687,14 +751,17 @@ function getValueBasedGameweekPriceDelta(args: {
   const valueScore = getFantasyPlayerValueScore(args.points, args.price);
   const fairPrice = args.points / args.medianValueScore;
   const fairPriceGap = fairPrice - args.price;
+  const profile = getFantasyPriceAdjustmentProfile(args.price);
   if (
-    fairPriceGap >= FANTASY_VALUE_PRICE_DEADBAND &&
-    valueScore >= args.medianValueScore * FANTASY_VALUE_RISE_RATIO
+    args.gameweekPoints >= profile.minRiseGameweekPoints &&
+    fairPriceGap >= profile.riseGap &&
+    valueScore >= args.medianValueScore * profile.riseRatio
   )
     return FANTASY_PRICE_STEP;
   if (
-    fairPriceGap <= -FANTASY_VALUE_PRICE_DEADBAND &&
-    valueScore <= args.medianValueScore * FANTASY_VALUE_FALL_RATIO
+    args.gameweekPoints <= profile.maxFallGameweekPoints &&
+    fairPriceGap <= -profile.fallGap &&
+    valueScore <= args.medianValueScore * profile.fallRatio
   )
     return -FANTASY_PRICE_STEP;
 
@@ -712,6 +779,14 @@ function getFiniteFantasyNumber(
 
 function roundFantasyPoints(value: number | null | undefined) {
   return Number(getFiniteFantasyNumber(value).toFixed(2));
+}
+
+function getFantasyPlayerForm(
+  stats: Pick<PlayerStatsAccumulator, "appearances" | "points">,
+) {
+  return stats.appearances > 0
+    ? Number((stats.points / stats.appearances).toFixed(1))
+    : 0;
 }
 
 function toNullableFantasyPoints(value: number | null | undefined) {
@@ -1800,10 +1875,7 @@ export const listPlayers = query({
         const priceDelta = latestPriceHistory
           ? Number(latestPriceHistory.delta.toFixed(1))
           : 0;
-        const averagePointsPerMatch =
-          stats.appearances > 0
-            ? Number((stats.points / stats.appearances).toFixed(1))
-            : 0;
+        const averagePointsPerMatch = getFantasyPlayerForm(stats);
         const latestGameweekStat = latestScoredGameweek
           ? statsByGameweekAndPlayerId.get(
               getPlayerGameweekStatsKey(
@@ -1851,6 +1923,7 @@ export const listPlayers = query({
           averagePointsPerGameweek: averagePointsPerMatch,
           averagePointsPerMatch,
           cleanSheets: stats.cleanSheets,
+          form: averagePointsPerMatch,
           goals: stats.goals,
           goalsConceded: stats.goalsConceded,
           lastGameweekPoints: latestGameweekStat
@@ -3032,6 +3105,7 @@ async function applyGameweekPriceChanges(
 
     const rawDelta = getValueBasedGameweekPriceDelta({
       appearances: seasonStats.appearances,
+      gameweekPoints: currentStat.points,
       medianValueScore,
       points: seasonStats.points,
       price: player.price,
@@ -3165,8 +3239,8 @@ async function markGameweekNonParticipantsDoubtfulInternal(
   });
 
   const clubsById = new Map(clubs.map((club) => [club._id, club]));
-  const statusDetails = normalizeFantasyPlayerStatusDetails(
-    FANTASY_NON_PARTICIPATION_STATUS_DETAILS,
+  const statusDetails = getFantasyNonParticipationStatusDetails(
+    gameweek.number,
     now,
   );
   const statusContext = { currentGameweekNumber: gameweek.number };
@@ -3196,12 +3270,15 @@ async function markGameweekNonParticipantsDoubtfulInternal(
       continue;
     }
 
-    if (player.status !== "active" && player.status !== "doubtful") {
+    if (player.status !== "active" && !hasAutoNonParticipationStatus) {
       continue;
     }
     if (
-      player.status === "doubtful" &&
-      hasCurrentNonParticipationStatusDetails(player.statusDetails)
+      hasAutoNonParticipationStatus &&
+      hasNonParticipationStatusDetailsForGameweek(
+        player.statusDetails,
+        gameweek.number,
+      )
     ) {
       continue;
     }
@@ -3366,20 +3443,34 @@ async function refreshGameweekAfterFixtureChange(
     freshGameweek,
     now,
   );
+  const completion = await completeGameweekIfAllFixturesResolved(
+    ctx,
+    freshGameweek,
+    now,
+  );
   const priceChanges = await applyGameweekPriceChanges(
     ctx,
     season,
     freshGameweek,
     now,
   );
+  let completionResult = completion;
+  if (
+    !("playerStatusSync" in completionResult) &&
+    !priceChanges.skippedGameweekIncomplete
+  ) {
+    completionResult = {
+      ...completionResult,
+      playerStatusSync: await finalizeGameweekPlayerStatuses(
+        ctx,
+        season,
+        freshGameweek,
+        now,
+      ),
+    };
+  }
 
-  const completion = await completeGameweekIfAllFixturesResolved(
-    ctx,
-    freshGameweek,
-    now,
-  );
-
-  return { completion, priceChanges, scoring };
+  return { completion: completionResult, priceChanges, scoring };
 }
 
 export const fixtureDetails = query({
@@ -4102,20 +4193,6 @@ async function readFantasyTeamGameweekView(
   const highestManager = highestTeam
     ? await ctx.db.get(highestTeam.userId)
     : null;
-  const overallLeaderTeam = args.gameweekId
-    ? null
-    : ([...fantasyTeams].sort(
-        (a, b) =>
-          getFiniteFantasyNumber(b.totalPoints) -
-            getFiniteFantasyNumber(a.totalPoints) ||
-          a.name.localeCompare(b.name),
-      )[0] ?? null);
-  const canViewTeam =
-    fantasyTeam.userId === currentUser._id ||
-    highestTeam?._id === fantasyTeam._id ||
-    overallLeaderTeam?._id === fantasyTeam._id ||
-    isAdminUser(identity, currentUser);
-  if (!canViewTeam) return null;
 
   const breakdown = await buildFantasyTeamGameweekPointsBreakdown(
     ctx,
@@ -4585,10 +4662,7 @@ export const playerProfile = query({
         };
       })
       .filter((match) => match !== null);
-    const averagePointsPerMatch =
-      stats.appearances > 0
-        ? Number((stats.points / stats.appearances).toFixed(1))
-        : 0;
+    const averagePointsPerMatch = getFantasyPlayerForm(stats);
 
     return {
       player: {
@@ -4618,6 +4692,7 @@ export const playerProfile = query({
         assists: stats.assists,
         averagePointsPerGameweek: averagePointsPerMatch,
         cleanSheets: stats.cleanSheets,
+        form: averagePointsPerMatch,
         goals: stats.goals,
         goalsConceded: stats.goalsConceded,
         ownGoals: stats.ownGoals,
@@ -4780,10 +4855,7 @@ export const seasonPlayerStatistics = query({
       const priceDelta = latestPriceHistory
         ? Number(latestPriceHistory.delta.toFixed(1))
         : 0;
-      const averagePointsPerMatch =
-        stats.appearances > 0
-          ? Number((stats.points / stats.appearances).toFixed(1))
-          : 0;
+      const averagePointsPerMatch = getFantasyPlayerForm(stats);
       const latestGameweekStat = latestScoredGameweek
         ? statsByGameweekAndPlayerId.get(
             getPlayerGameweekStatsKey(latestScoredGameweek._id, player._id),
@@ -4821,6 +4893,7 @@ export const seasonPlayerStatistics = query({
         averagePointsPerGameweek: averagePointsPerMatch,
         averagePointsPerMatch,
         cleanSheets: stats.cleanSheets,
+        form: averagePointsPerMatch,
         goals: stats.goals,
         goalsConceded: stats.goalsConceded,
         lastGameweekPoints: latestGameweekStat
@@ -5238,10 +5311,7 @@ export const myTeam = query({
           const priceDelta = latestPriceHistory
             ? Number(latestPriceHistory.delta.toFixed(1))
             : 0;
-          const averagePointsPerMatch =
-            stats.appearances > 0
-              ? Number((stats.points / stats.appearances).toFixed(1))
-              : 0;
+          const averagePointsPerMatch = getFantasyPlayerForm(stats);
           const latestGameweekStat =
             player && latestScoredGameweek
               ? statsByGameweekAndPlayerId.get(
@@ -5294,6 +5364,7 @@ export const myTeam = query({
                   averagePointsPerGameweek: averagePointsPerMatch,
                   averagePointsPerMatch,
                   cleanSheets: stats.cleanSheets,
+                  form: averagePointsPerMatch,
                   goals: stats.goals,
                   goalsConceded: stats.goalsConceded,
                   lastGameweekPoints: latestGameweekStat
@@ -5867,6 +5938,7 @@ export const clearFantasyTeamsForSeason = mutation({
     let deletedGameweekSquadPicks = 0;
     let deletedTransfers = 0;
     let deletedPointDeductions = 0;
+    let clearedPrivateLeagueTeamLinks = 0;
 
     for (const fantasyTeam of fantasyTeams) {
       const picks = await ctx.db
@@ -5899,6 +5971,22 @@ export const clearFantasyTeamsForSeason = mutation({
           .withIndex("by_season", (q) => q.eq("seasonId", season._id))
           .collect(),
       ]);
+
+    const now = Date.now();
+    for (const fantasyTeam of fantasyTeams) {
+      const memberships = await ctx.db
+        .query("fantasyPrivateLeagueMembers")
+        .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))
+        .collect();
+
+      for (const membership of memberships) {
+        await ctx.db.patch(membership._id, {
+          fantasyTeamId: undefined,
+          updatedAt: now,
+        });
+        clearedPrivateLeagueTeamLinks += 1;
+      }
+    }
 
     for (const deduction of deductions) {
       if (!fantasyTeamIds.has(deduction.fantasyTeamId)) continue;
@@ -5939,6 +6027,7 @@ export const clearFantasyTeamsForSeason = mutation({
       deletedPointDeductions,
       deletedTeams: fantasyTeams.length,
       deletedTransfers,
+      clearedPrivateLeagueTeamLinks,
       seasonId: season._id,
     };
   },
@@ -7897,13 +7986,6 @@ export const completeGameweekAndGrantTransfers = mutation({
       now,
     );
 
-    const priceChanges = await applyGameweekPriceChanges(
-      ctx,
-      season,
-      gameweek,
-      now,
-    );
-
     const freshGameweek = (await ctx.db.get(gameweek._id)) ?? gameweek;
     const alreadyGranted = !!freshGameweek.freeTransfersGrantedAt;
     const grantedTeams = await grantDeadlineFreeTransfers(
@@ -7954,6 +8036,12 @@ export const completeGameweekAndGrantTransfers = mutation({
       }
     }
     const playerStatusSync = await finalizeGameweekPlayerStatuses(
+      ctx,
+      season,
+      gameweek,
+      now,
+    );
+    const priceChanges = await applyGameweekPriceChanges(
       ctx,
       season,
       gameweek,

@@ -184,7 +184,6 @@ const en = {
   "matchDetails.eventsTitle": "Events",
   "matchDetails.lineupsTitle": "Lineups",
   "matchDetails.noEvents": "No match events have been added yet.",
-  "matchDetails.noLineups": "No lineups have been added yet.",
   "matchDetails.venue": "Venue",
   "matchDetails.event.goal": "Goal",
   "matchDetails.event.assist": "Assist",
@@ -562,7 +561,6 @@ const en = {
   "team.overview.tripleCaptain": "Triple Captain",
   "team.overview.unavailable": "Unavailable",
   "team.overview.unnamedTeam": "Fantasy team",
-  "team.liveGameweekNotice": "Gameweek {number} live",
   "team.pointsBreakdownButton": "Points details",
   "team.pointsBreakdownTitle": "Points details",
   "team.pointsBreakdownDescription":
@@ -907,7 +905,6 @@ const uk: Record<TranslationKey, string> = {
   "matchDetails.eventsTitle": "Події",
   "matchDetails.lineupsTitle": "Склади",
   "matchDetails.noEvents": "Події матчу ще не додані.",
-  "matchDetails.noLineups": "Склади ще не додані.",
   "matchDetails.venue": "Майданчик",
   "matchDetails.event.goal": "Гол",
   "matchDetails.event.assist": "Асист",
@@ -1286,7 +1283,6 @@ const uk: Record<TranslationKey, string> = {
   "team.overview.tripleCaptain": "Triple Captain",
   "team.overview.unavailable": "Недоступно",
   "team.overview.unnamedTeam": "Fantasy-команда",
-  "team.liveGameweekNotice": "Тур {number} live",
   "team.pointsBreakdownButton": "Деталі очок",
   "team.pointsBreakdownTitle": "Деталі очок",
   "team.pointsBreakdownDescription":
@@ -1654,7 +1650,6 @@ const pl: Record<TranslationKey, string> = {
   "matchDetails.eventsTitle": "Wydarzenia",
   "matchDetails.lineupsTitle": "Składy",
   "matchDetails.noEvents": "Nie dodano jeszcze wydarzeń meczu.",
-  "matchDetails.noLineups": "Nie dodano jeszcze składów.",
   "matchDetails.venue": "Hala",
   "matchDetails.event.goal": "Gol",
   "matchDetails.event.assist": "Asysta",
@@ -2014,7 +2009,6 @@ const pl: Record<TranslationKey, string> = {
   "team.overview.tripleCaptain": "Triple Captain",
   "team.overview.unavailable": "Niedostępny",
   "team.overview.unnamedTeam": "Drużyna fantasy",
-  "team.liveGameweekNotice": "Kolejka {number} live",
   "team.pointsBreakdownButton": "Szczegóły punktów",
   "team.pointsBreakdownTitle": "Szczegóły punktów",
   "team.pointsBreakdownDescription":

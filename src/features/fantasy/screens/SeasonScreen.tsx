@@ -132,6 +132,7 @@ type SeasonPlayerStat = {
   assists: number;
   averagePointsPerGameweek: number;
   cleanSheets: number;
+  form: number;
   goals: number;
   goalsConceded: number;
   lastGameweekPoints: number;
@@ -1169,6 +1170,7 @@ export function MatchDetailsPage({
       ),
     [awayLineups, events],
   );
+  const hasLineups = homeLineupRows.length > 0 || awayLineupRows.length > 0;
 
   return (
     <View style={styles.matchDetailsPage}>
@@ -1251,20 +1253,16 @@ export function MatchDetailsPage({
             </Text>
           ) : null}
 
-          <View style={styles.matchDetailsSection}>
-            <Text
-              style={[
-                styles.teamOverviewTitle,
-                { color: fantasyTheme.primaryColor },
-              ]}
-            >
-              {t("matchDetails.lineupsTitle")}
-            </Text>
-            {homeLineupRows.length === 0 && awayLineupRows.length === 0 ? (
-              <Text style={styles.mutedText}>
-                {t("matchDetails.noLineups")}
+          {hasLineups ? (
+            <View style={styles.matchDetailsSection}>
+              <Text
+                style={[
+                  styles.teamOverviewTitle,
+                  { color: fantasyTheme.primaryColor },
+                ]}
+              >
+                {t("matchDetails.lineupsTitle")}
               </Text>
-            ) : (
               <View style={styles.matchDetailsLineupColumns}>
                 {[
                   { title: homeClubName, lineups: homeLineupRows },
@@ -1331,8 +1329,8 @@ export function MatchDetailsPage({
                   </View>
                 ))}
               </View>
-            )}
-          </View>
+            </View>
+          ) : null}
         </>
       )}
     </View>

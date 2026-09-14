@@ -11,6 +11,7 @@
 import type * as appDiagnostics from "../appDiagnostics.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
+import type * as deadlineReminderScheduling from "../deadlineReminderScheduling.js";
 import type * as fantasy from "../fantasy.js";
 import type * as futsalImport from "../futsalImport.js";
 import type * as health from "../health.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   appDiagnostics: typeof appDiagnostics;
   authHelpers: typeof authHelpers;
   crons: typeof crons;
+  deadlineReminderScheduling: typeof deadlineReminderScheduling;
   fantasy: typeof fantasy;
   futsalImport: typeof futsalImport;
   health: typeof health;

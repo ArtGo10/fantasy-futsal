@@ -3,6 +3,23 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "framework": null,
+  "redirects": [
+    {
+      "source": "/app",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/app/team",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/app/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

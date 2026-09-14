@@ -66,6 +66,7 @@ type FantasyPlayer = {
   assists: number;
   averagePointsPerGameweek: number;
   cleanSheets: number;
+  form: number;
   goals: number;
   goalsConceded: number;
   lastGameweekPoints: number;

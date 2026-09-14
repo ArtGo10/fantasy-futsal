@@ -40,7 +40,10 @@ import {
 } from "./src/features/fantasy/assets/fantasyAssets";
 import { I18nProvider, useI18n } from "./src/i18n/I18nProvider";
 import { ConvexClerkProvider } from "./src/providers/ConvexClerkProvider";
-import { isPublicWebPath, isWebAppPath } from "./src/web/publicSiteConfig";
+import {
+  getLegacyWebAppRedirectUrl,
+  isPublicWebPath,
+} from "./src/web/publicSiteConfig";
 import { api } from "./src/lib/convexApi";
 import { styles } from "./src/styles";
 import {
@@ -88,6 +91,16 @@ function NativeSplashAutoHide() {
   useEffect(() => {
     hideNativeSplash();
   }, []);
+
+  return null;
+}
+
+function WebLocationRedirect({ to }: { to: string }) {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.location.replace(to);
+  }, [to]);
 
   return null;
 }
@@ -688,12 +701,19 @@ export default function App() {
     );
   }
 
-  if (Platform.OS === "web" && !isWebAppPath() && isPublicWebPath()) {
-    return (
-      <I18nProvider>
-        <PublicWebSite />
-      </I18nProvider>
-    );
+  if (Platform.OS === "web") {
+    const legacyWebAppRedirectUrl = getLegacyWebAppRedirectUrl();
+    if (legacyWebAppRedirectUrl) {
+      return <WebLocationRedirect to={legacyWebAppRedirectUrl} />;
+    }
+
+    if (isPublicWebPath()) {
+      return (
+        <I18nProvider>
+          <PublicWebSite />
+        </I18nProvider>
+      );
+    }
   }
 
   if (!publishableKey || !convexUrl) {

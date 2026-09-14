@@ -91,6 +91,7 @@ type ViewerPlayer = {
   displayName: string;
   firstName?: string | null;
   cleanSheets?: number | null;
+  form?: number | null;
   goals?: number | null;
   goalsConceded?: number | null;
   id: Id<"fantasyPlayers">;
@@ -530,6 +531,8 @@ function getPlayerSlotAccessibilityLabel(item: TeamGameweekPlayer | null) {
   return `${item.player.displayName}: ${formatSlotPoints(item)}`;
 }
 
+type ReadonlySquadSlotSize = "field" | "side" | "compact";
+
 function ReadonlySquadSlot({
   item,
   onPlayerPress,
@@ -539,17 +542,19 @@ function ReadonlySquadSlot({
   item: TeamGameweekPlayer | null;
   onPlayerPress: (playerId: Id<"fantasyPlayers">) => void;
   position: PlayerPosition;
-  size?: "field" | "side";
+  size?: ReadonlySquadSlotSize;
 }) {
   const { t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
   const player = item?.player ?? null;
+  const isCompactSlot = size === "compact";
+  const isSideSlot = size === "side";
   const leadershipLabel = item?.isCaptain
     ? t("team.leadership.captainShort")
     : item?.isViceCaptain
       ? t("team.leadership.viceCaptainShort")
       : null;
-  const avatarSize = size === "side" ? "md" : "lg";
+  const avatarSize = isCompactSlot ? "sm" : isSideSlot ? "md" : "lg";
 
   return (
     <Pressable
@@ -561,10 +566,11 @@ function ReadonlySquadSlot({
       }}
       style={[
         styles.futsalSquadSlotButton,
-        size === "side" ? styles.futsalSquadSlotButtonSide : null,
+        isSideSlot ? styles.futsalSquadSlotButtonSide : null,
         player ? styles.futsalSquadSlotButtonFilled : null,
         styles.gameweekViewerSlotButton,
-        size === "side" ? styles.gameweekViewerSlotButtonSide : null,
+        isSideSlot ? styles.gameweekViewerSlotButtonSide : null,
+        isCompactSlot ? styles.gameweekViewerSlotButtonCompact : null,
       ]}
     >
       {leadershipLabel ? (
@@ -596,7 +602,10 @@ function ReadonlySquadSlot({
             adjustsFontSizeToFit
             minimumFontScale={0.68}
             numberOfLines={1}
-            style={styles.futsalSquadSlotName}
+            style={[
+              styles.futsalSquadSlotName,
+              isCompactSlot ? styles.gameweekViewerSlotNameCompact : null,
+            ]}
           >
             {getPlayerSurnameLabel(player.displayName)}
           </Text>
@@ -611,6 +620,7 @@ function ReadonlySquadSlot({
               style={[
                 styles.gameweekViewerSlotScore,
                 { color: fantasyTheme.primaryColor },
+                isCompactSlot ? styles.gameweekViewerSlotScoreCompact : null,
               ]}
             >
               {item ? formatSlotPoints(item) : ""}
@@ -641,6 +651,9 @@ function ReadonlyPitch({
   players: TeamGameweekPlayer[];
 }) {
   const fantasyTheme = useFantasySeasonTheme();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const shouldUseCompactPitch =
+    Platform.OS !== "web" && (windowWidth <= 420 || windowHeight <= 900);
   const playersBySlot = new Map(players.map((item) => [item.rosterSlot, item]));
   const starters = SQUAD_SLOT_DEFINITIONS.filter(
     (slot) => slot.squadRole === "starter",
@@ -670,10 +683,20 @@ function ReadonlyPitch({
     styles.futsalFieldSlotLeftHigh,
     styles.futsalFieldSlotRightHigh,
   ];
+  const compactFieldSlotStyles = [
+    styles.futsalFieldSlotGoalkeeperCompact,
+    styles.futsalFieldSlotLeftDeepCompact,
+    styles.futsalFieldSlotRightDeepCompact,
+    styles.futsalFieldSlotLeftHighCompact,
+    styles.futsalFieldSlotRightHighCompact,
+  ];
+  const fieldSlotSize: ReadonlySquadSlotSize = shouldUseCompactPitch
+    ? "compact"
+    : "field";
 
   const renderSlot = (
     slot: SquadSlotDefinition,
-    size: "field" | "side" = "field",
+    size: ReadonlySquadSlotSize = "field",
   ) => (
     <ReadonlySquadSlot
       item={playersBySlot.get(slot.rosterSlot) ?? null}
@@ -706,9 +729,14 @@ function ReadonlyPitch({
             slot ? (
               <View
                 key={slot.rosterSlot}
-                style={[styles.futsalFieldSlot, fieldSlotStyles[index]]}
+                style={[
+                  styles.futsalFieldSlot,
+                  fieldSlotStyles[index],
+                  shouldUseCompactPitch ? styles.futsalFieldSlotCompact : null,
+                  shouldUseCompactPitch ? compactFieldSlotStyles[index] : null,
+                ]}
               >
-                {renderSlot(slot)}
+                {renderSlot(slot, fieldSlotSize)}
               </View>
             ) : null,
           )}

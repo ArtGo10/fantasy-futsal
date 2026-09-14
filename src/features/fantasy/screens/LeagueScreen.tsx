@@ -166,9 +166,7 @@ function getLeagueActionErrorMessage(
 export function LeagueScreen({
   canQueryPrivateData = true,
   clubs,
-  currentFantasyTeamId,
   gameweeks,
-  isAdmin = false,
   onBottomTabsHiddenChange,
   onShellHeaderHiddenChange,
   privateLeagues,
@@ -393,7 +391,6 @@ export function LeagueScreen({
       ),
     [selectedGameweekId, visibleTeams],
   );
-  const selectedLeagueLeader = sortedTeams[0] ?? null;
   const selectedViewerLeader = useMemo(
     () =>
       [...visibleTeams].sort(
@@ -427,11 +424,7 @@ export function LeagueScreen({
       };
     });
   }, [selectedGameweekId, sortedTeams, tableGameweekId]);
-  const canOpenTeam = (teamId: string) =>
-    isAdmin ||
-    teamId === currentFantasyTeamId ||
-    teamId === selectedLeagueLeader?.id ||
-    teamId === selectedViewerLeader?.id;
+  const canOpenTeam = (teamId: string) => Boolean(teamId);
   const openTeam = (teamId: Id<"fantasyTeams">) => {
     if (!canOpenTeam(teamId)) return;
     setSelectedTeamId(teamId);

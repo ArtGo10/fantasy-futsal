@@ -39,6 +39,8 @@ export type FantasyPlayerListRowPlayer = {
   photoUrl: string | null;
   appearances?: number | null;
   assists?: number | null;
+  averagePointsPerGameweek?: number | null;
+  form?: number | null;
   goals?: number | null;
   lastGameweekPoints?: number | null;
   penaltiesMissed?: number | null;
@@ -300,6 +302,10 @@ export function FantasyPlayerPickerStatsSeparator() {
 function formatListStat(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function getFantasyPlayerForm(player: FantasyPlayerListRowPlayer) {
+  return player.form ?? player.averagePointsPerGameweek ?? 0;
 }
 
 function FantasyPlayerPickerMetric({
@@ -577,7 +583,7 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
           />
           <FantasyPlayerPickerMetric
             label={t("team.list.form")}
-            value={formatListStat(player.lastGameweekPoints)}
+            value={formatListStat(getFantasyPlayerForm(player))}
           />
           <FantasyPlayerPickerMetric
             label={t("team.list.selected")}
