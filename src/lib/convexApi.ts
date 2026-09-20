@@ -56,6 +56,8 @@ export const api = {
     ),
     saveMyTeam:
       functionRef<GeneratedApi["fantasy"]["saveMyTeam"]>("fantasy:saveMyTeam"),
+    playMyChip: functionRef<GeneratedApi["fantasy"]["playMyChip"]>("fantasy:playMyChip"),
+    cancelMyChip: functionRef<GeneratedApi["fantasy"]["cancelMyChip"]>("fantasy:cancelMyChip"),
     seasonPlayerStatistics: functionRef<
       GeneratedApi["fantasy"]["seasonPlayerStatistics"]
     >("fantasy:seasonPlayerStatistics"),
@@ -86,6 +88,9 @@ export const api = {
     updatePrivateLeague: functionRef<
       GeneratedApi["fantasy"]["updatePrivateLeague"]
     >("fantasy:updatePrivateLeague"),
+    removePrivateLeagueMember: functionRef<
+      GeneratedApi["fantasy"]["removePrivateLeagueMember"]
+    >("fantasy:removePrivateLeagueMember"),
     recalculateGameweekScores: functionRef<
       GeneratedApi["fantasy"]["recalculateGameweekScores"]
     >("fantasy:recalculateGameweekScores"),

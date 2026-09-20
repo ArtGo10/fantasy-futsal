@@ -89,6 +89,10 @@ import {
   getFantasySeasonSoftColor,
 } from "./utils/seasonVisuals";
 import { FantasySeasonThemeProvider } from "./utils/seasonThemeContext";
+import {
+  PlayerProfileCacheProvider,
+  usePlayerProfileCacheSession,
+} from "./utils/playerProfileCacheContext";
 
 const FANTASY_TABS: FantasyTab[] = [
   { id: "team" },
@@ -600,7 +604,7 @@ function FantasyShellHeader({
       </View>
 
       {shouldShowWebNav ? (
-        <View style={styles.fantasyHeaderWebNav}>
+        <View pointerEvents="box-none" style={styles.fantasyHeaderWebNav}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             const label = t(FANTASY_TAB_LABEL_KEYS[tab.id]);
@@ -885,6 +889,28 @@ export function FantasyHome({
     notificationSummaryQuery,
     privateDataCacheKey,
   );
+  const playerProfileRevision = useMemo(
+    () => ({
+      fantasyPlayers,
+      fantasyClubs,
+      fantasyFixtures,
+      fantasyGameweeks,
+      seasonPlayerStatistics,
+    }),
+    [
+      fantasyPlayers,
+      fantasyClubs,
+      fantasyFixtures,
+      fantasyGameweeks,
+      seasonPlayerStatistics,
+    ],
+  );
+  const playerProfileCache = usePlayerProfileCacheSession({
+    scopeKey: currentAuthUserId ? seasonDataCacheKey : undefined,
+    seasonSlug: selectedSeasonSlug,
+    enabled: shouldQuerySelectedSeasonData,
+    revision: playerProfileRevision,
+  });
   const currentBackendUser = currentUserProfile?.user ?? null;
   const currentViewerIsAdmin = Boolean(currentUserProfile?.isAdmin);
   const currentViewerAccessResolved =
@@ -2076,6 +2102,7 @@ export function FantasyHome({
 
   return (
     <FantasySeasonThemeProvider season={activeFantasySeason}>
+      <PlayerProfileCacheProvider value={playerProfileCache}>
       <View style={styles.fantasyShell}>
         <FantasyStaticImagePreloader />
         {isShellHeaderHidden ? null : (
@@ -2191,6 +2218,7 @@ export function FantasyHome({
         )
       ) : null}
       </View>
+      </PlayerProfileCacheProvider>
     </FantasySeasonThemeProvider>
   );
 }

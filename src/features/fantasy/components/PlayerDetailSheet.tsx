@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, Star } from "lucide-react-native";
+import { Star } from "lucide-react-native";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Platform,
   Pressable,
@@ -14,12 +15,15 @@ import type { TranslationKey } from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
-import { formatFantasyMoney } from "../utils/money";
-import { getPlayerPhoto } from "../utils/playerStats";
+import { usePlayerProfilePhoto } from "../utils/usePlayerProfilePhoto";
+import { useCachedPlayerProfile } from "../utils/playerProfileCacheContext";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import { BottomSheet } from "./BottomSheet";
 import { CheckBoxMark } from "./CheckBoxMark";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { PlayerProfilePage } from "./PlayerProfilePage";
+import { PlayerProfileStatistics } from "./PlayerProfileStatistics";
+import { PlayerProfileSkeleton } from "./PlayerProfileSkeleton";
 
 type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
@@ -31,6 +35,7 @@ type PlayerStatus =
   | "left";
 
 export type PlayerDetail = {
+  id: Id<"fantasyPlayers">;
   clubName: string | null;
   displayName: string;
   photoThumbnailUrl?: string | null;
@@ -69,29 +74,14 @@ export type PlayerDetail = {
   yellowCards?: number | null;
 };
 
-export type PlayerDetailSeasonStatsPlayer = {
-  appearances?: number | null;
-  assists?: number | null;
-  averagePointsPerGameweek?: number | null;
-  cleanSheets?: number | null;
-  goals?: number | null;
-  goalsConceded?: number | null;
-  ownGoals?: number | null;
-  penaltiesMissed?: number | null;
-  penaltiesSaved?: number | null;
-  position: PlayerPosition;
-  redCards?: number | null;
-  saves?: number | null;
-  seasonPoints?: number | null;
-  yellowCards?: number | null;
-};
-
 type PlayerDetailSheetProps = {
+  canQueryPrivateData?: boolean;
   canSetLeadership?: boolean;
   isCaptain?: boolean;
   isFavorite?: boolean;
   isViceCaptain?: boolean;
   mode: "market" | "squad";
+  onAdd?: () => void;
   onClose: () => void;
   onRemove?: () => void;
   onReplace?: () => void;
@@ -100,6 +90,8 @@ type PlayerDetailSheetProps = {
   onSwap?: () => void;
   onToggleFavorite?: () => void;
   player: PlayerDetail | null;
+  playerId?: Id<"fantasyPlayers"> | null;
+  presentation?: "sheet" | "page";
   visible: boolean;
 };
 
@@ -107,93 +99,6 @@ const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
   goalkeeper: "players.position.goalkeeper",
   universal: "players.position.universal",
 };
-
-function formatPlayerDetailNumber(value: number | null | undefined) {
-  const normalized = Number((value ?? 0).toFixed(1));
-  return Number.isInteger(normalized)
-    ? String(normalized)
-    : normalized.toFixed(1);
-}
-
-export function getPlayerDetailSeasonStatItems(
-  player: PlayerDetailSeasonStatsPlayer,
-  t: (key: TranslationKey) => string,
-) {
-  const items = [
-    {
-      key: "seasonPoints",
-      label: t("playerDetails.totalPoints"),
-      value: formatPlayerDetailNumber(player.seasonPoints),
-    },
-    {
-      key: "averagePoints",
-      label: t("playerDetails.averagePoints"),
-      value: formatPlayerDetailNumber(player.averagePointsPerGameweek),
-    },
-    {
-      key: "goals",
-      label: t("players.stats.goals"),
-      value: formatPlayerDetailNumber(player.goals),
-    },
-    {
-      key: "assists",
-      label: t("players.stats.assists"),
-      value: formatPlayerDetailNumber(player.assists),
-    },
-    {
-      key: "appearances",
-      label: t("players.stats.matches"),
-      value: formatPlayerDetailNumber(player.appearances),
-    },
-    {
-      key: "yellowCards",
-      label: t("playerDetails.yellowCards"),
-      value: formatPlayerDetailNumber(player.yellowCards),
-    },
-    {
-      key: "redCards",
-      label: t("playerDetails.redCards"),
-      value: formatPlayerDetailNumber(player.redCards),
-    },
-    {
-      key: "ownGoals",
-      label: t("playerDetails.ownGoals"),
-      value: formatPlayerDetailNumber(player.ownGoals),
-    },
-    {
-      key: "penaltiesMissed",
-      label: t("playerDetails.penaltiesMissed"),
-      value: formatPlayerDetailNumber(player.penaltiesMissed),
-    },
-  ];
-
-  if (player.position === "goalkeeper") {
-    items.push(
-      {
-        key: "cleanSheets",
-        label: t("playerDetails.cleanSheets"),
-        value: formatPlayerDetailNumber(player.cleanSheets),
-      },
-      {
-        key: "goalsConceded",
-        label: t("playerDetails.goalsConceded"),
-        value: formatPlayerDetailNumber(player.goalsConceded),
-      },
-      {
-        key: "saves",
-        label: t("playerDetails.saves"),
-        value: formatPlayerDetailNumber(player.saves),
-      },
-      {
-        key: "penaltiesSaved",
-        label: t("playerDetails.penaltiesSaved"),
-        value: formatPlayerDetailNumber(player.penaltiesSaved),
-      },
-    );
-  }
-
-  return items;
-}
 
 const STATUS_LABEL_KEYS: Record<
   "active" | "doubtful" | "unavailable",
@@ -238,6 +143,7 @@ type PlayerDetailHeroProps = {
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   player: PlayerDetail;
+  photoUrl: string | null;
   t: (key: TranslationKey) => string;
 };
 
@@ -246,6 +152,7 @@ function PlayerDetailHero({
   isFavorite,
   onToggleFavorite,
   player,
+  photoUrl,
   t,
 }: PlayerDetailHeroProps) {
   const fantasyTheme = useFantasySeasonTheme();
@@ -280,10 +187,13 @@ function PlayerDetailHero({
       ) : null}
       <PlayerAvatar
         displayName={player.displayName}
-        iconSize={isDesktopWeb ? 54 : undefined}
-        photoUrl={getPlayerPhoto(player)}
+        iconSize={isDesktopWeb ? 112 : 72}
+        photoUrl={photoUrl}
         size="xl"
-        style={isDesktopWeb ? styles.playerDetailHeroAvatarDesktop : null}
+        style={[
+          styles.playerProfileHeroAvatar,
+          isDesktopWeb ? styles.playerProfileHeroAvatarDesktop : null,
+        ]}
       />
       <View
         style={[
@@ -320,11 +230,13 @@ function PlayerDetailHero({
 }
 
 export function PlayerDetailSheet({
+  canQueryPrivateData = true,
   canSetLeadership,
   isCaptain,
   isFavorite,
   isViceCaptain,
   mode,
+  onAdd,
   onClose,
   onRemove,
   onReplace,
@@ -333,6 +245,8 @@ export function PlayerDetailSheet({
   onSwap,
   onToggleFavorite,
   player,
+  playerId,
+  presentation = "sheet",
   visible,
 }: PlayerDetailSheetProps) {
   const { t } = useI18n();
@@ -341,16 +255,26 @@ export function PlayerDetailSheet({
   const { width: windowWidth } = useWindowDimensions();
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
+  const profile = useCachedPlayerProfile(
+    player?.id ?? null,
+    presentation === "sheet" && visible && canQueryPrivateData,
+  );
+  const photo = usePlayerProfilePhoto(
+    player?.photoUrl ?? player?.photoThumbnailUrl ?? null,
+    presentation === "sheet" && visible && canQueryPrivateData && profile !== null,
+  );
+  const isLoading = canQueryPrivateData && (profile === undefined || photo.isLoading);
+  const isReady = canQueryPrivateData && Boolean(profile) && !isLoading;
+  if (!player) {
+    return presentation === "page" && visible && playerId ? (
+      <PlayerProfilePage
+        canQueryPrivateData={canQueryPrivateData}
+        onBack={onClose}
+        playerId={playerId}
+      />
+    ) : null;
+  }
 
-  if (!player) return null;
-
-  const selectedPercent = formatPlayerDetailNumber(player.selectedPercent);
-  const priceDelta = Number((player.priceDelta ?? 0).toFixed(1));
-  const hasPriceTrend = Math.abs(priceDelta) >= 0.1;
-  const PriceTrendIcon = priceDelta > 0 ? ArrowUp : ArrowDown;
-  const priceTrendColor =
-    priceDelta > 0 ? colors.state.success : colors.state.danger;
-  const seasonStatItems = getPlayerDetailSeasonStatItems(player, t);
   const publicStatus = getPublicPlayerStatus(player.status);
   const statusLabel = t(STATUS_LABEL_KEYS[publicStatus]);
   const statusMessage =
@@ -374,62 +298,6 @@ export function PlayerDetailSheet({
     onSetViceCaptain?.();
     onClose();
   };
-  const quickStatsSection = (
-    <View
-      style={[
-        styles.playerDetailQuickStats,
-        isDesktopWeb ? styles.playerDetailQuickStatsDesktop : null,
-      ]}
-    >
-      <View style={styles.playerDetailQuickStat}>
-        <Text style={styles.playerDetailQuickLabel}>
-          {t("players.priceLabel")}
-        </Text>
-        <View style={styles.playerDetailPriceTrendGroup}>
-          <Text
-            style={[
-              styles.playerDetailQuickValue,
-              !hasPriceTrend
-                ? { color: fantasyTheme.primaryColor }
-                : null,
-              hasPriceTrend && priceDelta > 0
-                ? styles.playerDetailQuickValueUp
-                : null,
-              hasPriceTrend && priceDelta < 0
-                ? styles.playerDetailQuickValueDown
-                : null,
-            ]}
-          >
-            {formatFantasyMoney(player.price)}
-          </Text>
-          {hasPriceTrend ? (
-            <PriceTrendIcon color={priceTrendColor} size={14} strokeWidth={3} />
-          ) : null}
-        </View>
-      </View>
-      <View style={styles.playerDetailQuickStat}>
-        <Text style={styles.playerDetailQuickLabel}>
-          {t("playerDetails.selectedPercent")}
-        </Text>
-        <Text
-          style={[
-            styles.playerDetailQuickValue,
-            { color: fantasyTheme.primaryColor },
-          ]}
-        >
-          {selectedPercent}%
-        </Text>
-      </View>
-      <View style={styles.playerDetailQuickStat}>
-        <Text style={styles.playerDetailQuickLabel}>
-          {t("players.statusLabel")}
-        </Text>
-        <Text numberOfLines={1} style={styles.playerDetailQuickValueSmall}>
-          {statusLabel}
-        </Text>
-      </View>
-    </View>
-  );
   const leadershipSection =
     mode === "squad" && canSetLeadership ? (
       <View
@@ -463,8 +331,9 @@ export function PlayerDetailSheet({
       </View>
     ) : null;
   const actionBottomPadding = !isDesktopWeb ? Math.max(insets.bottom, 0) : 0;
+  const showReplaceAction = !isDesktopWeb && Boolean(onReplace);
   const actionsSection =
-    mode === "squad" && (onRemove || onReplace || onSwap) ? (
+    onAdd || (mode === "squad" && (onRemove || showReplaceAction || onSwap)) ? (
       <View
         style={[
           styles.playerDetailActions,
@@ -473,26 +342,42 @@ export function PlayerDetailSheet({
             : null,
         ]}
       >
+        {onAdd ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onAdd}
+            style={[
+              styles.playerDetailActionPrimary,
+              isDesktopWeb ? styles.playerDetailActionDesktop : null,
+              { backgroundColor: fantasyTheme.primaryColor },
+            ]}
+          >
+            <Text numberOfLines={1} style={styles.playerDetailActionPrimaryText}>
+              {t("playerDetails.add")}
+            </Text>
+          </Pressable>
+        ) : null}
         {onRemove ? (
           <Pressable
             accessibilityRole="button"
             onPress={onRemove}
-            style={styles.playerDetailActionDanger}
+            style={[
+              styles.playerDetailActionDanger,
+              isDesktopWeb ? styles.playerDetailActionDesktop : null,
+            ]}
           >
-            <Text
-              numberOfLines={1}
-              style={styles.playerDetailActionDangerText}
-            >
+            <Text numberOfLines={1} style={styles.playerDetailActionDangerText}>
               {t("playerDetails.remove")}
             </Text>
           </Pressable>
         ) : null}
-        {onReplace ? (
+        {showReplaceAction ? (
           <Pressable
             accessibilityRole="button"
             onPress={onReplace}
             style={[
               styles.playerDetailActionSecondary,
+              isDesktopWeb ? styles.playerDetailActionDesktop : null,
               { borderColor: fantasyTheme.borderColor },
             ]}
           >
@@ -513,6 +398,7 @@ export function PlayerDetailSheet({
             onPress={onSwap}
             style={[
               styles.playerDetailActionPrimary,
+              isDesktopWeb ? styles.playerDetailActionDesktop : null,
               { backgroundColor: fantasyTheme.primaryColor },
             ]}
           >
@@ -526,6 +412,67 @@ export function PlayerDetailSheet({
         ) : null}
       </View>
     ) : null;
+
+  const statusNotice = statusNoticeMessage ? (
+    <View
+      style={[
+        styles.playerDetailStatusNotice,
+        isDoubtful
+          ? styles.playerDetailStatusNoticeWarning
+          : styles.playerDetailStatusNoticeDanger,
+      ]}
+    >
+      <Text
+        style={[
+          styles.playerDetailStatusNoticeText,
+          isDoubtful
+            ? styles.playerDetailStatusNoticeTextWarning
+            : styles.playerDetailStatusNoticeTextDanger,
+        ]}
+      >
+        {statusNoticeMessage}
+      </Text>
+    </View>
+  ) : null;
+
+  if (presentation === "page") {
+    return visible ? (
+      <PlayerProfilePage
+        actions={actionsSection}
+        beforeStats={
+          <>
+            {statusNotice}
+            {leadershipSection}
+          </>
+        }
+        canQueryPrivateData={canQueryPrivateData}
+        fallbackPlayer={player}
+        headerAccessory={
+          mode === "market" && onToggleFavorite ? (
+            <Pressable
+              accessibilityLabel={t(
+                isFavorite
+                  ? "playerDetails.removeFavorite"
+                  : "playerDetails.addFavorite",
+              )}
+              accessibilityRole="button"
+              onPress={onToggleFavorite}
+              style={styles.playerDetailFavoriteButton}
+            >
+              <Star
+                color={isFavorite ? colors.brand.yellow : colors.text.inverse}
+                fill={isFavorite ? colors.brand.yellow : "transparent"}
+                size={21}
+                strokeWidth={2.5}
+              />
+            </Pressable>
+          ) : null
+        }
+        onBack={onClose}
+        playerId={player.id}
+      />
+    ) : null;
+  }
 
   return (
     <BottomSheet
@@ -544,92 +491,31 @@ export function PlayerDetailSheet({
         showsVerticalScrollIndicator={false}
         style={styles.playerDetailScroll}
       >
-        <View
-          style={[
-            styles.playerDetailTopStack,
-            isDesktopWeb ? styles.playerDetailTopGridDesktop : null,
-          ]}
-        >
-          <View style={isDesktopWeb ? styles.playerDetailTopPaneDesktop : null}>
+        {isLoading ? (
+          <PlayerProfileSkeleton
+            isDesktopWeb={isDesktopWeb}
+            presentation="sheet"
+          />
+        ) : !isReady ? (
+          <Text style={styles.mutedText}>{t("team.viewer.playerUnavailable")}</Text>
+        ) : (
+          <>
             <PlayerDetailHero
               isDesktopWeb={isDesktopWeb}
               isFavorite={isFavorite}
-              onToggleFavorite={
-                mode === "market" ? onToggleFavorite : undefined
-              }
+              onToggleFavorite={mode === "market" ? onToggleFavorite : undefined}
               player={player}
+              photoUrl={photo.photoUrl}
               t={t}
             />
-          </View>
-
-          {isDesktopWeb ? (
-            <View style={styles.playerDetailSidePaneDesktop}>
-              {quickStatsSection}
+            <PlayerProfileStatistics player={player} profile={profile}>
+              {statusNotice}
               {leadershipSection}
-            </View>
-          ) : (
-            quickStatsSection
-          )}
-        </View>
-
-        {statusNoticeMessage ? (
-          <View
-            style={[
-              styles.playerDetailStatusNotice,
-              isDoubtful
-                ? styles.playerDetailStatusNoticeWarning
-                : styles.playerDetailStatusNoticeDanger,
-            ]}
-          >
-            <Text
-              style={[
-                styles.playerDetailStatusNoticeText,
-                isDoubtful
-                  ? styles.playerDetailStatusNoticeTextWarning
-                  : styles.playerDetailStatusNoticeTextDanger,
-              ]}
-            >
-              {statusNoticeMessage}
-            </Text>
-          </View>
-        ) : null}
-
-        {!isDesktopWeb ? leadershipSection : null}
-
-        <View style={styles.playerDetailStatsPanel}>
-          <Text style={styles.playerDetailSectionTitle}>
-            {t("playerDetails.currentSeason")}
-          </Text>
-          <View
-            style={[
-              styles.playerDetailStatsGrid,
-              isDesktopWeb ? styles.playerDetailStatsGridDesktop : null,
-            ]}
-          >
-            {seasonStatItems.map((item) => (
-              <View
-                key={item.key}
-                style={[
-                  styles.playerDetailStatCell,
-                  !isDesktopWeb ? styles.playerDetailStatCellCompact : null,
-                  isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.playerDetailStatValue,
-                    { color: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  {item.value}
-                </Text>
-                <Text style={styles.playerDetailStatLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+            </PlayerProfileStatistics>
+          </>
+        )}
       </ScrollView>
-      {actionsSection}
+      {isReady ? actionsSection : null}
     </BottomSheet>
   );
 }

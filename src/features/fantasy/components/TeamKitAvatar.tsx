@@ -1,16 +1,14 @@
 import { Image } from "expo-image";
-import { Shirt } from "lucide-react-native";
 import { memo } from "react";
 import { View } from "react-native";
 
 import { styles } from "../../../styles";
-import { colors } from "../../../theme/tokens";
 import {
   FANTASY_STATIC_IMAGE_PROPS,
+  TSHIRT_PLACEHOLDER_IMAGE,
   getClubKitSource,
   type PlayerPosition,
 } from "../assets/fantasyAssets";
-import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 
 type TeamKitAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -32,14 +30,6 @@ const KIT_SIZE_STYLES = {
   xl: styles.playerAvatarXl,
 };
 
-const KIT_ICON_SIZES: Record<TeamKitAvatarSize, number> = {
-  xs: 21,
-  sm: 29,
-  md: 35,
-  lg: 43,
-  xl: 76,
-};
-
 export const TeamKitAvatar = memo(function TeamKitAvatar({
   clubName,
   clubShortName,
@@ -49,13 +39,14 @@ export const TeamKitAvatar = memo(function TeamKitAvatar({
   size = "md",
   variant = "avatar",
 }: TeamKitAvatarProps) {
-  const fantasyTheme = useFantasySeasonTheme();
   const kitSource = getClubKitSource(clubName, clubShortName, position);
   const isSlotVariant = variant === "slot";
+  const isPlaceholderKit = !kitSource;
 
   return (
     <View
       accessibilityLabel={displayName}
+      pointerEvents="none"
       style={[
         styles.playerAvatarBase,
         KIT_SIZE_STYLES[size],
@@ -64,23 +55,20 @@ export const TeamKitAvatar = memo(function TeamKitAvatar({
         isMuted ? styles.playerAvatarMuted : null,
       ]}
     >
-      {kitSource ? (
-        <Image
-          {...FANTASY_STATIC_IMAGE_PROPS}
-          contentFit="contain"
-          source={kitSource}
-          style={[
-            styles.teamKitAvatarImage,
-            isSlotVariant ? styles.teamKitAvatarSlotImage : null,
-          ]}
-        />
-      ) : (
-        <Shirt
-          color={isMuted ? colors.text.muted : fantasyTheme.primaryColor}
-          size={Math.round(KIT_ICON_SIZES[size] * (isSlotVariant ? 1.1 : 1))}
-          strokeWidth={2.2}
-        />
-      )}
+      <Image
+        {...FANTASY_STATIC_IMAGE_PROPS}
+        draggable={false}
+        contentFit="contain"
+        source={kitSource ?? TSHIRT_PLACEHOLDER_IMAGE}
+        style={[
+          styles.teamKitAvatarImage,
+          isSlotVariant ? styles.teamKitAvatarSlotImage : null,
+          isPlaceholderKit ? styles.teamKitAvatarPlaceholderImage : null,
+          isSlotVariant && isPlaceholderKit
+            ? styles.teamKitAvatarSlotPlaceholderImage
+            : null,
+        ]}
+      />
     </View>
   );
 });

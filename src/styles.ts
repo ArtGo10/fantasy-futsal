@@ -2,7 +2,6 @@ import { Platform, StyleSheet } from "react-native";
 
 import { colors, radii, shadows, spacing, typography } from "./theme/tokens";
 
-const WEB_APP_MAX_WIDTH = 920;
 const isWeb = Platform.OS === "web";
 
 export const styles = StyleSheet.create({
@@ -561,7 +560,6 @@ export const styles = StyleSheet.create({
   },
   page: {
     width: "100%",
-    maxWidth: 920,
     alignSelf: "center",
     gap: spacing.md,
     padding: spacing.xl,
@@ -614,16 +612,11 @@ export const styles = StyleSheet.create({
     width: "100%",
     position: "relative",
     backgroundColor: colors.background,
-    ...(isWeb
-      ? {
-          maxWidth: WEB_APP_MAX_WIDTH,
-          alignSelf: "center" as const,
-        }
-      : {}),
   },
   fantasyHeader: {
     width: "100%",
     minHeight: 72,
+    position: "relative",
     borderBottomWidth: 2,
     borderColor: colors.brand.yellow,
     backgroundColor: colors.surface,
@@ -634,18 +627,21 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: 18,
     ...shadows.card,
-    ...(isWeb
-      ? {
-          maxWidth: 920,
-          alignSelf: "center" as const,
-          alignContent: "center" as const,
-        }
-      : {}),
   },
   fantasyHeaderTitleGroup: {
     flex: 1,
     minWidth: 0,
+    position: "relative",
+    zIndex: 1,
     gap: spacing.xxs,
+    ...(isWeb
+      ? {
+          flexBasis: "auto" as const,
+          flexGrow: 0,
+          flexShrink: 1,
+          maxWidth: 420,
+        }
+      : {}),
   },
   fantasyHeaderTitleRow: {
     flexDirection: "row",
@@ -664,13 +660,17 @@ export const styles = StyleSheet.create({
   },
   fantasyHeaderLanguageSwitcher: {
     flexShrink: 0,
+    zIndex: 1,
     alignItems: "flex-end",
   },
   fantasyHeaderWebNav: {
     ...(isWeb
       ? {
-          flex: 2,
-          minWidth: 360,
+          position: "absolute" as const,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
           flexDirection: "row" as const,
           alignItems: "center" as const,
           justifyContent: "center" as const,
@@ -807,6 +807,11 @@ export const styles = StyleSheet.create({
     minHeight: 0,
     width: "100%",
   },
+  fantasyScreenFixedContent: {
+    flex: 1,
+    minHeight: 0,
+    overflow: "hidden",
+  },
   fantasyScreenFixedFooterSafe: {
     flexShrink: 0,
     backgroundColor: "rgba(246, 248, 252, 0.96)",
@@ -815,8 +820,6 @@ export const styles = StyleSheet.create({
   },
   fantasyScreenFixedFooter: {
     width: "100%",
-    maxWidth: 920,
-    alignSelf: "center",
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
@@ -838,9 +841,7 @@ export const styles = StyleSheet.create({
   },
   fantasyScreen: {
     width: "100%",
-    maxWidth: 920,
     flexGrow: 1,
-    alignSelf: "center",
     gap: spacing.md,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
@@ -1228,6 +1229,14 @@ export const styles = StyleSheet.create({
     width: "118%",
     height: "118%",
   },
+  teamKitAvatarPlaceholderImage: {
+    width: "94%",
+    height: "94%",
+  },
+  teamKitAvatarSlotPlaceholderImage: {
+    width: "110%",
+    height: "110%",
+  },
   playerAvatarInitials: {
     color: colors.brand.blueDark,
     fontWeight: typography.weight.black,
@@ -1310,28 +1319,23 @@ export const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.brand.blue,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     gap: spacing.sm,
-    padding: spacing.sm,
+    minHeight: 160,
   },
   playerDetailHeroDesktop: {
     flex: 1,
     minHeight: 184,
     alignItems: "stretch",
     gap: spacing.md,
-    padding: spacing.md,
-  },
-  playerDetailHeroAvatarDesktop: {
-    width: 128,
-    height: "100%",
-    minHeight: 152,
-    borderRadius: radii.lg,
   },
   playerDetailHeroText: {
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
     paddingRight: 42,
+    paddingVertical: spacing.md,
+    justifyContent: "center",
   },
   playerDetailHeroTextDesktop: {
     gap: spacing.sm,
@@ -1589,6 +1593,7 @@ export const styles = StyleSheet.create({
     width: "100%",
     flexShrink: 0,
     flexDirection: "row",
+    justifyContent: "center",
     flexWrap: "nowrap",
     gap: spacing.xs,
     paddingTop: spacing.xs,
@@ -1604,6 +1609,13 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
+  },
+  playerDetailActionDesktop: {
+    flex: 0,
+    flexBasis: "auto",
+    width: 280,
+    maxWidth: "100%",
+    paddingHorizontal: spacing.lg,
   },
   playerDetailActionPrimaryText: {
     color: colors.text.inverse,
@@ -1822,6 +1834,13 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  teamCreateWelcomeActionsDesktop: {
+    maxWidth: 460,
+    alignSelf: "center",
+  },
+  teamCreateWelcomeButtonDesktop: {
+    width: "100%",
+  },
   teamCreateWelcomePrimaryButton: {
     width: "100%",
     minHeight: 58,
@@ -1864,7 +1883,7 @@ export const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   teamCreateSetupFrameContentDesktop: {
-    maxWidth: 1180,
+    width: "100%",
     justifyContent: "center",
   },
   teamCreateSetupScreen: {
@@ -1874,10 +1893,11 @@ export const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   teamCreateSetupScreenDesktop: {
-    flexGrow: 0,
+    flexGrow: 1,
     flexDirection: "row",
-    alignItems: "stretch",
-    gap: spacing.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.lg,
   },
   teamCreateSetupHero: {
     width: "auto",
@@ -1890,9 +1910,9 @@ export const styles = StyleSheet.create({
     marginTop: -spacing.lg,
   },
   teamCreateSetupHeroDesktop: {
-    flex: 1.25,
+    flexGrow: 0,
+    flexShrink: 1,
     minWidth: 0,
-    minHeight: 620,
     borderRadius: 28,
     marginHorizontal: 0,
     marginTop: 0,
@@ -2578,22 +2598,6 @@ export const styles = StyleSheet.create({
     width: "100%",
     gap: spacing.md,
   },
-  gameweekViewerDesktopLayout: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-  },
-  gameweekViewerDesktopFieldPane: {
-    flex: 1,
-    minWidth: 0,
-  },
-  gameweekViewerDesktopSidePane: {
-    flex: 1,
-    minWidth: 0,
-    gap: spacing.md,
-    alignItems: "stretch",
-  },
   gameweekViewerStatsRow: {
     width: "100%",
     flexDirection: "row",
@@ -2644,13 +2648,6 @@ export const styles = StyleSheet.create({
   },
   gameweekViewerStatLabelPrimary: {
     color: colors.text.inverse,
-  },
-  gameweekViewerLoading: {
-    width: "100%",
-    minHeight: 220,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
   },
   gameweekViewerSlotButton: {
     justifyContent: "flex-start",
@@ -2796,24 +2793,292 @@ export const styles = StyleSheet.create({
     width: "100%",
     gap: spacing.md,
   },
+  profileSkeletonBlock: {
+    backgroundColor: colors.border.default,
+    borderRadius: 4,
+  },
+  profileSkeletonHero: {
+    backgroundColor: colors.surfaceSubtle,
+    boxShadow: "none",
+    elevation: 0,
+  },
+  profileSkeletonPhoto: {
+    backgroundColor: colors.border.default,
+  },
+  profileSkeletonPosition: { width: 80, height: 22, maxWidth: "80%" },
+  profileSkeletonName: { width: "75%", maxWidth: 280, height: 30 },
+  profileSkeletonClub: { width: 96, maxWidth: "65%", height: 19 },
+  profileSkeletonMetricLabel: { width: "100%", height: 16, alignItems: "center" },
+  profileSkeletonLabel: { width: "70%", maxWidth: 80, height: 14 },
+  profileSkeletonValue: { width: "65%", maxWidth: 68, height: 24 },
+  profileSkeletonValueCompact: { height: 20 },
+  profileSkeletonSectionTitle: { width: 96, height: 19 },
+  profileSkeletonGameweek: { height: 30, width: "100%", alignItems: "center" },
+  profileSkeletonLogo: { width: 36, height: 36, borderRadius: 8 },
+  profileSkeletonOpponent: { width: "85%", maxWidth: 100, height: 32 },
+  profileSkeletonVenue: { width: 20, height: 16 },
+  profileSkeletonPoints: { width: "100%", height: 30 },
+  profileSkeletonTabs: { height: 48 },
+  profileSkeletonTableRow: { gap: spacing.md },
+  profileSkeletonTableWeek: { width: 24, height: 16 },
+  profileSkeletonTableOpponent: { flex: 2, minWidth: 60, height: 20 },
+  profileSkeletonTableStat: { flex: 1, height: 16 },
+  profileStatistics: {
+    width: "100%",
+    gap: spacing.lg,
+  },
+  profileMetrics: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border.default,
+    paddingVertical: spacing.md,
+  },
+  profileMetric: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  profileMetricDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border.default,
+  },
+  profilePriceMetricCompact: {
+    flex: 1.4,
+  },
+  profileMetricLabel: {
+    maxWidth: "100%",
+    minHeight: 16,
+    color: colors.text.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "center",
+    fontWeight: typography.weight.medium,
+  },
+  profileMetricValue: {
+    maxWidth: "100%",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: typography.weight.black,
+    textAlign: "center",
+  },
+  profileMetricValueCompact: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  profilePreviews: {
+    width: "100%",
+    gap: spacing.lg,
+  },
+  profilePreviewsWide: {
+    flexDirection: "row",
+  },
+  profilePreviewSection: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.md,
+  },
+  profilePreviewDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border.default,
+    paddingLeft: spacing.lg,
+  },
+  profilePreviewMatches: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  profilePreviewMatch: {
+    width: "20%",
+    minWidth: 0,
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: 3,
+  },
+  profilePreviewGameweek: {
+    minHeight: 30,
+    fontSize: 12,
+    lineHeight: 15,
+    color: colors.text.muted,
+    textAlign: "center",
+  },
+  profilePreviewOpponent: {
+    height: 32,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.text.primary,
+    fontWeight: typography.weight.bold,
+    textAlign: "center",
+  },
+  profilePreviewValue: {
+    alignSelf: "stretch",
+    minHeight: 30,
+    paddingVertical: 5,
+    paddingHorizontal: 2,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: typography.weight.bold,
+    color: colors.text.secondary,
+    textAlign: "center",
+    overflow: "hidden",
+    borderRadius: 4,
+  },
+  profileMutedText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.text.muted,
+  },
+  profileTabs: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    marginBottom: 0,
+  },
+  profileHistorySection: {
+    gap: spacing.sm,
+  },
+  profileTableScroll: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+  },
+  profileTableScrollContent: {
+    flexGrow: 1,
+  },
+  profileHistoryTable: {
+    width: "100%",
+    minWidth: 864,
+  },
+  profileTableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  profileTableHeader: {
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 46,
+  },
+  profileTableHeading: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.text.muted,
+    fontWeight: typography.weight.bold,
+  },
+  profileTableText: {
+    flexShrink: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.text.primary,
+  },
+  profileGwColumn: {
+    width: 44,
+    flexShrink: 0,
+    textAlign: "center",
+  },
+  profileOpponentColumn: {
+    flex: 1,
+    minWidth: 180,
+    paddingHorizontal: spacing.sm,
+  },
+  profileHistoryOpponent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  profileResultColumn: {
+    width: 80,
+    flexShrink: 0,
+    paddingHorizontal: spacing.xs,
+    textAlign: "center",
+  },
+  profileMetricColumn: {
+    width: 56,
+    flexShrink: 0,
+    textAlign: "center",
+  },
+  profileResultBadge: {
+    overflow: "hidden",
+    borderRadius: 4,
+    paddingVertical: 4,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: typography.weight.bold,
+    backgroundColor: colors.surfaceSubtle,
+    color: colors.text.primary,
+  },
+  profilePointsText: {
+    fontWeight: typography.weight.black,
+  },
+  profileTableTotals: {
+    backgroundColor: colors.surfaceSubtle,
+    borderBottomWidth: 0,
+  },
+  profileTotalsLabel: {
+    flex: 1,
+    minWidth: 304,
+    paddingLeft: 44,
+  },
+  profileFixtureTable: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  profileDateColumn: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: spacing.sm,
+  },
+  profileFixtureOpponent: {
+    width: "38%",
+    maxWidth: 240,
+    minWidth: 0,
+    paddingLeft: spacing.sm,
+  },
   playerProfileHero: {
     width: "100%",
     overflow: "hidden",
     borderRadius: radii.lg,
     backgroundColor: colors.brand.blue,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     gap: spacing.md,
-    padding: spacing.md,
+    minHeight: 160,
     ...shadows.card,
   },
   playerProfileHeroDesktop: {
     minHeight: 190,
   },
+  playerProfileHeroAvatar: {
+    width: 112,
+    height: "auto",
+    alignSelf: "stretch",
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: "transparent",
+  },
+  playerProfileHeroAvatarDesktop: {
+    width: 190,
+  },
   playerProfileHeroText: {
     flex: 1,
     minWidth: 0,
     gap: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingRight: spacing.md,
+    justifyContent: "center",
   },
   playerProfileMatchesPanel: {
     width: "100%",
@@ -2928,7 +3193,19 @@ export const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   playerMatchBreakdownHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  playerMatchBreakdownAvatar: {
+    width: 48,
+    height: 60,
+    borderRadius: radii.md,
+  },
+  playerMatchBreakdownHeading: {
+    flexShrink: 1,
+    minWidth: 0,
     gap: spacing.xs,
   },
   playerMatchBreakdownTitle: {
@@ -2936,7 +3213,7 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.xl,
     fontWeight: typography.weight.black,
     lineHeight: typography.lineHeight.lg,
-    textAlign: "center",
+    textAlign: "left",
   },
   playerMatchScoreCard: {
     minHeight: 70,
@@ -2949,8 +3226,16 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
-  playerMatchClubName: {
+  playerMatchClub: {
     flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  playerMatchClubName: {
+    flexShrink: 1,
     minWidth: 0,
     color: colors.text.primary,
     fontSize: typography.size.sm,
@@ -3649,20 +3934,54 @@ export const styles = StyleSheet.create({
     lineHeight: 11,
     textAlign: "center",
   },
-  teamBuilderDesktopDraftLayout: {
+  teamBuilderDesktopPickerLayout: {
     width: "100%",
+    flex: 1,
+    minHeight: 0,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     gap: spacing.lg,
   },
-  teamBuilderDesktopFieldPane: {
-    flex: 1,
+  teamBuilderDesktopPickerFieldColumn: {
+    flexShrink: 1,
     minWidth: 0,
-  },
-  teamBuilderDesktopSidePane: {
-    flex: 1,
-    minWidth: 0,
+    minHeight: 0,
     gap: spacing.md,
+  },
+  teamBuilderDesktopPitchViewport: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  teamBuilderDesktopFittedField: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    transformOrigin: "top left",
+  },
+  teamBuilderDesktopPlayerPickerColumn: {
+    flex: 1,
+    minWidth: 360,
+    minHeight: 0,
+  },
+  teamBuilderDesktopPlayerPickerPane: {
+    // The player list fills the bounded workspace without increasing its height.
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    minHeight: 0,
+    overflow: "visible",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+    padding: spacing.md,
+    ...shadows.card,
   },
   teamBuilderFooterActions: {
     width: "100%",
@@ -3801,9 +4120,31 @@ export const styles = StyleSheet.create({
     right: spacing.xl,
     justifyContent: "space-between",
   },
+  futsalRosterUniversalRowOneLandscape: {
+    top: "38%",
+    left: "6%",
+    right: "6%",
+  },
+  futsalRosterUniversalRowTwoLandscape: {
+    top: "72%",
+    left: "6%",
+    right: "6%",
+  },
   futsalSquadLayout: {
     width: "100%",
     gap: 1,
+  },
+  squadContentFill: {
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
+  },
+  squadPitchViewportDesktop: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%",
+    alignItems: "center",
+    overflow: "hidden",
   },
   futsalSquadMainRow: {
     width: "100%",
@@ -3887,6 +4228,26 @@ export const styles = StyleSheet.create({
   futsalFieldSlotRightHighCompact: {
     top: "67%",
   },
+  futsalFieldSlotGoalkeeperLandscape: {
+    top: "17%",
+    left: "50%",
+  },
+  futsalFieldSlotLeftDeepLandscape: {
+    top: "48%",
+    left: "25%",
+  },
+  futsalFieldSlotRightDeepLandscape: {
+    top: "48%",
+    left: "75%",
+  },
+  futsalFieldSlotLeftHighLandscape: {
+    top: "80%",
+    left: "25%",
+  },
+  futsalFieldSlotRightHighLandscape: {
+    top: "80%",
+    left: "75%",
+  },
   futsalBenchRail: {
     width: 62,
     borderWidth: 1,
@@ -3910,7 +4271,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   futsalReserveRail: {
-    width: "100%",
+    alignSelf: "stretch",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.28)",
     borderRadius: radii.lg,
@@ -3925,7 +4286,20 @@ export const styles = StyleSheet.create({
   },
   futsalReserveSlotWrap: {
     width: 58,
+    flexShrink: 1,
     alignItems: "center",
+  },
+  futsalSquadSlotContainer: {
+    position: "relative",
+  },
+  futsalSquadSlotFocusOutline: {
+    position: "absolute",
+    top: -1,
+    right: -1,
+    bottom: -1,
+    left: -1,
+    borderRadius: radii.md,
+    zIndex: 4,
   },
   futsalSquadSlotButton: {
     width: 62,
@@ -3961,10 +4335,21 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.brand.yellow,
   },
-  futsalSquadSlotPlaceholder: {
+  futsalSquadSlotVisual: {
+    position: "relative",
+    width: 54,
+    height: 54,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+  },
+  futsalSquadSlotVisualSide: {
+    width: 44,
+    height: 44,
+  },
+  futsalSquadSlotVisualPriced: {
+    flexShrink: 1,
+    minHeight: 0,
   },
   futsalSquadSlotAddBadge: {
     width: 22,
@@ -3972,6 +4357,32 @@ export const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
+  },
+  futsalSquadSlotPlaceholderAddBadge: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: 24,
+    height: 24,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: [{ translateX: -12 }, { translateY: -12 }],
+  },
+  futsalSquadSlotRemoveButton: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    zIndex: 10,
+    width: 16,
+    height: 16,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.card,
   },
   futsalSquadSlotPosition: {
     color: colors.brand.blueDark,
@@ -3995,7 +4406,7 @@ export const styles = StyleSheet.create({
     width: "100%",
     marginTop: "auto",
     marginHorizontal: 0,
-    marginBottom: -1,
+    marginBottom: 0,
     overflow: "hidden",
     borderRadius: radii.sm,
     backgroundColor: colors.surface,
@@ -4007,6 +4418,9 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
+  },
+  futsalSquadSlotPlaceholderName: {
+    color: colors.text.primary,
   },
   futsalSquadSlotNamePriced: {
     marginTop: 0,
@@ -4142,6 +4556,10 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   compactSquadBadgeGroup: {
+    position: "absolute",
+    top: -5,
+    left: -5,
+    zIndex: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
@@ -4492,6 +4910,10 @@ export const styles = StyleSheet.create({
     borderColor: colors.state.danger,
     backgroundColor: colors.state.dangerSoft,
   },
+  squadSlotFocused: {
+    borderWidth: 2,
+    borderColor: colors.brand.yellow,
+  },
   squadSlotSwapCandidate: {
     borderWidth: 2,
     borderColor: colors.state.success,
@@ -4705,6 +5127,23 @@ export const styles = StyleSheet.create({
     zIndex: 140,
     elevation: 140,
   },
+  playerPickerEmbeddedToolbar: {
+    position: "relative",
+    zIndex: 140,
+    elevation: 140,
+    width: "100%",
+    gap: spacing.sm,
+    flexShrink: 0,
+  },
+  playerPickerEmbeddedSearchInputContainer: {
+    width: "100%",
+  },
+  playerPickerEmbeddedFilters: {
+    width: "100%",
+    position: "relative",
+    zIndex: 140,
+    elevation: 140,
+  },
   playerPickerFilters: {
     position: "relative",
     zIndex: 120,
@@ -4876,6 +5315,15 @@ export const styles = StyleSheet.create({
     minHeight: 0,
     backgroundColor: colors.background,
   },
+  playerPickerEmbeddedListFrame: {
+    flex: 1,
+    minHeight: 0,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+  },
   playerPickerHorizontalScroll: {
     flex: 1,
     minHeight: 0,
@@ -4998,6 +5446,14 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
+  },
+  leagueToolbarActionDesktop: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: "auto",
+  },
+  leagueToolbarActionsStartDesktop: {
+    marginLeft: "auto",
   },
   leagueJoinButtonText: {
     flexShrink: 1,
@@ -5153,6 +5609,45 @@ export const styles = StyleSheet.create({
   leagueActionsHeader: {
     gap: spacing.xs,
   },
+  leagueEditorDesktop: {
+    maxWidth: 640,
+  },
+  leagueDialogActions: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: spacing.sm,
+  },
+  leagueDialogActionButton: {
+    minWidth: 104,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+  },
+  leagueDialogActionText: {
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.base,
+  },
+  leagueMembersSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+    paddingTop: spacing.lg,
+    marginTop: spacing.xs,
+    gap: spacing.sm,
+  },
+  leagueMemberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  leagueMemberOwnerLabel: {
+    flexShrink: 0,
+    color: colors.text.muted,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+  },
   leagueInviteCard: {
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -5170,6 +5665,32 @@ export const styles = StyleSheet.create({
   },
   leagueActionForm: {
     gap: spacing.sm,
+  },
+  leagueManagerLayout: {
+    width: "100%",
+    gap: spacing.md,
+  },
+  leagueManagerLayoutDesktop: {
+    maxWidth: 1120,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.xxxl,
+  },
+  leagueCreateSectionDesktop: {
+    width: 360,
+    flexShrink: 0,
+    gap: spacing.md,
+  },
+  leagueCreateButtonDesktop: {
+    alignSelf: "flex-start",
+  },
+  leagueOwnedSectionDesktop: {
+    width: 440,
+    flexShrink: 1,
+    minWidth: 0,
+    gap: spacing.md,
   },
   leagueManagementList: {
     gap: spacing.sm,
@@ -5293,6 +5814,7 @@ export const styles = StyleSheet.create({
   marketListHeaderDesktop: {
     position: "relative",
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm,
     zIndex: 121,
@@ -5318,7 +5840,9 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   marketFilterRowDesktop: {
-    flexWrap: "nowrap",
+    flexWrap: "wrap",
+    maxWidth: "100%",
+    marginLeft: "auto",
     flexGrow: 0,
     flexShrink: 0,
     alignItems: "center",
@@ -5347,6 +5871,11 @@ export const styles = StyleSheet.create({
   },
   marketTeamSelectDesktop: {
     width: 190,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  marketOptionSelectDesktop: {
+    width: 170,
     flexGrow: 0,
     flexShrink: 0,
   },
@@ -5441,6 +5970,39 @@ export const styles = StyleSheet.create({
     justifyContent: "flex-start",
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
+  },
+  playerPickerStatsRowContainer: {
+    width: "100%",
+    position: "relative",
+  },
+  playerPickerStatsRowDisabled: {
+    backgroundColor: "#E5E5E5",
+    borderBottomColor: "#B3B3B3",
+  },
+  playerPickerInfoSpacer: {
+    width: 18,
+    height: 18,
+    flexShrink: 0,
+  },
+  playerPickerInfoButton: {
+    position: "absolute",
+    left: spacing.sm,
+    top: 23,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playerPickerShirtContainer: {
+    position: "relative",
+    flexShrink: 0,
+  },
+  playerPickerShirtStatus: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
   },
   playerPickerStatsPlayerCell: {
     width: 178,
@@ -5625,6 +6187,11 @@ export const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
   },
+  fantasyPlayerStatusBadgeExtraSmall: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
   marketStatusIconActive: {
     backgroundColor: colors.state.success,
   },
@@ -5638,6 +6205,10 @@ export const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 11,
   },
+  fantasyPlayerStatusTextExtraSmall: {
+    fontSize: 7,
+    lineHeight: 9,
+  },
   fantasyPlayerStatusTriangleWrap: {
     width: 18,
     height: 18,
@@ -5648,6 +6219,10 @@ export const styles = StyleSheet.create({
   fantasyPlayerStatusTriangleWrapCompact: {
     width: 14,
     height: 14,
+  },
+  fantasyPlayerStatusTriangleWrapExtraSmall: {
+    width: 12,
+    height: 12,
   },
   fantasyPlayerStatusTriangle: {
     position: "absolute",
@@ -5669,6 +6244,11 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 7,
     borderRightWidth: 7,
     borderBottomWidth: 13,
+  },
+  fantasyPlayerStatusTriangleExtraSmall: {
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 11,
   },
   fantasyPlayerStatusTriangleText: {
     zIndex: 1,
@@ -5696,6 +6276,7 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.lg,
   },
   marketPositionBadge: {
+    flexShrink: 0,
     overflow: "hidden",
     borderRadius: radii.pill,
     backgroundColor: colors.brand.yellow,
@@ -6522,8 +7103,6 @@ export const styles = StyleSheet.create({
   },
   seasonSelectionScreen: {
     width: "100%",
-    maxWidth: WEB_APP_MAX_WIDTH,
-    alignSelf: "center",
     gap: spacing.xl,
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
@@ -6776,7 +7355,6 @@ export const styles = StyleSheet.create({
   },
   seasonTableFullWidth: {
     minWidth: 456,
-    paddingHorizontal: spacing.md,
   },
   seasonTableFullWidthDesktop: {
     width: "100%",
@@ -6839,6 +7417,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: spacing.xs,
+  },
+  seasonTableFormHeaderCell: {
+    flex: 1,
+    minWidth: 126,
+    textAlign: "right",
   },
   seasonTableTeamName: {
     flex: 1,
@@ -7013,6 +7596,13 @@ export const styles = StyleSheet.create({
     minWidth: 820,
     paddingBottom: spacing.sm,
   },
+  seasonStatsLeaderboardHorizontalContentDesktop: {
+    flexGrow: 1,
+    minWidth: "100%",
+  },
+  seasonStatsLeaderboardTableDesktop: {
+    width: "100%",
+  },
   seasonStatsLeaderboardHeader: {
     minHeight: 40,
     flexDirection: "row",
@@ -7038,14 +7628,15 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   seasonStatsLeaderboardPlayer: {
-    width: 210,
-    minWidth: 0,
+    minWidth: 210,
+    flex: 2.8,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
   seasonStatsLeaderboardPlayerHeader: {
-    width: 210,
+    minWidth: 210,
+    flex: 2.8,
     color: colors.text.secondary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
@@ -7068,7 +7659,8 @@ export const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.xs,
   },
   seasonStatsLeaderboardHeaderCell: {
-    width: 46,
+    minWidth: 46,
+    flex: 1,
     color: colors.text.secondary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
@@ -7076,7 +7668,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   seasonStatsLeaderboardCell: {
-    width: 46,
+    minWidth: 46,
+    flex: 1,
     color: colors.text.primary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.medium,
@@ -7084,7 +7677,8 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   seasonStatsLeaderboardHeaderPoints: {
-    width: 48,
+    minWidth: 48,
+    flex: 1,
     color: colors.text.primary,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.black,
@@ -7092,7 +7686,8 @@ export const styles = StyleSheet.create({
     textAlign: "right",
   },
   seasonStatsLeaderboardPoints: {
-    width: 48,
+    minWidth: 48,
+    flex: 1,
     color: colors.brand.teal,
     fontSize: typography.size.base,
     fontWeight: typography.weight.black,

@@ -27,11 +27,15 @@ import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
-import { FantasyClubLogo } from "../components/FantasyPlayerListRow";
+import {
+  FantasyClubLogo,
+  formatFantasyPlayerListName,
+} from "../components/FantasyPlayerListRow";
 import {
   PlayerDetailSheet,
   type PlayerDetail,
 } from "../components/PlayerDetailSheet";
+import { PlayerDetailScreen } from "../components/PlayerDetailScreen";
 import { TeamKitAvatar } from "../components/TeamKitAvatar";
 import {
   getLocalizedClubName,
@@ -615,7 +619,9 @@ function SeasonStatsCard({
 
   return (
     <View style={styles.seasonStatsCard}>
-      <Text style={styles.seasonStatsCardLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.seasonStatsCardLabel}>
+        {label}
+      </Text>
       {player ? (
         <View style={styles.seasonStatsCardBody}>
           <TeamKitAvatar
@@ -626,7 +632,7 @@ function SeasonStatsCard({
           />
           <View style={styles.seasonStatsCardTextGroup}>
             <Text numberOfLines={1} style={styles.seasonStatsCardName}>
-              {player.displayName}
+              {formatFantasyPlayerListName(player)}
             </Text>
             <Text
               numberOfLines={1}
@@ -668,7 +674,7 @@ function SeasonStatsRow({
       />
       <View style={styles.seasonStatsPlayerMain}>
         <Text numberOfLines={1} style={styles.seasonStatsPlayerName}>
-          {player.displayName}
+          {formatFantasyPlayerListName(player)}
         </Text>
         <Text numberOfLines={1} style={styles.seasonStatsPlayerClub}>
           {player.clubName ?? t("players.noClub")}
@@ -706,7 +712,7 @@ function SeasonStatsLeaderboardRow({
         />
         <View style={styles.seasonStatsLeaderboardNameGroup}>
           <Text numberOfLines={1} style={styles.seasonStatsLeaderboardName}>
-            {player.displayName}
+            {formatFantasyPlayerListName(player)}
           </Text>
           <Text numberOfLines={1} style={styles.seasonStatsLeaderboardClub}>
             {player.clubName ?? t("players.noClub")}
@@ -872,8 +878,21 @@ function SeasonStats({
         <Text style={styles.seasonStatsSectionLabel}>
           {t("season.stats.fullLeaderboard")}
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.seasonStatsLeaderboardTable}>
+        <ScrollView
+          contentContainerStyle={
+            isDesktopWeb
+              ? styles.seasonStatsLeaderboardHorizontalContentDesktop
+              : undefined
+          }
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.seasonStatsLeaderboardTable,
+              isDesktopWeb ? styles.seasonStatsLeaderboardTableDesktop : null,
+            ]}
+          >
             <View style={styles.seasonStatsLeaderboardHeader}>
               <Text style={styles.seasonStatsLeaderboardRank}>
                 {t("season.table.pos")}
@@ -2168,7 +2187,7 @@ function SeasonStandings({
               >
                 {t("season.table.team")}
               </HeaderText>
-              <HeaderText style={styles.seasonTableFormCell}>
+              <HeaderText style={styles.seasonTableFormHeaderCell}>
                 {t("season.table.form")}
               </HeaderText>
             </View>
@@ -2470,108 +2489,117 @@ export function SeasonScreen({
   ]);
 
   return (
-    <FantasyScreenFrame kicker={t("season.kicker")} title={t("season.title")}>
-      {selectedFixtureDetailsId ? (
-        <MatchDetailsPage
-          clubsById={clubsById}
-          clubsByName={clubsByName}
-          details={selectedFixtureDetails}
-          fallbackFixture={selectedFixtureDetailsFallback}
-          onBack={() => setSelectedFixtureDetailsId(null)}
-          onPlayerPress={setSelectedMatchPlayerId}
+    <PlayerDetailScreen
+      pageVisible={isDesktopWeb && selectedMatchPlayerId !== null}
+      details={
+        <PlayerDetailSheet
+          mode="market"
+          presentation={isDesktopWeb ? "page" : "sheet"}
+          playerId={selectedMatchPlayerId}
+          onClose={() => setSelectedMatchPlayerId(null)}
+          player={selectedMatchPlayerProfile?.player ?? null}
+          visible={selectedMatchPlayerId !== null}
         />
-      ) : (
-        <>
-          <View style={styles.seasonTabs}>
-            {SEASON_SECTIONS.map((section) => {
-              const isActive = activeSection === section.id;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={section.id}
-                  onPress={() => setActiveSection(section.id)}
-                  style={styles.seasonTabButton}
-                >
-                  <Text
-                    style={[
-                      isActive
-                        ? styles.seasonTabTextActive
-                        : styles.seasonTabText,
-                      isActive ? { color: fantasyTheme.primaryColor } : null,
-                    ]}
-                  >
-                    {t(section.labelKey)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {isLoading ? (
-            <View style={styles.panel}>
-              <LoadingBlock />
-            </View>
-          ) : null}
-
-          {!isLoading && activeSection === "calendar" ? (
-            <SeasonCalendar
-              clubs={activeClubs}
-              clubsById={clubsById}
-              clubsByName={clubsByName}
-              filtersDirty={calendarFiltersDirty}
-              fixtures={calendarFixtures}
-              gameweeks={calendarGameweeks}
-              onOpenClubPicker={() => setOpenPicker("calendarClub")}
-              onOpenFixtureDetails={(fixture) =>
-                setSelectedFixtureDetailsId(fixture.id as Id<"fantasyFixtures">)
-              }
-              onOpenGameweekPicker={() => setOpenPicker("calendarGameweek")}
-              onResetFilters={resetCalendarFilters}
-              onSelectClub={setSelectedCalendarClubId}
-              onSelectGameweek={selectCalendarGameweek}
-              selectedClubId={selectedCalendarClubId}
-              selectedGameweekId={
-                isAllGameweeksSelected
-                  ? ALL_GAMEWEEKS_FILTER_ID
-                  : (selectedGameweek?.id ?? null)
-              }
-            />
-          ) : null}
-
-          {!isLoading && activeSection === "table" ? (
-            <SeasonStandings
-              clubs={activeClubs}
-              clubsById={clubsById}
-              clubsByName={clubsByName}
-              fixtures={fixtures ?? []}
-              gameweeks={sortedGameweeks}
-              tableMode={tableMode}
-              setTableMode={setTableMode}
-            />
-          ) : null}
-
-          {!isLoading && activeSection === "stats" ? (
-            <SeasonStats
-              clubs={activeClubs}
-              playerStatistics={playerStatistics}
-            />
-          ) : null}
-
-          <SeasonPickerSheet
-            onClose={closePicker}
-            onCloseEnd={flushCalendarPickerSelection}
-            options={pickerOptions}
-            visible={!isDesktopWeb && openPicker !== null}
+      }
+    >
+      <FantasyScreenFrame kicker={t("season.kicker")} title={t("season.title")}>
+        {selectedFixtureDetailsId ? (
+          <MatchDetailsPage
+            clubsById={clubsById}
+            clubsByName={clubsByName}
+            details={selectedFixtureDetails}
+            fallbackFixture={selectedFixtureDetailsFallback}
+            onBack={() => setSelectedFixtureDetailsId(null)}
+            onPlayerPress={setSelectedMatchPlayerId}
           />
-        </>
-      )}
-      <PlayerDetailSheet
-        mode="market"
-        onClose={() => setSelectedMatchPlayerId(null)}
-        player={selectedMatchPlayerProfile?.player ?? null}
-        visible={selectedMatchPlayerId !== null}
-      />
-    </FantasyScreenFrame>
+        ) : (
+          <>
+            <View style={styles.seasonTabs}>
+              {SEASON_SECTIONS.map((section) => {
+                const isActive = activeSection === section.id;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={section.id}
+                    onPress={() => setActiveSection(section.id)}
+                    style={styles.seasonTabButton}
+                  >
+                    <Text
+                      style={[
+                        isActive
+                          ? styles.seasonTabTextActive
+                          : styles.seasonTabText,
+                        isActive ? { color: fantasyTheme.primaryColor } : null,
+                      ]}
+                    >
+                      {t(section.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {isLoading ? (
+              <View style={styles.panel}>
+                <LoadingBlock />
+              </View>
+            ) : null}
+
+            {!isLoading && activeSection === "calendar" ? (
+              <SeasonCalendar
+                clubs={activeClubs}
+                clubsById={clubsById}
+                clubsByName={clubsByName}
+                filtersDirty={calendarFiltersDirty}
+                fixtures={calendarFixtures}
+                gameweeks={calendarGameweeks}
+                onOpenClubPicker={() => setOpenPicker("calendarClub")}
+                onOpenFixtureDetails={(fixture) =>
+                  setSelectedFixtureDetailsId(fixture.id as Id<"fantasyFixtures">)
+                }
+                onOpenGameweekPicker={() => setOpenPicker("calendarGameweek")}
+                onResetFilters={resetCalendarFilters}
+                onSelectClub={setSelectedCalendarClubId}
+                onSelectGameweek={selectCalendarGameweek}
+                selectedClubId={selectedCalendarClubId}
+                selectedGameweekId={
+                  isAllGameweeksSelected
+                    ? ALL_GAMEWEEKS_FILTER_ID
+                    : (selectedGameweek?.id ?? null)
+                }
+              />
+            ) : null}
+
+            {!isLoading && activeSection === "table" ? (
+              <SeasonStandings
+                clubs={activeClubs}
+                clubsById={clubsById}
+                clubsByName={clubsByName}
+                fixtures={fixtures ?? []}
+                gameweeks={sortedGameweeks}
+                tableMode={tableMode}
+                setTableMode={setTableMode}
+              />
+            ) : null}
+
+            {!isLoading && activeSection === "stats" ? (
+              <SeasonStats
+                clubs={activeClubs}
+                playerStatistics={playerStatistics}
+              />
+            ) : null}
+
+            <SeasonPickerSheet
+              onClose={closePicker}
+              onCloseEnd={flushCalendarPickerSelection}
+              options={pickerOptions}
+              visible={!isDesktopWeb && openPicker !== null}
+            />
+          </>
+        )}
+
+      </FantasyScreenFrame>
+    </PlayerDetailScreen>
   );
 }

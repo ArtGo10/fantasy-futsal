@@ -1069,7 +1069,6 @@ const webStyles = StyleSheet.create({
   },
   header: {
     width: "100%",
-    maxWidth: 1120,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1161,7 +1160,6 @@ const webStyles = StyleSheet.create({
   },
   main: {
     width: "100%",
-    maxWidth: 1120,
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
   },
@@ -1217,7 +1215,6 @@ const webStyles = StyleSheet.create({
     lineHeight: 39,
   },
   heroDescription: {
-    maxWidth: 560,
     color: colors.text.secondary,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.medium,
@@ -1394,7 +1391,6 @@ const webStyles = StyleSheet.create({
   },
   articleShell: {
     width: "100%",
-    maxWidth: 1120,
     alignItems: "flex-start",
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
@@ -1409,7 +1405,6 @@ const webStyles = StyleSheet.create({
   },
   articleHero: {
     width: "100%",
-    maxWidth: 860,
     alignItems: "flex-start",
     gap: spacing.sm,
   },
@@ -1435,7 +1430,6 @@ const webStyles = StyleSheet.create({
   },
   articleCard: {
     width: "100%",
-    maxWidth: 860,
     borderWidth: 1,
     borderColor: colors.border.default,
     borderRadius: radii.lg,
@@ -1504,7 +1498,6 @@ const webStyles = StyleSheet.create({
   },
   footer: {
     width: "100%",
-    maxWidth: 1120,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
     gap: spacing.sm,
