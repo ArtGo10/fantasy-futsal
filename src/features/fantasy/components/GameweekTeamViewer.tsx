@@ -20,10 +20,7 @@ import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { FANTASY_STATIC_IMAGE_PROPS } from "../assets/fantasyAssets";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
-import {
-  useFutsalFieldLayout,
-  useFutsalFieldSlotScale,
-} from "../utils/useFutsalFieldLayout";
+import { useFutsalFieldLayout } from "../utils/useFutsalFieldLayout";
 import {
   FantasyPlayerListRow,
   FantasyPlayerPickerStatsHeader,
@@ -567,9 +564,6 @@ function ReadonlyPitch({
 
   const isDesktopWeb =
     Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
-  const { fieldRef, onFieldLayout, slotScale } = useFutsalFieldSlotScale(
-    isLandscape && !isDesktopWeb,
-  );
   const shouldUseCompactPitch =
     Platform.OS !== "web" && (windowWidth <= 420 || windowHeight <= 900);
   const playersBySlot = new Map(players.map((item) => [item.rosterSlot, item]));
@@ -649,8 +643,6 @@ function ReadonlyPitch({
       ))}
     >
       <View
-        ref={fieldRef}
-        onLayout={onFieldLayout}
         style={[
           styles.futsalFieldFrame,
           {
@@ -682,16 +674,6 @@ function ReadonlyPitch({
                 shouldUseCompactPitch ? styles.futsalFieldSlotCompact : null,
                 shouldUseCompactPitch && !isLandscape
                   ? compactFieldSlotStyles[index]
-                  : null,
-                isLandscape
-                  ? {
-                      transform: [
-                        ...(shouldUseCompactPitch
-                          ? styles.futsalFieldSlotCompact.transform
-                          : styles.futsalFieldSlot.transform),
-                        { scale: slotScale },
-                      ],
-                    }
                   : null,
               ]}
             >

@@ -499,25 +499,44 @@ function isAutomaticNonParticipationStatusDetails(
 ) {
   if (!details) return false;
 
-  return [
+  const messages = [
     details.message,
     details.messageEn,
     details.messagePl,
     details.messageUk,
   ]
     .map(normalizeStatusDetailsMessage)
-    .some(
+    .filter(Boolean);
+  return (
+    messages.length > 0 &&
+    messages.every(
       (value) =>
         /^did not play (last gameweek|in gameweek \d+)$/.test(value) ||
+        /^did not play in the last \d+ gameweeks$/.test(value) ||
         /^не грав у (минулому турі|турі \d+)$/.test(value) ||
-        /^nie zagrał w (poprzedniej kolejce|\d+\. kolejce)$/.test(value),
-    );
+        /^не грав в останніх \d+ турах$/.test(value) ||
+        /^nie zagrał w (poprzedniej kolejce|\d+\. kolejce|ostatnich \d+ kolejkach)$/.test(value),
+    )
+  );
 }
 
 function getFantasyNonParticipationStatusDetails(
   gameweekNumber: number,
   updatedAt: number,
+  missedGameweeks = 1,
 ) {
+  if (missedGameweeks > 1) {
+    return normalizeFantasyPlayerStatusDetails(
+      {
+        message: `Не грав в останніх ${missedGameweeks} турах`,
+        messageEn: `Did not play in the last ${missedGameweeks} gameweeks`,
+        messagePl: `Nie zagrał w ostatnich ${missedGameweeks} kolejkach`,
+        messageUk: `Не грав в останніх ${missedGameweeks} турах`,
+      },
+      updatedAt,
+    );
+  }
+
   if (!Number.isInteger(gameweekNumber) || gameweekNumber <= 0) {
     return normalizeFantasyPlayerStatusDetails(
       FANTASY_NON_PARTICIPATION_STATUS_DETAILS,
@@ -539,10 +558,15 @@ function getFantasyNonParticipationStatusDetails(
 function hasNonParticipationStatusDetailsForGameweek(
   details: Doc<"fantasyPlayers">["statusDetails"],
   gameweekNumber: number,
+  missedGameweeks = 1,
 ) {
   if (!details) return false;
 
-  const expected = getFantasyNonParticipationStatusDetails(gameweekNumber, 0);
+  const expected = getFantasyNonParticipationStatusDetails(
+    gameweekNumber,
+    0,
+    missedGameweeks,
+  );
   if (!expected) return false;
 
   return (
@@ -3192,10 +3216,10 @@ async function markGameweekNonParticipantsDoubtfulInternal(
   now: number,
   options: { dryRun?: boolean } = {},
 ) {
-  const [fixtures, players, clubs] = await Promise.all([
+  const [fixtures, players, clubs, gameweeks, lineups, events] = await Promise.all([
     ctx.db
       .query("fantasyFixtures")
-      .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
       .collect(),
     ctx.db
       .query("fantasyPlayers")
@@ -3205,79 +3229,121 @@ async function markGameweekNonParticipantsDoubtfulInternal(
       .query("fantasyClubs")
       .withIndex("by_season", (q) => q.eq("seasonId", season._id))
       .collect(),
+    getSeasonGameweeks(ctx, season._id),
+    ctx.db
+      .query("fantasyFixtureLineups")
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+      .collect(),
+    ctx.db
+      .query("fantasyFixtureEvents")
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+      .collect(),
   ]);
-  const completedFixtures = fixtures.filter(
-    (fixture) => fixture.status === "completed",
-  );
-  const [lineupLists, eventLists] = await Promise.all([
-    Promise.all(
-      completedFixtures.map((fixture) =>
-        ctx.db
-          .query("fantasyFixtureLineups")
-          .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
-          .collect(),
-      ),
-    ),
-    Promise.all(
-      completedFixtures.map((fixture) =>
-        ctx.db
-          .query("fantasyFixtureEvents")
-          .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
-          .collect(),
-      ),
-    ),
-  ]);
-
-  const eligibleClubIds = new Set<Id<"fantasyClubs">>();
-  const appearedPlayerIds = new Set<Id<"fantasyPlayers">>();
+  const gameweeksById = new Map(gameweeks.map((item) => [item._id, item]));
+  const lineupsByFixture = new Map<
+    Id<"fantasyFixtures">,
+    Doc<"fantasyFixtureLineups">[]
+  >();
+  const eventsByFixture = new Map<
+    Id<"fantasyFixtures">,
+    Doc<"fantasyFixtureEvents">[]
+  >();
+  for (const lineup of lineups) {
+    const group = lineupsByFixture.get(lineup.fixtureId) ?? [];
+    group.push(lineup);
+    lineupsByFixture.set(lineup.fixtureId, group);
+  }
+  for (const event of events) {
+    const group = eventsByFixture.get(event.fixtureId) ?? [];
+    group.push(event);
+    eventsByFixture.set(event.fixtureId, group);
+  }
+  const participationByGameweek = new Map<
+    number,
+    {
+      eligibleClubIds: Set<Id<"fantasyClubs">>;
+      incompleteClubIds: Set<Id<"fantasyClubs">>;
+      appearedPlayerIds: Set<Id<"fantasyPlayers">>;
+    }
+  >();
   const skippedFixturesWithoutLineups: Array<{
     awayClubName: string;
     fixtureId: Id<"fantasyFixtures">;
     homeClubName: string;
   }> = [];
 
-  completedFixtures.forEach((fixture, index) => {
-    const lineups = lineupLists[index] ?? [];
-    const events = eventLists[index] ?? [];
-    const hasHomeLineups = lineups.some((lineup) => lineup.side === "home");
-    const hasAwayLineups = lineups.some((lineup) => lineup.side === "away");
+  for (const fixture of fixtures) {
+    const fixtureGameweek = fixture.gameweekId
+      ? gameweeksById.get(fixture.gameweekId)
+      : undefined;
+    if (!fixtureGameweek || fixture.status === "cancelled") continue;
 
-    if (!hasHomeLineups && !hasAwayLineups) {
+    const participation = participationByGameweek.get(fixtureGameweek.number) ?? {
+      eligibleClubIds: new Set<Id<"fantasyClubs">>(),
+      incompleteClubIds: new Set<Id<"fantasyClubs">>(),
+      appearedPlayerIds: new Set<Id<"fantasyPlayers">>(),
+    };
+    participationByGameweek.set(fixtureGameweek.number, participation);
+    const fixtureLineups = lineupsByFixture.get(fixture._id) ?? [];
+    for (const side of ["home", "away"] as const) {
+      const clubId = side === "home" ? fixture.homeClubId : fixture.awayClubId;
+      if (!clubId) continue;
+      if (
+        fixture.status === "completed" &&
+        fixtureLineups.some((lineup) => lineup.side === side)
+      ) {
+        participation.eligibleClubIds.add(clubId);
+      } else {
+        participation.incompleteClubIds.add(clubId);
+      }
+    }
+
+    if (fixture.status !== "completed") continue;
+    if (fixture.gameweekId === gameweek._id && fixtureLineups.length === 0) {
       skippedFixturesWithoutLineups.push({
         fixtureId: fixture._id,
         homeClubName: fixture.homeClubName,
         awayClubName: fixture.awayClubName,
       });
-      return;
     }
-
-    if (fixture.homeClubId && hasHomeLineups) {
-      eligibleClubIds.add(fixture.homeClubId);
+    for (const lineup of fixtureLineups) {
+      if (lineup.playerId) participation.appearedPlayerIds.add(lineup.playerId);
     }
-    if (fixture.awayClubId && hasAwayLineups) {
-      eligibleClubIds.add(fixture.awayClubId);
+    for (const event of eventsByFixture.get(fixture._id) ?? []) {
+      if (event.playerId) participation.appearedPlayerIds.add(event.playerId);
     }
-
-    for (const lineup of lineups) {
-      if (lineup.playerId) appearedPlayerIds.add(lineup.playerId);
+  }
+  // A partial/double gameweek cannot establish a player's absence.
+  for (const participation of participationByGameweek.values()) {
+    for (const clubId of participation.incompleteClubIds) {
+      participation.eligibleClubIds.delete(clubId);
     }
-    for (const event of events) {
-      if (event.playerId) appearedPlayerIds.add(event.playerId);
-    }
-  });
+  }
+  const eligibleClubIds =
+    participationByGameweek.get(gameweek.number)?.eligibleClubIds ??
+    new Set<Id<"fantasyClubs">>();
+  const appearedPlayerIds =
+    participationByGameweek.get(gameweek.number)?.appearedPlayerIds ??
+    new Set<Id<"fantasyPlayers">>();
 
   const clubsById = new Map(clubs.map((club) => [club._id, club]));
-  const statusDetails = getFantasyNonParticipationStatusDetails(
-    gameweek.number,
-    now,
-  );
+  const missedGameweeksByPlayer = new Map<Id<"fantasyPlayers">, number>();
   const statusContext = { currentGameweekNumber: gameweek.number };
   const targets: Doc<"fantasyPlayers">[] = [];
   const clearedPlayers: Doc<"fantasyPlayers">[] = [];
   const skippedSuspendedPlayers: Doc<"fantasyPlayers">[] = [];
 
   for (const player of players) {
-    if (!player.clubId || !eligibleClubIds.has(player.clubId)) continue;
+    const clubId = player.clubId;
+    if (!clubId) continue;
+    // Replaying an older result must not overwrite a more recent return/absence.
+    const hasLaterParticipation = [...participationByGameweek].some(
+      ([number, participation]) =>
+        number > gameweek.number &&
+        (participation.appearedPlayerIds.has(player._id) ||
+          participation.eligibleClubIds.has(clubId)),
+    );
+    if (hasLaterParticipation) continue;
 
     const appeared = appearedPlayerIds.has(player._id);
     const suspendedForGameweek = isFantasyPlayerSuspendedForGameweek(
@@ -3298,14 +3364,38 @@ async function markGameweekNonParticipantsDoubtfulInternal(
       continue;
     }
 
+    if (!eligibleClubIds.has(clubId)) continue;
     if (player.status !== "active" && !hasAutoNonParticipationStatus) {
       continue;
     }
+    if (
+      player.statusDetails &&
+      !isAutomaticNonParticipationStatusDetails(player.statusDetails)
+    ) {
+      continue;
+    }
+
+    let missedGameweeks = 0;
+    for (let number = gameweek.number; number > 0; number -= 1) {
+      const participation = participationByGameweek.get(number);
+      if (
+        !participation?.eligibleClubIds.has(clubId) ||
+        participation.appearedPlayerIds.has(player._id) ||
+        isFantasyPlayerSuspendedForGameweek(player, {
+          currentGameweekNumber: number,
+        })
+      ) {
+        break;
+      }
+      missedGameweeks += 1;
+    }
+    missedGameweeksByPlayer.set(player._id, missedGameweeks);
     if (
       hasAutoNonParticipationStatus &&
       hasNonParticipationStatusDetailsForGameweek(
         player.statusDetails,
         gameweek.number,
+        missedGameweeks,
       )
     ) {
       continue;
@@ -3328,7 +3418,11 @@ async function markGameweekNonParticipantsDoubtfulInternal(
     for (const player of sortedTargets) {
       await ctx.db.patch(player._id, {
         status: "doubtful",
-        statusDetails,
+        statusDetails: getFantasyNonParticipationStatusDetails(
+          gameweek.number,
+          now,
+          missedGameweeksByPlayer.get(player._id),
+        ),
         updatedAt: now,
       });
     }
@@ -3362,7 +3456,10 @@ async function markGameweekNonParticipantsDoubtfulInternal(
     skippedSuspended: sortedSkippedSuspendedPlayers.length,
     skippedSuspendedPlayers: sortedSkippedSuspendedPlayers.map(toPlayerResult),
     targetCount: sortedTargets.length,
-    targets: sortedTargets.map(toPlayerResult),
+    targets: sortedTargets.map((player) => ({
+      ...toPlayerResult(player),
+      missedGameweeks: missedGameweeksByPlayer.get(player._id),
+    })),
     updated: options.dryRun ? 0 : sortedTargets.length,
   };
 }

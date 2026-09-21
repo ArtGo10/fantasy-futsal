@@ -36,21 +36,47 @@ const baseMocks = {
   "./TeamKitAvatar": { TeamKitAvatar: "Kit" },
 };
 const listModule = load("../src/features/fantasy/components/FantasyPlayerListRow.tsx", baseMocks);
-function rowHarness() {
+function rowHarness(props = {}) {
   const actions = [];
   const row = listModule.FantasyPlayerListRow({
     player: { displayName: "Test Player", price: 8, status: "active", position: "universal" },
     club: null, t: (key) => key, variant: "pickerStats",
     onPress: () => actions.push("add"), onInfoPress: () => actions.push("info"),
+    ...props,
   });
   const buttons = nodesOf(row).filter((node) => node.type === "Pressable");
   return {
     actions,
+    row,
+    buttons,
     touch: (phase, x, y) => row.props[phase]({ nativeEvent: { pageX: x, pageY: y } }),
     press: (index = 0, nativeEvent = {}) => buttons[index].props.onPress({ nativeEvent }),
     accessiblePress: () => buttons[0].props.onAccessibilityTap(),
   };
 }
+test("desktop disabled picker dims the entire row without a disabled background", () => {
+  const h = rowHarness({ isDisabled: true, disabledAppearance: "opacity" });
+  assert.ok(h.row.props.style.includes("playerPickerRowDisabled"));
+  assert.ok(!h.buttons[0].props.style.includes("playerPickerStatsRowDisabled"));
+  assert.equal(h.buttons[0].props.disabled, true);
+  assert.notEqual(h.buttons[1].props.disabled, true);
+  h.accessiblePress();
+  assert.deepEqual(h.actions, []);
+  h.press(1);
+  assert.deepEqual(h.actions, ["info"]);
+});
+test("available desktop picker rows stay fully opaque", () => {
+  const h = rowHarness({ disabledAppearance: "opacity" });
+  assert.ok(!h.row.props.style.includes("playerPickerRowDisabled"));
+  assert.ok(!h.buttons[0].props.style.includes("playerPickerStatsRowDisabled"));
+  h.press();
+  assert.deepEqual(h.actions, ["add"]);
+});
+test("mobile disabled picker retains its existing background without row opacity", () => {
+  const h = rowHarness({ isDisabled: true });
+  assert.ok(!h.row.props.style.includes("playerPickerRowDisabled"));
+  assert.ok(h.buttons[0].props.style.includes("playerPickerStatsRowDisabled"));
+});
 test("picker accepts a tap with small finger jitter", () => {
   const h = rowHarness();
   h.touch("onTouchStart", 100, 100);

@@ -1,11 +1,10 @@
 import { FlashList } from "@shopify/flash-list";
-import { Check, ChevronDown, Star } from "lucide-react-native";
+import { Star } from "lucide-react-native";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import {
   Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -20,7 +19,8 @@ import { useDismissKeyboardOnChange } from "../../../hooks/useDismissKeyboardOnC
 import type { TranslationKey } from "../../../i18n/translations";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
-import { BottomSheet } from "../components/BottomSheet";
+import { FilterSelectButton, FilterSelectMenu } from "../components/FilterSelect";
+import { FilterResetButton } from "../components/FilterResetButton";
 import {
   DesktopSelect,
   type DesktopSelectOption,
@@ -160,6 +160,18 @@ export function MarketScreen({
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const filtersDirty =
+    searchQuery !== "" || favoritesOnly || selectedClubId !== null ||
+    positionFilter !== "all" || sort !== "price_desc";
+  const resetFilters = useCallback(() => {
+    Keyboard.dismiss();
+    setSearchQuery("");
+    setFavoritesOnly(false);
+    setSelectedClubId(null);
+    setPositionFilter("all");
+    setSort("price_desc");
+    setOpenFilter(null);
+  }, []);
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
   const deferredFavoritesOnly = useDeferredValue(favoritesOnly);
   const deferredSelectedClubId = useDeferredValue(selectedClubId);
@@ -277,6 +289,7 @@ export function MarketScreen({
       { label: t("market.allTeams"), value: MARKET_ALL_CLUBS_VALUE },
       ...activeClubs.map((club) => ({
         label: club.shortName ?? club.name,
+        menuLabel: club.name,
         leading: <FantasyClubLogo club={club} size="sm" />,
         value: club.id,
       })),
@@ -332,6 +345,33 @@ export function MarketScreen({
     ];
   }, [clubFilterOptions, positionFilter, selectedClubId, sort, t, teamFilterLabel]);
   const activeFilter = filterControls.find((filter) => filter.id === openFilter);
+  const renderFilterControl = useCallback(
+    (filter: MarketFilter) => isDesktopWeb ? (
+      <DesktopSelect
+        accessibilityLabel={filter.label}
+        active={filter.isActive}
+        key={filter.id}
+        onValueChange={filter.onValueChange}
+        options={filter.options}
+        style={filter.id === "club" ? styles.marketTeamSelectDesktop : styles.marketOptionSelectDesktop}
+        value={filter.value}
+      />
+    ) : (
+      <FilterSelectButton
+        accessibilityLabel={filter.label}
+        active={filter.isActive}
+        expanded={openFilter === filter.id}
+        key={filter.id}
+        label={filter.mobileLabel}
+        onPress={() => {
+          Keyboard.dismiss();
+          setOpenFilter(current => current === filter.id ? null : filter.id);
+        }}
+        style={filter.id === "club" ? styles.marketFilterButton : styles.filterControlFlexible}
+      />
+    ),
+    [isDesktopWeb, openFilter],
+  );
 
   const listHeader = useMemo(
     () => (
@@ -384,86 +424,62 @@ export function MarketScreen({
           >
             <Star
               color={
-                favoritesOnly ? colors.text.inverse : colors.text.secondary
+                favoritesOnly ? colors.text.inverse : fantasyTheme.primaryColor
               }
               fill={favoritesOnly ? colors.brand.yellow : "transparent"}
               size={18}
               strokeWidth={2.4}
             />
             <Text
-              style={
-                favoritesOnly
-                  ? styles.marketFilterTextActive
-                  : styles.marketFilterText
-              }
+              style={[
+                favoritesOnly ? styles.marketFilterTextActive : styles.marketFilterText,
+                !favoritesOnly && { color: fantasyTheme.primaryColor },
+              ]}
             >
               {t("market.favoriteFilter")}
             </Text>
           </Pressable>
 
-          {filterControls.map((filter) =>
-            isDesktopWeb ? (
-              <DesktopSelect
-                accessibilityLabel={filter.label}
-                key={filter.id}
-                onValueChange={filter.onValueChange}
-                options={filter.options}
-                style={
-                  filter.id === "club"
-                    ? styles.marketTeamSelectDesktop
-                    : styles.marketOptionSelectDesktop
-                }
-                value={filter.value}
+          {filterControls
+            .filter((filter) => isDesktopWeb || filter.id === "club")
+            .map(renderFilterControl)}
+          {isDesktopWeb ? (
+            <FilterResetButton disabled={!filtersDirty} onPress={resetFilters} />
+          ) : (
+            <View style={styles.marketFilterSecondaryRow}>
+              {filterControls
+                .filter((filter) => filter.id !== "club")
+                .map(renderFilterControl)}
+              <FilterResetButton
+                compact
+                disabled={!filtersDirty}
+                onPress={resetFilters}
               />
-            ) : (
-              <Pressable
-                accessibilityLabel={filter.label}
-                accessibilityRole="button"
-                key={filter.id}
-                onPress={() => setOpenFilter(filter.id)}
-                style={[
-                  styles.marketFilterButton,
-                  filter.isActive
-                    ? [
-                        styles.marketFilterButtonActive,
-                        {
-                          backgroundColor: fantasyTheme.primaryColor,
-                          borderColor: fantasyTheme.primaryColor,
-                        },
-                      ]
-                    : null,
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={
-                    filter.isActive
-                      ? styles.marketFilterTextActive
-                      : styles.marketFilterText
-                  }
-                >
-                  {filter.mobileLabel}
-                </Text>
-                <ChevronDown
-                  color={
-                    filter.isActive ? colors.text.inverse : colors.text.secondary
-                  }
-                  size={18}
-                  strokeWidth={2.4}
-                />
-              </Pressable>
-            ),
+            </View>
           )}
         </View>
+        {!isDesktopWeb && activeFilter ? (
+          <FilterSelectMenu
+            accessibilityLabel={activeFilter.label}
+            onClose={() => setOpenFilter(null)}
+            onValueChange={activeFilter.onValueChange}
+            options={activeFilter.options}
+            value={activeFilter.value}
+          />
+        ) : null}
       </View>
     ),
     [
+      activeFilter,
       filterControls,
       favoritesOnly,
       fantasyTheme.borderColor,
       fantasyTheme.primaryColor,
       fantasyTheme.softColor,
       handleToggleFavoritesOnly,
+      filtersDirty,
+      resetFilters,
+      renderFilterControl,
       isDesktopWeb,
       searchQuery,
       t,
@@ -526,74 +542,6 @@ export function MarketScreen({
           maintainVisibleContentPosition={{ disabled: true }}
           renderItem={renderMarketPlayer}
         />
-
-        {!isDesktopWeb ? (
-          <BottomSheet
-            contentScrollEnabled={false}
-            onClose={() => setOpenFilter(null)}
-            visible={Boolean(activeFilter)}
-          >
-            <View style={styles.seasonPickerSheetContent}>
-              <ScrollView
-                style={styles.seasonPickerScroll}
-                contentContainerStyle={styles.seasonPickerOptions}
-              >
-                {activeFilter?.options.map((option) => {
-                  const isSelected = option.value === activeFilter.value;
-                  const club =
-                    activeFilter.id === "club"
-                      ? clubsById.get(option.value as Id<"fantasyClubs">)
-                      : null;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      key={option.value}
-                      onPress={() => {
-                        activeFilter.onValueChange(option.value);
-                        setOpenFilter(null);
-                      }}
-                      style={[
-                        styles.seasonPickerOption,
-                        isSelected
-                          ? [
-                              styles.seasonPickerOptionSelected,
-                              {
-                                backgroundColor: fantasyTheme.softColor,
-                                borderColor: fantasyTheme.borderColor,
-                              },
-                            ]
-                          : null,
-                      ]}
-                    >
-                      <View style={styles.seasonPickerOptionBody}>
-                        {option.leading}
-                        <View style={styles.seasonPickerOptionTextGroup}>
-                          <Text
-                            numberOfLines={1}
-                            style={styles.seasonPickerOptionText}
-                          >
-                            {club?.name ?? option.label}
-                          </Text>
-                        </View>
-                      </View>
-                      {isSelected ? (
-                        <Check
-                          color={fantasyTheme.primaryColor}
-                          size={22}
-                          strokeWidth={2.8}
-                        />
-                      ) : (
-                        <View style={styles.seasonPickerOptionRadio} />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </BottomSheet>
-        ) : null}
-
       </View>
     </PlayerDetailScreen>
   );

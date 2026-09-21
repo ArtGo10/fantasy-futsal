@@ -692,15 +692,15 @@ export const styles = StyleSheet.create({
   },
   fantasyHeaderWebNavText: {
     color: colors.text.secondary,
-    fontSize: typography.size.sm,
+    fontSize: typography.size.base,
     fontWeight: typography.weight.bold,
-    lineHeight: typography.lineHeight.sm,
+    lineHeight: typography.lineHeight.base,
   },
   fantasyHeaderWebNavTextActive: {
     color: colors.brand.blueDark,
-    fontSize: typography.size.sm,
+    fontSize: typography.size.base,
     fontWeight: typography.weight.black,
-    lineHeight: typography.lineHeight.sm,
+    lineHeight: typography.lineHeight.base,
   },
   fantasyHeaderIconButton: {
     width: 38,
@@ -3382,6 +3382,12 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.md,
   },
+  teamWorkspaceHeaderActionIconButton: {
+    minWidth: 44,
+    width: 44,
+    height: 44,
+    paddingHorizontal: 0,
+  },
   teamWorkspaceHeaderActionText: {
     color: colors.text.inverse,
     fontSize: typography.size.sm,
@@ -5214,6 +5220,8 @@ export const styles = StyleSheet.create({
     flex: 1,
     flexBasis: 0,
     minWidth: 0,
+    paddingHorizontal: spacing.xs,
+    gap: spacing.xs,
   },
   playerPickerDropdown: {
     width: "100%",
@@ -5385,15 +5393,42 @@ export const styles = StyleSheet.create({
     opacity: 0.42,
   },
   leagueToolbar: {
+    width: "100%",
+    gap: spacing.sm,
+  },
+  leagueToolbarDesktop: {
+    position: "relative",
+    zIndex: 120,
+    elevation: 120,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+  },
+  leagueFilterRow: {
     position: "relative",
     zIndex: 120,
     elevation: 120,
     width: "100%",
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "flex-start",
     gap: spacing.sm,
+  },
+  leagueToolbarActions: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: spacing.sm,
+  },
+  leagueFilterRowDesktop: {
+    width: "auto",
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  leagueToolbarActionsDesktop: {
+    width: "auto",
+    flexShrink: 0,
+    marginLeft: "auto",
   },
   leagueModeButton: {
     flexGrow: 1,
@@ -5451,9 +5486,6 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     flexBasis: "auto",
-  },
-  leagueToolbarActionsStartDesktop: {
-    marginLeft: "auto",
   },
   leagueJoinButtonText: {
     flexShrink: 1,
@@ -5846,6 +5878,18 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     alignItems: "center",
+  },
+  marketFilterSecondaryRow: {
+    width: "100%",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  filterControlFlexible: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.xs,
   },
   marketFilterButton: {
     flexBasis: "48%",
@@ -6686,6 +6730,13 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
+  filterResetButtonCompact: {
+    width: 44,
+    height: 46,
+    flexShrink: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
   seasonResetButtonDisabled: {
     opacity: 0.42,
   },
@@ -6951,6 +7002,28 @@ export const styles = StyleSheet.create({
   matchDetailsSection: {
     gap: spacing.sm,
   },
+  matchDetailsEmptyState: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+  },
+  matchDetailsEmptyTitle: {
+    color: colors.text.primary,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.lineHeight.md,
+    textAlign: "center",
+  },
+  matchDetailsEmptyDescription: {
+    color: colors.text.muted,
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.base,
+    textAlign: "center",
+  },
   matchDetailsList: {
     gap: spacing.sm,
   },
@@ -7008,7 +7081,7 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   matchDetailsLineupPlayerNameSlot: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     height: "100%",
     flexDirection: "row",
@@ -7016,7 +7089,7 @@ export const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   matchDetailsLineupPlayer: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     color: colors.text.primary,
     fontSize: typography.size.sm,
@@ -7046,7 +7119,6 @@ export const styles = StyleSheet.create({
     height: 22,
     alignItems: "center",
     justifyContent: "center",
-    paddingRight: 6,
   },
   matchDetailsEventBadgeMark: {
     fontSize: 15,

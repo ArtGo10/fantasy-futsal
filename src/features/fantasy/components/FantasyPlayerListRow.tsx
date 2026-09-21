@@ -437,6 +437,7 @@ export function FantasyPlayerPickerStatsHeader({
 
 type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
   club: FantasyPlayerListRowClub | null;
+  disabledAppearance?: "background" | "opacity";
   isDisabled?: boolean;
   isFavorite?: boolean;
   isHighlighted?: boolean;
@@ -457,6 +458,7 @@ type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
 
 function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
   club,
+  disabledAppearance = "background",
   isDisabled = false,
   isFavorite = false,
   isHighlighted = false,
@@ -493,7 +495,12 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
   if (variant === "pickerStats") {
     return (
       <View
-        style={styles.playerPickerStatsRowContainer}
+        style={[
+          styles.playerPickerStatsRowContainer,
+          isDisabled && disabledAppearance === "opacity"
+            ? styles.playerPickerRowDisabled
+            : null,
+        ]}
         onTouchStart={(event) => tapGuard.start(event.nativeEvent)}
         onTouchMove={(event) => tapGuard.move(event.nativeEvent)}
         onTouchEnd={(event) => tapGuard.move(event.nativeEvent)}
@@ -520,7 +527,9 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
                   },
                 ]
               : null,
-            isDisabled ? styles.playerPickerStatsRowDisabled : null,
+            isDisabled && disabledAppearance === "background"
+              ? styles.playerPickerStatsRowDisabled
+              : null,
           ]}
         >
           <View style={styles.playerPickerStatsPlayerCell}>

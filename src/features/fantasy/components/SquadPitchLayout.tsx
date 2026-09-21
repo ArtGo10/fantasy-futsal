@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { View } from "react-native";
+import { Platform, View, type LayoutChangeEvent } from "react-native";
 
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
@@ -29,17 +29,28 @@ export function SquadPitchLayout({
 }) {
   const viewportRef = useRef<View>(null);
   const [availableSize, setAvailableSize] = useState({ width: 0, height: 0 });
+  const updateAvailableSize = useCallback((width: number, height: number) => {
+    setAvailableSize((previous) =>
+      previous.width === width && previous.height === height
+        ? previous
+        : { width, height },
+    );
+  }, []);
   const measureViewport = useCallback(() => {
-    if (!fitToAvailableHeight) return;
+    if (Platform.OS !== "web") return;
     const node = viewportRef.current as unknown as HTMLElement | null;
     const bounds = node?.getBoundingClientRect?.();
     if (!bounds) return;
-    setAvailableSize((previous) =>
-      previous.width === bounds.width && previous.height === bounds.height
-        ? previous
-        : { width: bounds.width, height: bounds.height },
-    );
-  }, [fitToAvailableHeight]);
+    updateAvailableSize(bounds.width, fitToAvailableHeight ? bounds.height : 0);
+  }, [fitToAvailableHeight, updateAvailableSize]);
+
+  function onViewportLayout(event: LayoutChangeEvent) {
+    if (Platform.OS === "web") measureViewport();
+    else {
+      const { width, height } = event.nativeEvent.layout;
+      updateAvailableSize(width, fitToAvailableHeight ? height : 0);
+    }
+  }
 
   // Measure before paint so the pitch never briefly renders at full page width.
   useLayoutEffect(() => {
@@ -51,7 +62,7 @@ export function SquadPitchLayout({
   const reserveStyle = styles.futsalReserveRail;
   const fitted = fitSquadPitch({
     availableWidth: availableSize.width,
-    availableHeight: availableSize.height,
+    availableHeight: fitToAvailableHeight ? availableSize.height : undefined,
     aspectRatio,
     sideWidth: benchStyle.width,
     bottomHeight:
@@ -72,16 +83,12 @@ export function SquadPitchLayout({
     <View
       style={[
         styles.futsalSquadLayout,
-        fitToAvailableHeight
-          ? [
-              styles.teamBuilderDesktopFittedField,
-              {
-                width: fitted.width,
-                height: fitted.height,
-                transform: [{ scale: fitted.scale }],
-              },
-            ]
-          : null,
+        styles.teamBuilderDesktopFittedField,
+        {
+          width: fitted.width,
+          height: fitted.height,
+          transform: [{ scale: fitted.scale }],
+        },
       ]}
     >
       <View style={styles.futsalSquadMainRow}>
@@ -104,13 +111,14 @@ export function SquadPitchLayout({
     </View>
   );
 
-  if (!fitToAvailableHeight) return pitch;
-
   return (
     <View
       ref={viewportRef}
-      onLayout={measureViewport}
-      style={styles.squadPitchViewportDesktop}
+      onLayout={onViewportLayout}
+      style={[
+        { width: "100%", alignItems: "center" },
+        fitToAvailableHeight ? styles.squadPitchViewportDesktop : null,
+      ]}
     >
       <View
         style={{

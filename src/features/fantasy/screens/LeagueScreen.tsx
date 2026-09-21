@@ -1,7 +1,6 @@
 import { useMutation } from "convex/react";
 import {
   ArrowLeft,
-  ChevronDown,
   Cog,
   Pencil,
   Plus,
@@ -12,7 +11,6 @@ import {
   BackHandler,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   useWindowDimensions,
@@ -30,6 +28,8 @@ import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { BottomSheet } from "../components/BottomSheet";
 import { DesktopSelect } from "../components/DesktopSelect";
+import { FilterSelectButton, FilterSelectMenu } from "../components/FilterSelect";
+import { FilterResetButton } from "../components/FilterResetButton";
 import { GameweekTeamViewer } from "../components/GameweekTeamViewer";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
@@ -206,19 +206,22 @@ export function LeagueScreen({
     styles.secondaryButtonText,
     { color: fantasyTheme.primaryColor },
   ];
-  const themedPickerOptionSelectedStyle = [
-    styles.seasonPickerOptionSelected,
-    {
-      backgroundColor: fantasyTheme.softColor,
-      borderColor: fantasyTheme.borderColor,
-    },
-  ];
   const [leagueScopeId, setLeagueScopeId] = useState<LeagueScopeId>(
     TOTAL_LEAGUE_SCOPE_ID,
   );
   const [leagueFilterId, setLeagueFilterId] = useState<LeagueFilterId>(
     GLOBAL_LEAGUE_FILTER_ID,
   );
+  const filtersDirty =
+    leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID ||
+    leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID;
+
+  function resetFilters() {
+    setLeagueScopeId(TOTAL_LEAGUE_SCOPE_ID);
+    setLeagueFilterId(GLOBAL_LEAGUE_FILTER_ID);
+    setLeaguePickerOpen(false);
+    setModePickerOpen(false);
+  }
   const [createLeagueName, setCreateLeagueName] = useState("");
   const [joinLeagueCode, setJoinLeagueCode] = useState("");
   const [createLeagueError, setCreateLeagueError] = useState<string | null>(
@@ -1083,137 +1086,158 @@ export function LeagueScreen({
 
           {!isLoading && teams.length > 0 ? (
             <>
-              <View style={styles.leagueToolbar}>
-                {isDesktopWeb ? (
-                  <>
-                    <DesktopSelect
-                      accessibilityLabel={t("league.scopeTitle")}
-                      onValueChange={(value) =>
-                        setLeagueFilterId(value as LeagueFilterId)
-                      }
-                      options={leagueFilterOptions}
-                      style={styles.desktopSelectCompact}
-                      value={leagueFilterId}
-                    />
-                    <DesktopSelect
-                      accessibilityLabel={t("season.gameweekSelectTitle")}
-                      onValueChange={(value) =>
-                        setLeagueScopeId(value as LeagueScopeId)
-                      }
-                      options={leagueScopeOptions}
-                      style={styles.desktopSelectCompact}
-                      value={leagueScopeId}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setLeaguePickerOpen(true)}
-                      style={[
-                        styles.leagueModeButton,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.borderColor,
-                        },
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.leagueModeButtonText,
-                          { color: fantasyTheme.primaryColor },
-                        ]}
-                      >
-                        {selectedLeagueLabel}
-                      </Text>
-                      <ChevronDown
-                        color={fantasyTheme.primaryColor}
-                        size={18}
-                        strokeWidth={2.3}
-                      />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setModePickerOpen(true)}
-                      style={[
-                        styles.leagueModeButton,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.borderColor,
-                        },
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.leagueModeButtonText,
-                          { color: fantasyTheme.primaryColor },
-                        ]}
-                      >
-                        {selectedScopeLabel}
-                      </Text>
-                      <ChevronDown
-                        color={fantasyTheme.primaryColor}
-                        size={18}
-                        strokeWidth={2.3}
-                      />
-                    </Pressable>
-                  </>
-                )}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setJoinLeagueError(null);
-                    setLeagueActionSuccess(null);
-                    setJoinLeagueOpen(true);
-                  }}
+              <View
+                style={[
+                  styles.leagueToolbar,
+                  isDesktopWeb && styles.leagueToolbarDesktop,
+                ]}
+              >
+                <View
                   style={[
-                    styles.leagueJoinButton,
-                    isDesktopWeb && styles.leagueToolbarActionDesktop,
-                    isDesktopWeb && styles.leagueToolbarActionsStartDesktop,
-                    { borderColor: fantasyTheme.borderColor },
+                    styles.leagueFilterRow,
+                    isDesktopWeb && styles.leagueFilterRowDesktop,
                   ]}
                 >
-                  <Plus
-                    color={fantasyTheme.primaryColor}
-                    size={18}
-                    strokeWidth={2.5}
+                  {isDesktopWeb ? (
+                    <>
+                      <DesktopSelect
+                        accessibilityLabel={t("league.scopeTitle")}
+                        active={leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID}
+                        onValueChange={(value) =>
+                          setLeagueFilterId(value as LeagueFilterId)
+                        }
+                        options={leagueFilterOptions}
+                        style={styles.desktopSelectCompact}
+                        value={leagueFilterId}
+                      />
+                      <DesktopSelect
+                        accessibilityLabel={t("season.gameweekSelectTitle")}
+                        active={leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID}
+                        onValueChange={(value) =>
+                          setLeagueScopeId(value as LeagueScopeId)
+                        }
+                        options={leagueScopeOptions}
+                        style={styles.desktopSelectCompact}
+                        value={leagueScopeId}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FilterSelectButton
+                        accessibilityLabel={t("league.scopeTitle")}
+                        active={leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID}
+                        expanded={isLeaguePickerOpen}
+                        label={selectedLeagueLabel}
+                        onPress={() => {
+                          setModePickerOpen(false);
+                          setLeaguePickerOpen(current => !current);
+                        }}
+                        style={styles.filterControlFlexible}
+                      />
+                      <FilterSelectButton
+                        accessibilityLabel={t("season.gameweekSelectTitle")}
+                        active={leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID}
+                        expanded={isModePickerOpen}
+                        label={selectedScopeLabel}
+                        onPress={() => {
+                          setLeaguePickerOpen(false);
+                          setModePickerOpen(current => !current);
+                        }}
+                        style={styles.filterControlFlexible}
+                      />
+                    </>
+                  )}
+                  <FilterResetButton
+                    compact={!isDesktopWeb}
+                    disabled={!filtersDirty}
+                    onPress={resetFilters}
                   />
-                  <Text
-                    numberOfLines={1}
+                </View>
+                {!isDesktopWeb && isLeaguePickerOpen ? (
+                  <FilterSelectMenu
+                    accessibilityLabel={t("league.scopeTitle")}
+                    onClose={() => setLeaguePickerOpen(false)}
+                    onValueChange={value => setLeagueFilterId(value as LeagueFilterId)}
+                    options={leagueFilterOptions}
+                    value={leagueFilterId}
+                    footer={privateLeagues?.length === 0 ? (
+                      <Text style={styles.mutedText}>{t("league.noPrivateLeagues")}</Text>
+                    ) : null}
+                  />
+                ) : null}
+                {!isDesktopWeb && isModePickerOpen ? (
+                  <FilterSelectMenu
+                    accessibilityLabel={t("season.gameweekSelectTitle")}
+                    onClose={() => setModePickerOpen(false)}
+                    onValueChange={value => setLeagueScopeId(value as LeagueScopeId)}
+                    options={leagueScopeOptions}
+                    value={leagueScopeId}
+                  />
+                ) : null}
+                <View
+                  style={[
+                    styles.leagueToolbarActions,
+                    isDesktopWeb && styles.leagueToolbarActionsDesktop,
+                  ]}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setJoinLeagueError(null);
+                      setLeagueActionSuccess(null);
+                      setJoinLeagueOpen(true);
+                    }}
                     style={[
-                      styles.leagueJoinButtonText,
-                      { color: fantasyTheme.primaryColor },
+                      styles.leagueJoinButton,
+                      styles.filterControlFlexible,
+                      isDesktopWeb && styles.leagueToolbarActionDesktop,
+                      { borderColor: fantasyTheme.borderColor },
                     ]}
                   >
-                    {t("league.joinLeagueButton")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setCreateLeagueError(null);
-                    setEditLeagueError(null);
-                    setDeleteLeagueError(null);
-                    setLeagueActionSuccess(null);
-                    setLeagueManagerOpen(true);
-                  }}
-                  style={[
-                    styles.leagueManageButton,
-                    isDesktopWeb && styles.leagueToolbarActionDesktop,
-                    { backgroundColor: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  <Cog
-                    color={colors.text.inverse}
-                    size={18}
-                    strokeWidth={2.6}
-                  />
-                  <Text numberOfLines={1} style={styles.leagueManageButtonText}>
-                    {t("league.configureButton")}
-                  </Text>
-                </Pressable>
+                    <Plus
+                      color={fantasyTheme.primaryColor}
+                      size={18}
+                      strokeWidth={2.5}
+                    />
+                    <Text
+                      numberOfLines={isDesktopWeb ? 1 : 2}
+                      style={[
+                        styles.leagueJoinButtonText,
+                        { color: fantasyTheme.primaryColor },
+                      ]}
+                    >
+                      {t("league.joinLeagueButton")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setCreateLeagueError(null);
+                      setEditLeagueError(null);
+                      setDeleteLeagueError(null);
+                      setLeagueActionSuccess(null);
+                      setLeagueManagerOpen(true);
+                    }}
+                    style={[
+                      styles.leagueManageButton,
+                      styles.filterControlFlexible,
+                      isDesktopWeb && styles.leagueToolbarActionDesktop,
+                      { backgroundColor: fantasyTheme.primaryColor },
+                    ]}
+                  >
+                    <Cog
+                      color={colors.text.inverse}
+                      size={18}
+                      strokeWidth={2.6}
+                    />
+                    <Text
+                      numberOfLines={isDesktopWeb ? 1 : 2}
+                      style={styles.leagueManageButtonText}
+                    >
+                      {t("league.configureButton")}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
 
               {selectedPrivateLeague && sortedTeams.length === 0 ? (
@@ -1359,140 +1383,6 @@ export function LeagueScreen({
               ) : null}
             </View>
           </BottomSheet>
-
-          {!isDesktopWeb ? (
-            <BottomSheet
-              contentScrollEnabled={false}
-              onClose={() => setLeaguePickerOpen(false)}
-              visible={isLeaguePickerOpen}
-            >
-              <View style={styles.leaguePickerContent}>
-                <ScrollView
-                  style={styles.leaguePickerScroll}
-                  contentContainerStyle={styles.seasonPickerOptions}
-                >
-                  {leagueFilterOptions.map((option) => {
-                    const isSelected = option.value === leagueFilterId;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={option.value}
-                        onPress={() => {
-                          setLeagueFilterId(option.value as LeagueFilterId);
-                          setLeaguePickerOpen(false);
-                        }}
-                        style={[
-                          styles.seasonPickerOption,
-                          isSelected ? themedPickerOptionSelectedStyle : null,
-                        ]}
-                      >
-                        <View style={styles.seasonPickerOptionBody}>
-                          <View style={styles.seasonPickerOptionTextGroup}>
-                            <Text
-                              numberOfLines={1}
-                              style={styles.seasonPickerOptionText}
-                            >
-                              {option.label}
-                            </Text>
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.seasonPickerOptionRadio,
-                            isSelected
-                              ? [
-                                  styles.seasonPickerOptionRadioSelected,
-                                  { borderColor: fantasyTheme.primaryColor },
-                                ]
-                              : null,
-                          ]}
-                        >
-                          {isSelected ? (
-                            <View
-                              style={[
-                                styles.seasonPickerOptionRadioDot,
-                                { backgroundColor: fantasyTheme.primaryColor },
-                              ]}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                  {privateLeagues !== undefined &&
-                  privateLeagues.length === 0 ? (
-                    <Text style={styles.mutedText}>
-                      {t("league.noPrivateLeagues")}
-                    </Text>
-                  ) : null}
-                </ScrollView>
-              </View>
-            </BottomSheet>
-          ) : null}
-
-          {!isDesktopWeb ? (
-            <BottomSheet
-              contentScrollEnabled={false}
-              onClose={() => setModePickerOpen(false)}
-              visible={isModePickerOpen}
-            >
-              <View style={styles.leaguePickerContent}>
-                <ScrollView
-                  style={styles.leaguePickerScroll}
-                  contentContainerStyle={styles.seasonPickerOptions}
-                >
-                  {leagueScopeOptions.map((option) => {
-                    const isSelected = option.value === leagueScopeId;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={option.value}
-                        onPress={() => {
-                          setLeagueScopeId(option.value as LeagueScopeId);
-                          setModePickerOpen(false);
-                        }}
-                        style={[
-                          styles.seasonPickerOption,
-                          isSelected ? themedPickerOptionSelectedStyle : null,
-                        ]}
-                      >
-                        <View style={styles.seasonPickerOptionBody}>
-                          <View style={styles.seasonPickerOptionTextGroup}>
-                            <Text
-                              numberOfLines={1}
-                              style={styles.seasonPickerOptionText}
-                            >
-                              {option.label}
-                            </Text>
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.seasonPickerOptionRadio,
-                            isSelected
-                              ? [
-                                  styles.seasonPickerOptionRadioSelected,
-                                  { borderColor: fantasyTheme.primaryColor },
-                                ]
-                              : null,
-                          ]}
-                        >
-                          {isSelected ? (
-                            <View
-                              style={[
-                                styles.seasonPickerOptionRadioDot,
-                                { backgroundColor: fantasyTheme.primaryColor },
-                              ]}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </BottomSheet>
-          ) : null}
         </>
       )}
     </FantasyScreenFrame>
