@@ -1,5 +1,12 @@
 import { v } from "convex/values";
 
+export const fantasyChipValidator = v.union(
+  v.literal("benchBoost"),
+  v.literal("tripleCaptain"),
+  v.literal("wildcard"),
+  v.literal("freeHit"),
+);
+
 export const FANTASY_SEASON_STATUSES = [
   "draft",
   "setup",

@@ -63,6 +63,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
           borderColor: fantasyTheme.borderColor,
         },
         style,
+        !resolvedPhotoUrl ? { backgroundColor: fantasyTheme.softColor } : null,
         isMuted ? styles.playerAvatarMuted : null,
       ]}
     >

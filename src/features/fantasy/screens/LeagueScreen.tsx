@@ -1,7 +1,6 @@
 import { useMutation } from "convex/react";
 import {
   ArrowLeft,
-  ChevronDown,
   Cog,
   Pencil,
   Plus,
@@ -12,7 +11,6 @@ import {
   BackHandler,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   useWindowDimensions,
@@ -30,6 +28,8 @@ import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
 import { BottomSheet } from "../components/BottomSheet";
 import { DesktopSelect } from "../components/DesktopSelect";
+import { FilterSelectButton, FilterSelectMenu } from "../components/FilterSelect";
+import { FilterResetButton } from "../components/FilterResetButton";
 import { GameweekTeamViewer } from "../components/GameweekTeamViewer";
 import { FantasyScreenFrame } from "../FantasyScreenFrame";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
@@ -168,7 +168,6 @@ export function LeagueScreen({
   clubs,
   currentFantasyTeamId,
   gameweeks,
-  isAdmin = false,
   onBottomTabsHiddenChange,
   onShellHeaderHiddenChange,
   privateLeagues,
@@ -207,19 +206,22 @@ export function LeagueScreen({
     styles.secondaryButtonText,
     { color: fantasyTheme.primaryColor },
   ];
-  const themedPickerOptionSelectedStyle = [
-    styles.seasonPickerOptionSelected,
-    {
-      backgroundColor: fantasyTheme.softColor,
-      borderColor: fantasyTheme.borderColor,
-    },
-  ];
   const [leagueScopeId, setLeagueScopeId] = useState<LeagueScopeId>(
     TOTAL_LEAGUE_SCOPE_ID,
   );
   const [leagueFilterId, setLeagueFilterId] = useState<LeagueFilterId>(
     GLOBAL_LEAGUE_FILTER_ID,
   );
+  const filtersDirty =
+    leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID ||
+    leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID;
+
+  function resetFilters() {
+    setLeagueScopeId(TOTAL_LEAGUE_SCOPE_ID);
+    setLeagueFilterId(GLOBAL_LEAGUE_FILTER_ID);
+    setLeaguePickerOpen(false);
+    setModePickerOpen(false);
+  }
   const [createLeagueName, setCreateLeagueName] = useState("");
   const [joinLeagueCode, setJoinLeagueCode] = useState("");
   const [createLeagueError, setCreateLeagueError] = useState<string | null>(
@@ -242,6 +244,13 @@ export function LeagueScreen({
     useState<FantasyPrivateLeague | null>(null);
   const [editLeagueName, setEditLeagueName] = useState("");
   const [editLeagueError, setEditLeagueError] = useState<string | null>(null);
+  const [removedLeagueTeamIds, setRemovedLeagueTeamIds] = useState<
+    Id<"fantasyTeams">[]
+  >([]);
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<{
+    privateLeagueId: Id<"fantasyPrivateLeagues">;
+    team: FantasyLeagueTeam;
+  } | null>(null);
   const [deletePrivateLeagueTarget, setDeletePrivateLeagueTarget] =
     useState<FantasyPrivateLeague | null>(null);
   const [deleteLeagueError, setDeleteLeagueError] = useState<string | null>(
@@ -295,6 +304,21 @@ export function LeagueScreen({
     () => (privateLeagues ?? []).filter((league) => league.isOwner),
     [privateLeagues],
   );
+  const currentEditingLeague = (privateLeagues ?? []).find(
+    (league) => league.id === editingPrivateLeague?.id,
+  );
+  const editingLeagueMembers = useMemo(() => {
+    const memberIds = new Set(currentEditingLeague?.memberTeamIds ?? []);
+    for (const teamId of removedLeagueTeamIds) memberIds.delete(teamId);
+    return (teams ?? [])
+      .filter((team) => memberIds.has(team.id))
+      .sort(
+        (a, b) =>
+          Number(b.id === currentFantasyTeamId) -
+            Number(a.id === currentFantasyTeamId) ||
+          a.name.localeCompare(b.name),
+      );
+  }, [currentEditingLeague, currentFantasyTeamId, removedLeagueTeamIds, teams]);
   const isNestedLeagueViewOpen = Boolean(selectedTeamId) || isLeagueManagerOpen;
 
   useDismissKeyboardOnChange([
@@ -305,6 +329,7 @@ export function LeagueScreen({
     isJoinLeagueOpen,
     isLeagueManagerOpen,
     editingPrivateLeague,
+    removeMemberTarget,
     deletePrivateLeagueTarget,
     selectedTeamId,
   ]);
@@ -393,7 +418,6 @@ export function LeagueScreen({
       ),
     [selectedGameweekId, visibleTeams],
   );
-  const selectedLeagueLeader = sortedTeams[0] ?? null;
   const selectedViewerLeader = useMemo(
     () =>
       [...visibleTeams].sort(
@@ -427,11 +451,7 @@ export function LeagueScreen({
       };
     });
   }, [selectedGameweekId, sortedTeams, tableGameweekId]);
-  const canOpenTeam = (teamId: string) =>
-    isAdmin ||
-    teamId === currentFantasyTeamId ||
-    teamId === selectedLeagueLeader?.id ||
-    teamId === selectedViewerLeader?.id;
+  const canOpenTeam = (teamId: string) => Boolean(teamId);
   const openTeam = (teamId: Id<"fantasyTeams">) => {
     if (!canOpenTeam(teamId)) return;
     setSelectedTeamId(teamId);
@@ -451,7 +471,6 @@ export function LeagueScreen({
       const result = await createPrivateLeague(mutationArgs);
       setLeagueFilterId(result.id as Id<"fantasyPrivateLeagues">);
       setCreateLeagueName("");
-      setLeagueActionSuccess(t("league.createSuccess"));
     } catch (error) {
       setCreateLeagueError(getLeagueActionErrorMessage(error, t));
     } finally {
@@ -483,13 +502,40 @@ export function LeagueScreen({
 
   const startEditingPrivateLeague = (league: FantasyPrivateLeague) => {
     setEditLeagueError(null);
+    setRemoveMemberTarget(null);
+    setRemovedLeagueTeamIds([]);
     setLeagueActionSuccess(null);
     setEditingPrivateLeague(league);
     setEditLeagueName(league.name);
   };
 
+  const closeLeagueEditor = () => {
+    setEditingPrivateLeague(null);
+    setEditLeagueName("");
+    setEditLeagueError(null);
+    setRemovedLeagueTeamIds([]);
+    setRemoveMemberTarget(null);
+  };
+
+  const handleRemovePrivateLeagueMember = () => {
+    if (
+      !removeMemberTarget ||
+      removeMemberTarget.privateLeagueId !== editingPrivateLeague?.id ||
+      leagueActionBusy !== null
+    ) {
+      return;
+    }
+
+    const teamId = removeMemberTarget.team.id as Id<"fantasyTeams">;
+    setRemovedLeagueTeamIds((ids) =>
+      ids.includes(teamId) ? ids : [...ids, teamId],
+    );
+    setEditLeagueError(null);
+    setRemoveMemberTarget(null);
+  };
+
   const handleUpdatePrivateLeague = async () => {
-    if (!editingPrivateLeague) return;
+    if (!editingPrivateLeague || leagueActionBusy !== null) return;
 
     setEditLeagueError(null);
     setLeagueActionSuccess(null);
@@ -499,9 +545,9 @@ export function LeagueScreen({
         name: editLeagueName,
         privateLeagueId:
           editingPrivateLeague.id as Id<"fantasyPrivateLeagues">,
+        removedTeamIds: removedLeagueTeamIds,
       });
-      setEditingPrivateLeague(null);
-      setEditLeagueName("");
+      closeLeagueEditor();
       setLeagueActionSuccess(t("league.editSuccess"));
     } catch (error) {
       setEditLeagueError(getLeagueActionErrorMessage(error, t));
@@ -576,7 +622,11 @@ export function LeagueScreen({
     leagueActionBusy !== null || joinLeagueCode.trim().length < 4;
 
   return (
-    <FantasyScreenFrame kicker={t("league.kicker")} title={t("league.title")}>
+    <FantasyScreenFrame
+      kicker={t("league.kicker")}
+      title={t("league.title")}
+      scrollable={!(isDesktopWeb && selectedTeamId && !isLeagueManagerOpen)}
+    >
       {isLeagueManagerOpen ? (
         <>
           <View style={styles.teamWorkspaceHeader}>
@@ -603,135 +653,159 @@ export function LeagueScreen({
             <View style={styles.teamWorkspaceHeaderSpacer} />
           </View>
 
-          <View style={styles.panel}>
-            <View style={styles.leagueActionsHeader}>
-              <Text style={styles.sectionTitle}>{t("league.createTitle")}</Text>
-              <Text style={styles.mutedText}>
-                {t("league.createDescription")}
-              </Text>
-            </View>
-            <TextInput
-              autoCapitalize="words"
-              editable={leagueActionBusy === null}
-              onChangeText={(value) => {
-                setCreateLeagueName(value);
-                setCreateLeagueError(null);
-                setLeagueActionSuccess(null);
-              }}
-              placeholder={t("league.createPlaceholder")}
-              placeholderTextColor={colors.text.muted}
-              style={styles.input}
-              value={createLeagueName}
-            />
-            <Pressable
-              accessibilityRole="button"
-              disabled={isCreateLeagueDisabled}
-              onPress={handleCreatePrivateLeague}
-              style={[
-                themedPrimaryButtonStyle,
-                isCreateLeagueDisabled ? styles.buttonDisabled : null,
-              ]}
+          <View
+            style={[
+              styles.leagueManagerLayout,
+              isDesktopWeb && styles.leagueManagerLayoutDesktop,
+            ]}
+          >
+            <View
+              style={
+                isDesktopWeb ? styles.leagueCreateSectionDesktop : styles.panel
+              }
             >
-              <Text style={styles.primaryButtonText}>
-                {leagueActionBusy === "create"
-                  ? t("league.creating")
-                  : t("league.createButton")}
-              </Text>
-            </Pressable>
-            {createLeagueError ? (
-              <Text style={styles.errorText}>{createLeagueError}</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.panel}>
-            <View style={styles.leagueActionsHeader}>
-              <Text style={styles.sectionTitle}>{t("league.ownedTitle")}</Text>
+              <View style={styles.leagueActionsHeader}>
+                <Text style={styles.sectionTitle}>
+                  {t("league.createTitle")}
+                </Text>
+                <Text style={styles.mutedText}>
+                  {t("league.createDescription")}
+                </Text>
+              </View>
+              <TextInput
+                autoCapitalize="words"
+                editable={leagueActionBusy === null}
+                onChangeText={(value) => {
+                  setCreateLeagueName(value);
+                  setCreateLeagueError(null);
+                  setLeagueActionSuccess(null);
+                }}
+                placeholder={t("league.createPlaceholder")}
+                placeholderTextColor={colors.text.muted}
+                style={styles.input}
+                value={createLeagueName}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={isCreateLeagueDisabled}
+                onPress={handleCreatePrivateLeague}
+                style={[
+                  themedPrimaryButtonStyle,
+                  isDesktopWeb && styles.leagueCreateButtonDesktop,
+                  isCreateLeagueDisabled ? styles.buttonDisabled : null,
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {leagueActionBusy === "create"
+                    ? t("league.creating")
+                    : t("league.createButton")}
+                </Text>
+              </Pressable>
+              {createLeagueError ? (
+                <Text style={styles.errorText}>{createLeagueError}</Text>
+              ) : null}
             </View>
-            {ownedPrivateLeagues.length > 0 ? (
-              <View style={styles.leagueManagementList}>
-                {ownedPrivateLeagues.map((league) => (
-                  <View key={league.id} style={styles.leagueManagementRow}>
-                    <View style={styles.leagueManagementRowMain}>
-                      <Text
-                        numberOfLines={1}
-                        style={styles.leagueManagementName}
-                      >
-                        {league.name}
-                      </Text>
-                      <Pressable
-                        accessibilityHint={t("league.copyInviteCodeHint")}
-                        accessibilityLabel={t("league.inviteCodeLabel")}
-                        accessibilityRole="button"
-                        onPress={() => void handleCopyInviteCode(league.inviteCode)}
-                        style={[
-                          styles.leagueManagementCodeButton,
-                          {
-                            backgroundColor: fantasyTheme.softColor,
-                            borderColor: fantasyTheme.borderColor,
-                          },
-                        ]}
-                      >
+
+            <View
+              style={
+                isDesktopWeb ? styles.leagueOwnedSectionDesktop : styles.panel
+              }
+            >
+              <View style={styles.leagueActionsHeader}>
+                <Text style={styles.sectionTitle}>
+                  {t("league.ownedTitle")}
+                </Text>
+              </View>
+              {ownedPrivateLeagues.length > 0 ? (
+                <View style={styles.leagueManagementList}>
+                  {ownedPrivateLeagues.map((league) => (
+                    <View key={league.id} style={styles.leagueManagementRow}>
+                      <View style={styles.leagueManagementRowMain}>
                         <Text
                           numberOfLines={1}
+                          style={styles.leagueManagementName}
+                        >
+                          {league.name}
+                        </Text>
+                        <Pressable
+                          accessibilityHint={t("league.copyInviteCodeHint")}
+                          accessibilityLabel={t("league.inviteCodeLabel")}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            void handleCopyInviteCode(league.inviteCode)
+                          }
                           style={[
-                            styles.leagueManagementCode,
-                            { color: fantasyTheme.primaryColor },
+                            styles.leagueManagementCodeButton,
+                            {
+                              backgroundColor: fantasyTheme.softColor,
+                              borderColor: fantasyTheme.borderColor,
+                            },
                           ]}
                         >
-                          {league.inviteCode}
-                        </Text>
-                      </Pressable>
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.leagueManagementCode,
+                              { color: fantasyTheme.primaryColor },
+                            ]}
+                          >
+                            {league.inviteCode}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <View style={styles.leagueManagementActions}>
+                        <Pressable
+                          accessibilityLabel={t("common.edit")}
+                          accessibilityRole="button"
+                          disabled={leagueActionBusy !== null}
+                          onPress={() => startEditingPrivateLeague(league)}
+                          style={styles.leagueIconButton}
+                        >
+                          <Pencil
+                            color={fantasyTheme.primaryColor}
+                            size={18}
+                            strokeWidth={2.4}
+                          />
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel={t("common.delete")}
+                          accessibilityRole="button"
+                          disabled={leagueActionBusy !== null}
+                          onPress={() => startDeletingPrivateLeague(league)}
+                          style={[
+                            styles.leagueIconButton,
+                            styles.leagueIconButtonDanger,
+                          ]}
+                        >
+                          <Trash2
+                            color={colors.state.danger}
+                            size={18}
+                            strokeWidth={2.4}
+                          />
+                        </Pressable>
+                      </View>
                     </View>
-                    <View style={styles.leagueManagementActions}>
-                      <Pressable
-                        accessibilityLabel={t("common.edit")}
-                        accessibilityRole="button"
-                        disabled={leagueActionBusy !== null}
-                        onPress={() => startEditingPrivateLeague(league)}
-                        style={styles.leagueIconButton}
-                      >
-                        <Pencil
-                          color={fantasyTheme.primaryColor}
-                          size={18}
-                          strokeWidth={2.4}
-                        />
-                      </Pressable>
-                      <Pressable
-                        accessibilityLabel={t("common.delete")}
-                        accessibilityRole="button"
-                        disabled={leagueActionBusy !== null}
-                        onPress={() => startDeletingPrivateLeague(league)}
-                        style={[
-                          styles.leagueIconButton,
-                          styles.leagueIconButtonDanger,
-                        ]}
-                      >
-                        <Trash2
-                          color={colors.state.danger}
-                          size={18}
-                          strokeWidth={2.4}
-                        />
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.mutedText}>{t("league.ownedEmpty")}</Text>
-            )}
-            {leagueActionSuccess ? (
-              <Text style={styles.successText}>{leagueActionSuccess}</Text>
-            ) : null}
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.mutedText}>{t("league.ownedEmpty")}</Text>
+              )}
+              {leagueActionSuccess ? (
+                <Text style={styles.successText}>{leagueActionSuccess}</Text>
+              ) : null}
+            </View>
           </View>
 
           <BottomSheet
             keyboardAvoidingEnabled
-            onClose={() => setEditingPrivateLeague(null)}
+            onClose={closeLeagueEditor}
+            sheetStyle={isDesktopWeb ? styles.leagueEditorDesktop : undefined}
             visible={Boolean(editingPrivateLeague)}
           >
             <View style={styles.leagueActionsContent}>
               <Text style={styles.sectionTitle}>{t("league.editTitle")}</Text>
               <TextInput
+                accessibilityLabel={t("league.createPlaceholder")}
                 autoCapitalize="words"
                 editable={leagueActionBusy === null}
                 onChangeText={(value) => {
@@ -743,38 +817,168 @@ export function LeagueScreen({
                 style={styles.input}
                 value={editLeagueName}
               />
-              <View style={styles.confirmActionRow}>
+              <View style={styles.leagueMembersSection}>
+                <Text style={styles.sectionTitle}>
+                  {t("league.membersTitle")}
+                </Text>
+                {teams === undefined || privateLeagues === undefined ? (
+                  <LoadingBlock />
+                ) : editingLeagueMembers.length === 0 ? (
+                  <Text style={styles.mutedText}>
+                    {t("league.membersEmpty")}
+                  </Text>
+                ) : (
+                  editingLeagueMembers.map((team) => (
+                    <View key={team.id} style={styles.leagueMemberRow}>
+                      <View style={styles.leagueManagementRowMain}>
+                        <Text style={styles.leagueManagementName}>
+                          {team.name}
+                        </Text>
+                        <Text style={styles.mutedText}>
+                          {team.managerName ?? t("user.managerFallback")}
+                        </Text>
+                      </View>
+                      {team.id === currentFantasyTeamId &&
+                      currentEditingLeague?.isOwner ? (
+                        <Text style={styles.leagueMemberOwnerLabel}>
+                          {t("league.owner")}
+                        </Text>
+                      ) : currentEditingLeague?.isOwner &&
+                        currentFantasyTeamId ? (
+                        <Pressable
+                          accessibilityLabel={t("league.removeMember").replace(
+                            "{name}",
+                            team.name,
+                          )}
+                          accessibilityRole="button"
+                          disabled={leagueActionBusy !== null}
+                          onPress={() => {
+                            setRemoveMemberTarget({
+                              privateLeagueId:
+                                currentEditingLeague.id as Id<"fantasyPrivateLeagues">,
+                              team,
+                            });
+                          }}
+                          style={[
+                            styles.leagueIconButton,
+                            styles.leagueIconButtonDanger,
+                            leagueActionBusy !== null && styles.buttonDisabled,
+                          ]}
+                        >
+                          <Trash2
+                            color={colors.state.danger}
+                            size={18}
+                            strokeWidth={2.4}
+                          />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))
+                )}
+              </View>
+              {editLeagueError ? (
+                <Text style={styles.errorText}>{editLeagueError}</Text>
+              ) : null}
+              <View style={styles.leagueDialogActions}>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={leagueActionBusy !== null}
-                  onPress={() => setEditingPrivateLeague(null)}
+                  onPress={closeLeagueEditor}
                   style={[
                     themedSecondaryButtonStyle,
+                    styles.leagueDialogActionButton,
                     leagueActionBusy !== null ? styles.buttonDisabled : null,
                   ]}
                 >
-                  <Text style={themedSecondaryButtonTextStyle}>
+                  <Text
+                    style={[
+                      themedSecondaryButtonTextStyle,
+                      styles.leagueDialogActionText,
+                    ]}
+                  >
                     {t("common.cancel")}
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={isEditLeagueDisabled}
                   onPress={handleUpdatePrivateLeague}
                   style={[
                     themedPrimaryButtonStyle,
+                    styles.leagueDialogActionButton,
                     isEditLeagueDisabled ? styles.buttonDisabled : null,
                   ]}
                 >
-                  <Text style={styles.primaryButtonText}>
+                  <Text
+                    style={[
+                      styles.primaryButtonText,
+                      styles.leagueDialogActionText,
+                    ]}
+                  >
                     {leagueActionBusy === "update"
                       ? t("league.saving")
                       : t("common.save")}
                   </Text>
                 </Pressable>
               </View>
-              {editLeagueError ? (
-                <Text style={styles.errorText}>{editLeagueError}</Text>
-              ) : null}
             </View>
+            <BottomSheet
+              onClose={() => setRemoveMemberTarget(null)}
+              sheetStyle={isDesktopWeb ? styles.leagueEditorDesktop : undefined}
+              visible={Boolean(removeMemberTarget)}
+            >
+              <View style={styles.leagueActionsContent}>
+                <Text style={styles.sectionTitle}>
+                  {t("league.removeMemberConfirmTitle")}
+                </Text>
+                <Text style={styles.mutedText}>
+                  {t("league.removeMemberConfirmDescription").replace(
+                    "{name}",
+                    removeMemberTarget?.team.name ?? "",
+                  )}
+                </Text>
+                <View style={styles.leagueDialogActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={leagueActionBusy !== null}
+                    onPress={() => setRemoveMemberTarget(null)}
+                    style={[
+                      themedSecondaryButtonStyle,
+                      styles.leagueDialogActionButton,
+                      leagueActionBusy !== null && styles.buttonDisabled,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        themedSecondaryButtonTextStyle,
+                        styles.leagueDialogActionText,
+                      ]}
+                    >
+                      {t("common.cancel")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={leagueActionBusy !== null}
+                    onPress={handleRemovePrivateLeagueMember}
+                    style={[
+                      styles.dangerButton,
+                      styles.leagueDialogActionButton,
+                      leagueActionBusy !== null && styles.buttonDisabled,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dangerButtonText,
+                        styles.leagueDialogActionText,
+                      ]}
+                    >
+                      {t("common.delete")}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </BottomSheet>
           </BottomSheet>
 
           <BottomSheet
@@ -791,28 +995,42 @@ export function LeagueScreen({
                   deletePrivateLeagueTarget?.name ?? "",
                 )}
               </Text>
-              <View style={styles.confirmActionRow}>
+              <View style={styles.leagueDialogActions}>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={leagueActionBusy !== null}
                   onPress={() => setDeletePrivateLeagueTarget(null)}
                   style={[
                     themedSecondaryButtonStyle,
+                    styles.leagueDialogActionButton,
                     leagueActionBusy !== null ? styles.buttonDisabled : null,
                   ]}
                 >
-                  <Text style={themedSecondaryButtonTextStyle}>
+                  <Text
+                    style={[
+                      themedSecondaryButtonTextStyle,
+                      styles.leagueDialogActionText,
+                    ]}
+                  >
                     {t("common.cancel")}
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={leagueActionBusy !== null}
                   onPress={handleDeletePrivateLeague}
                   style={[
                     styles.dangerButton,
+                    styles.leagueDialogActionButton,
                     leagueActionBusy !== null ? styles.buttonDisabled : null,
                   ]}
                 >
-                  <Text style={styles.dangerButtonText}>
+                  <Text
+                    style={[
+                      styles.dangerButtonText,
+                      styles.leagueDialogActionText,
+                    ]}
+                  >
                     {leagueActionBusy === "delete"
                       ? t("league.deleting")
                       : t("common.delete")}
@@ -868,134 +1086,158 @@ export function LeagueScreen({
 
           {!isLoading && teams.length > 0 ? (
             <>
-              <View style={styles.leagueToolbar}>
-                {isDesktopWeb ? (
-                  <>
-                    <DesktopSelect
-                      accessibilityLabel={t("league.scopeTitle")}
-                      onValueChange={(value) =>
-                        setLeagueFilterId(value as LeagueFilterId)
-                      }
-                      options={leagueFilterOptions}
-                      style={styles.desktopSelectCompact}
-                      value={leagueFilterId}
-                    />
-                    <DesktopSelect
-                      accessibilityLabel={t("season.gameweekSelectTitle")}
-                      onValueChange={(value) =>
-                        setLeagueScopeId(value as LeagueScopeId)
-                      }
-                      options={leagueScopeOptions}
-                      style={styles.desktopSelectCompact}
-                      value={leagueScopeId}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setLeaguePickerOpen(true)}
-                      style={[
-                        styles.leagueModeButton,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.borderColor,
-                        },
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.leagueModeButtonText,
-                          { color: fantasyTheme.primaryColor },
-                        ]}
-                      >
-                        {selectedLeagueLabel}
-                      </Text>
-                      <ChevronDown
-                        color={fantasyTheme.primaryColor}
-                        size={18}
-                        strokeWidth={2.3}
-                      />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setModePickerOpen(true)}
-                      style={[
-                        styles.leagueModeButton,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.borderColor,
-                        },
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.leagueModeButtonText,
-                          { color: fantasyTheme.primaryColor },
-                        ]}
-                      >
-                        {selectedScopeLabel}
-                      </Text>
-                      <ChevronDown
-                        color={fantasyTheme.primaryColor}
-                        size={18}
-                        strokeWidth={2.3}
-                      />
-                    </Pressable>
-                  </>
-                )}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setJoinLeagueError(null);
-                    setLeagueActionSuccess(null);
-                    setJoinLeagueOpen(true);
-                  }}
+              <View
+                style={[
+                  styles.leagueToolbar,
+                  isDesktopWeb && styles.leagueToolbarDesktop,
+                ]}
+              >
+                <View
                   style={[
-                    styles.leagueJoinButton,
-                    { borderColor: fantasyTheme.borderColor },
+                    styles.leagueFilterRow,
+                    isDesktopWeb && styles.leagueFilterRowDesktop,
                   ]}
                 >
-                  <Plus
-                    color={fantasyTheme.primaryColor}
-                    size={18}
-                    strokeWidth={2.5}
+                  {isDesktopWeb ? (
+                    <>
+                      <DesktopSelect
+                        accessibilityLabel={t("league.scopeTitle")}
+                        active={leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID}
+                        onValueChange={(value) =>
+                          setLeagueFilterId(value as LeagueFilterId)
+                        }
+                        options={leagueFilterOptions}
+                        style={styles.desktopSelectCompact}
+                        value={leagueFilterId}
+                      />
+                      <DesktopSelect
+                        accessibilityLabel={t("season.gameweekSelectTitle")}
+                        active={leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID}
+                        onValueChange={(value) =>
+                          setLeagueScopeId(value as LeagueScopeId)
+                        }
+                        options={leagueScopeOptions}
+                        style={styles.desktopSelectCompact}
+                        value={leagueScopeId}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FilterSelectButton
+                        accessibilityLabel={t("league.scopeTitle")}
+                        active={leagueFilterId !== GLOBAL_LEAGUE_FILTER_ID}
+                        expanded={isLeaguePickerOpen}
+                        label={selectedLeagueLabel}
+                        onPress={() => {
+                          setModePickerOpen(false);
+                          setLeaguePickerOpen(current => !current);
+                        }}
+                        style={styles.filterControlFlexible}
+                      />
+                      <FilterSelectButton
+                        accessibilityLabel={t("season.gameweekSelectTitle")}
+                        active={leagueScopeId !== TOTAL_LEAGUE_SCOPE_ID}
+                        expanded={isModePickerOpen}
+                        label={selectedScopeLabel}
+                        onPress={() => {
+                          setLeaguePickerOpen(false);
+                          setModePickerOpen(current => !current);
+                        }}
+                        style={styles.filterControlFlexible}
+                      />
+                    </>
+                  )}
+                  <FilterResetButton
+                    compact={!isDesktopWeb}
+                    disabled={!filtersDirty}
+                    onPress={resetFilters}
                   />
-                  <Text
-                    numberOfLines={1}
+                </View>
+                {!isDesktopWeb && isLeaguePickerOpen ? (
+                  <FilterSelectMenu
+                    accessibilityLabel={t("league.scopeTitle")}
+                    onClose={() => setLeaguePickerOpen(false)}
+                    onValueChange={value => setLeagueFilterId(value as LeagueFilterId)}
+                    options={leagueFilterOptions}
+                    value={leagueFilterId}
+                    footer={privateLeagues?.length === 0 ? (
+                      <Text style={styles.mutedText}>{t("league.noPrivateLeagues")}</Text>
+                    ) : null}
+                  />
+                ) : null}
+                {!isDesktopWeb && isModePickerOpen ? (
+                  <FilterSelectMenu
+                    accessibilityLabel={t("season.gameweekSelectTitle")}
+                    onClose={() => setModePickerOpen(false)}
+                    onValueChange={value => setLeagueScopeId(value as LeagueScopeId)}
+                    options={leagueScopeOptions}
+                    value={leagueScopeId}
+                  />
+                ) : null}
+                <View
+                  style={[
+                    styles.leagueToolbarActions,
+                    isDesktopWeb && styles.leagueToolbarActionsDesktop,
+                  ]}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setJoinLeagueError(null);
+                      setLeagueActionSuccess(null);
+                      setJoinLeagueOpen(true);
+                    }}
                     style={[
-                      styles.leagueJoinButtonText,
-                      { color: fantasyTheme.primaryColor },
+                      styles.leagueJoinButton,
+                      styles.filterControlFlexible,
+                      isDesktopWeb && styles.leagueToolbarActionDesktop,
+                      { borderColor: fantasyTheme.borderColor },
                     ]}
                   >
-                    {t("league.joinLeagueButton")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setCreateLeagueError(null);
-                    setEditLeagueError(null);
-                    setDeleteLeagueError(null);
-                    setLeagueActionSuccess(null);
-                    setLeagueManagerOpen(true);
-                  }}
-                  style={[
-                    styles.leagueManageButton,
-                    { backgroundColor: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  <Cog
-                    color={colors.text.inverse}
-                    size={18}
-                    strokeWidth={2.6}
-                  />
-                  <Text numberOfLines={1} style={styles.leagueManageButtonText}>
-                    {t("league.configureButton")}
-                  </Text>
-                </Pressable>
+                    <Plus
+                      color={fantasyTheme.primaryColor}
+                      size={18}
+                      strokeWidth={2.5}
+                    />
+                    <Text
+                      numberOfLines={isDesktopWeb ? 1 : 2}
+                      style={[
+                        styles.leagueJoinButtonText,
+                        { color: fantasyTheme.primaryColor },
+                      ]}
+                    >
+                      {t("league.joinLeagueButton")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setCreateLeagueError(null);
+                      setEditLeagueError(null);
+                      setDeleteLeagueError(null);
+                      setLeagueActionSuccess(null);
+                      setLeagueManagerOpen(true);
+                    }}
+                    style={[
+                      styles.leagueManageButton,
+                      styles.filterControlFlexible,
+                      isDesktopWeb && styles.leagueToolbarActionDesktop,
+                      { backgroundColor: fantasyTheme.primaryColor },
+                    ]}
+                  >
+                    <Cog
+                      color={colors.text.inverse}
+                      size={18}
+                      strokeWidth={2.6}
+                    />
+                    <Text
+                      numberOfLines={isDesktopWeb ? 1 : 2}
+                      style={styles.leagueManageButtonText}
+                    >
+                      {t("league.configureButton")}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
 
               {selectedPrivateLeague && sortedTeams.length === 0 ? (
@@ -1141,140 +1383,6 @@ export function LeagueScreen({
               ) : null}
             </View>
           </BottomSheet>
-
-          {!isDesktopWeb ? (
-            <BottomSheet
-              contentScrollEnabled={false}
-              onClose={() => setLeaguePickerOpen(false)}
-              visible={isLeaguePickerOpen}
-            >
-              <View style={styles.leaguePickerContent}>
-                <ScrollView
-                  style={styles.leaguePickerScroll}
-                  contentContainerStyle={styles.seasonPickerOptions}
-                >
-                  {leagueFilterOptions.map((option) => {
-                    const isSelected = option.value === leagueFilterId;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={option.value}
-                        onPress={() => {
-                          setLeagueFilterId(option.value as LeagueFilterId);
-                          setLeaguePickerOpen(false);
-                        }}
-                        style={[
-                          styles.seasonPickerOption,
-                          isSelected ? themedPickerOptionSelectedStyle : null,
-                        ]}
-                      >
-                        <View style={styles.seasonPickerOptionBody}>
-                          <View style={styles.seasonPickerOptionTextGroup}>
-                            <Text
-                              numberOfLines={1}
-                              style={styles.seasonPickerOptionText}
-                            >
-                              {option.label}
-                            </Text>
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.seasonPickerOptionRadio,
-                            isSelected
-                              ? [
-                                  styles.seasonPickerOptionRadioSelected,
-                                  { borderColor: fantasyTheme.primaryColor },
-                                ]
-                              : null,
-                          ]}
-                        >
-                          {isSelected ? (
-                            <View
-                              style={[
-                                styles.seasonPickerOptionRadioDot,
-                                { backgroundColor: fantasyTheme.primaryColor },
-                              ]}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                  {privateLeagues !== undefined &&
-                  privateLeagues.length === 0 ? (
-                    <Text style={styles.mutedText}>
-                      {t("league.noPrivateLeagues")}
-                    </Text>
-                  ) : null}
-                </ScrollView>
-              </View>
-            </BottomSheet>
-          ) : null}
-
-          {!isDesktopWeb ? (
-            <BottomSheet
-              contentScrollEnabled={false}
-              onClose={() => setModePickerOpen(false)}
-              visible={isModePickerOpen}
-            >
-              <View style={styles.leaguePickerContent}>
-                <ScrollView
-                  style={styles.leaguePickerScroll}
-                  contentContainerStyle={styles.seasonPickerOptions}
-                >
-                  {leagueScopeOptions.map((option) => {
-                    const isSelected = option.value === leagueScopeId;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={option.value}
-                        onPress={() => {
-                          setLeagueScopeId(option.value as LeagueScopeId);
-                          setModePickerOpen(false);
-                        }}
-                        style={[
-                          styles.seasonPickerOption,
-                          isSelected ? themedPickerOptionSelectedStyle : null,
-                        ]}
-                      >
-                        <View style={styles.seasonPickerOptionBody}>
-                          <View style={styles.seasonPickerOptionTextGroup}>
-                            <Text
-                              numberOfLines={1}
-                              style={styles.seasonPickerOptionText}
-                            >
-                              {option.label}
-                            </Text>
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.seasonPickerOptionRadio,
-                            isSelected
-                              ? [
-                                  styles.seasonPickerOptionRadioSelected,
-                                  { borderColor: fantasyTheme.primaryColor },
-                                ]
-                              : null,
-                          ]}
-                        >
-                          {isSelected ? (
-                            <View
-                              style={[
-                                styles.seasonPickerOptionRadioDot,
-                                { backgroundColor: fantasyTheme.primaryColor },
-                              ]}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </BottomSheet>
-          ) : null}
         </>
       )}
     </FantasyScreenFrame>

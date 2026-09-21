@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 import {
+  fantasyChipValidator,
   fantasyFixtureEventTypeValidator,
   fantasyFixtureSideValidator,
   fantasyFixtureStatusValidator,
@@ -494,6 +495,7 @@ export default defineSchema({
     isStarter: v.boolean(),
     squadRole: fantasySquadRoleValidator,
     pointsMultiplier: v.number(),
+    captainBonusMultiplier: v.optional(v.number()),
     isCaptain: v.boolean(),
     isViceCaptain: v.boolean(),
     createdAt: v.number(),
@@ -502,6 +504,37 @@ export default defineSchema({
     .index("by_season", ["seasonId"])
     .index("by_gameweek", ["gameweekId"])
     .index("by_team", ["fantasyTeamId"])
+    .index("by_team_gameweek", ["fantasyTeamId", "gameweekId"]),
+
+  fantasyTeamGameweekStates: defineTable({
+    seasonId: v.id("fantasySeasons"),
+    gameweekId: v.id("fantasyGameweeks"),
+    fantasyTeamId: v.id("fantasyTeams"),
+    chip: v.optional(fantasyChipValidator),
+    half: v.optional(v.number()),
+    playedAt: v.optional(v.number()),
+    settledAt: v.optional(v.number()),
+    restoredAt: v.optional(v.number()),
+    transfersUsed: v.number(),
+    baselineComplete: v.boolean(),
+    budgetBefore: v.number(),
+    freeTransfersBefore: v.number(),
+    initialPicks: v.array(
+      v.object({
+        playerId: v.id("fantasyPlayers"),
+        rosterSlot: v.number(),
+        isStarter: v.boolean(),
+        squadRole: fantasySquadRoleValidator,
+        isCaptain: v.boolean(),
+        isViceCaptain: v.boolean(),
+      }),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season", ["seasonId"])
+    .index("by_team", ["fantasyTeamId"])
+    .index("by_gameweek", ["gameweekId"])
     .index("by_team_gameweek", ["fantasyTeamId", "gameweekId"]),
 
   fantasyTransfers: defineTable({

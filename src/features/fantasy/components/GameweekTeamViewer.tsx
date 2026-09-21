@@ -1,43 +1,39 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { Image } from "expo-image";
-import { ArrowLeft, ChevronRight, Plus } from "lucide-react-native";
+import { ArrowLeft, ChevronRight } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BackHandler,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
 
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
-import type { TranslationKey } from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
-import { LoadingBlock } from "../../../components/common/LoadingBlock";
+import { AppLoadingOverlay } from "../../../components/common/AppLoadingOverlay";
 import { useSafeQuery } from "../../../hooks/useSafeQuery";
 import { api } from "../../../lib/convexApi";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
-import {
-  FANTASY_STATIC_IMAGE_PROPS,
-  FUTSAL_FIELD_IMAGE,
-} from "../assets/fantasyAssets";
-import { formatFantasyMoney } from "../utils/money";
+import { FANTASY_STATIC_IMAGE_PROPS } from "../assets/fantasyAssets";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
-import { BottomSheet } from "./BottomSheet";
+import { useFutsalFieldLayout } from "../utils/useFutsalFieldLayout";
 import {
-  FantasyClubLogo,
   FantasyPlayerListRow,
   FantasyPlayerPickerStatsHeader,
   type FantasyPlayerListRowClub,
   type FantasyPlayerListRowPlayer,
 } from "./FantasyPlayerListRow";
-import { getPlayerDetailSeasonStatItems } from "./PlayerDetailSheet";
-import { PlayerAvatar } from "./PlayerAvatar";
+import { SquadPitchLayout } from "./SquadPitchLayout";
+import { SquadListTable } from "./SquadListTable";
+import {
+  PlayerMatchBreakdownSheet,
+  type PlayerProfileMatch,
+} from "./PlayerMatchHistory";
 import { TeamKitAvatar } from "./TeamKitAvatar";
-import { MatchDetailsPage } from "../screens/SeasonScreen";
 
 type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
@@ -77,12 +73,6 @@ type ViewerClub = {
   sortOrder?: number;
 };
 
-type MatchDetailsPageProps = Parameters<typeof MatchDetailsPage>[0];
-type MatchDetailsClub =
-  MatchDetailsPageProps["clubsById"] extends Map<string, infer Club>
-    ? Club
-    : never;
-
 type ViewerPlayer = {
   appearances?: number | null;
   assists?: number | null;
@@ -91,6 +81,7 @@ type ViewerPlayer = {
   displayName: string;
   firstName?: string | null;
   cleanSheets?: number | null;
+  form?: number | null;
   goals?: number | null;
   goalsConceded?: number | null;
   id: Id<"fantasyPlayers">;
@@ -120,6 +111,7 @@ type TeamGameweekPlayer = {
   isCaptain: boolean;
   isViceCaptain: boolean;
   lines: PointLine[];
+  matches: PlayerProfileMatch[];
   managerPoints: number;
   multiplier: number;
   player: ViewerPlayer | null;
@@ -178,58 +170,7 @@ function useLastDefinedTeamGameweekView(
   return value === undefined ? cachedRef.current.value : value;
 }
 
-type PlayerProfileMatch = {
-  fixture: {
-    awayClubId: string | null;
-    awayClubName: string;
-    awayScore: number | null;
-    externalId: string | null;
-    gameweekId: string | null;
-    homeClubId: string | null;
-    homeClubName: string;
-    homeScore: number | null;
-    id: Id<"fantasyFixtures">;
-    scheduledAt: number;
-    seasonId: string;
-    sourceUrl: string | null;
-    status: string;
-    venue: string | null;
-  };
-  gameweek: {
-    id: Id<"fantasyGameweeks">;
-    number: number;
-    name: string;
-  } | null;
-  id: Id<"fantasyFixtures">;
-  isHome: boolean;
-  lines: PointLine[];
-  opponent: ViewerClub | null;
-  points: number;
-  resultKind: "win" | "draw" | "loss" | null;
-};
 
-type PlayerProfileData =
-  | {
-      matches: PlayerProfileMatch[];
-      player: ViewerPlayer & {
-        appearances: number;
-        assists: number;
-        averagePointsPerGameweek: number;
-        cleanSheets: number;
-        goals: number;
-        goalsConceded: number;
-        ownGoals: number;
-        penaltiesMissed: number;
-        penaltiesSaved: number;
-        redCards: number;
-        saves: number;
-        seasonPoints: number;
-        selectedPercent: number;
-        yellowCards: number;
-      };
-    }
-  | null
-  | undefined;
 
 type SquadSlotDefinition = {
   position: PlayerPosition;
@@ -252,30 +193,12 @@ const SQUAD_SLOT_DEFINITIONS: SquadSlotDefinition[] = [
   { position: "universal", rosterSlot: 12, squadRole: "reserve" },
 ];
 
-const POINT_LINE_LABEL_KEYS: Record<PlayerPointLineKind, TranslationKey> = {
-  appearance: "team.pointsLine.appearance",
-  assist: "team.pointsLine.assist",
-  goal: "team.pointsLine.goal",
-  own_goal: "team.pointsLine.own_goal",
-  penalty_missed: "team.pointsLine.penalty_missed",
-  penalty_saved: "team.pointsLine.penalty_saved",
-  red_card: "team.pointsLine.red_card",
-  second_yellow_red: "team.pointsLine.second_yellow_red",
-  team_goals_conceded: "team.pointsLine.team_goals_conceded",
-  team_goals_scored: "team.pointsLine.team_goals_scored",
-  yellow_card: "team.pointsLine.yellow_card",
-};
 
 function formatViewerNumber(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
-function formatSignedViewerPoints(value: number | null | undefined) {
-  const normalized = Number((value ?? 0).toFixed(1));
-  const text = formatViewerNumber(normalized);
-  return normalized > 0 ? `+${text}` : text;
-}
 
 function formatSlotPoints(item: TeamGameweekPlayer) {
   return `${formatViewerNumber(item.rawPlayerPoints)} (${formatViewerNumber(
@@ -355,24 +278,6 @@ function getPlayerSurnameLabel(displayName: string) {
 
 function normalizeClubNameKey(value: string | null | undefined) {
   return (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
-}
-
-function toMatchDetailsClub(club: ViewerClub, index: number): MatchDetailsClub {
-  return {
-    id: club.id ?? club.name,
-    isActive: club.isActive ?? true,
-    logoThumbnailUrl: club.logoThumbnailUrl,
-    logoUrl: club.logoUrl,
-    name: club.name,
-    shortName: club.shortName,
-    sortOrder: club.sortOrder ?? index,
-  };
-}
-
-function formatMatchScore(match: PlayerProfileMatch, fallback: string) {
-  const { awayScore, homeScore } = match.fixture;
-  if (homeScore === null || awayScore === null) return fallback;
-  return `${homeScore} - ${awayScore}`;
 }
 
 function ViewerStat({
@@ -530,6 +435,8 @@ function getPlayerSlotAccessibilityLabel(item: TeamGameweekPlayer | null) {
   return `${item.player.displayName}: ${formatSlotPoints(item)}`;
 }
 
+type ReadonlySquadSlotSize = "field" | "side" | "compact";
+
 function ReadonlySquadSlot({
   item,
   onPlayerPress,
@@ -539,17 +446,19 @@ function ReadonlySquadSlot({
   item: TeamGameweekPlayer | null;
   onPlayerPress: (playerId: Id<"fantasyPlayers">) => void;
   position: PlayerPosition;
-  size?: "field" | "side";
+  size?: ReadonlySquadSlotSize;
 }) {
   const { t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
   const player = item?.player ?? null;
+  const isCompactSlot = size === "compact";
+  const isSideSlot = size === "side";
   const leadershipLabel = item?.isCaptain
     ? t("team.leadership.captainShort")
     : item?.isViceCaptain
       ? t("team.leadership.viceCaptainShort")
       : null;
-  const avatarSize = size === "side" ? "md" : "lg";
+  const avatarSize = isCompactSlot ? "sm" : isSideSlot ? "md" : "lg";
 
   return (
     <Pressable
@@ -561,10 +470,11 @@ function ReadonlySquadSlot({
       }}
       style={[
         styles.futsalSquadSlotButton,
-        size === "side" ? styles.futsalSquadSlotButtonSide : null,
+        isSideSlot ? styles.futsalSquadSlotButtonSide : null,
         player ? styles.futsalSquadSlotButtonFilled : null,
         styles.gameweekViewerSlotButton,
-        size === "side" ? styles.gameweekViewerSlotButtonSide : null,
+        isSideSlot ? styles.gameweekViewerSlotButtonSide : null,
+        isCompactSlot ? styles.gameweekViewerSlotButtonCompact : null,
       ]}
     >
       {leadershipLabel ? (
@@ -596,7 +506,10 @@ function ReadonlySquadSlot({
             adjustsFontSizeToFit
             minimumFontScale={0.68}
             numberOfLines={1}
-            style={styles.futsalSquadSlotName}
+            style={[
+              styles.futsalSquadSlotName,
+              isCompactSlot ? styles.gameweekViewerSlotNameCompact : null,
+            ]}
           >
             {getPlayerSurnameLabel(player.displayName)}
           </Text>
@@ -611,6 +524,7 @@ function ReadonlySquadSlot({
               style={[
                 styles.gameweekViewerSlotScore,
                 { color: fantasyTheme.primaryColor },
+                isCompactSlot ? styles.gameweekViewerSlotScoreCompact : null,
               ]}
             >
               {item ? formatSlotPoints(item) : ""}
@@ -641,6 +555,17 @@ function ReadonlyPitch({
   players: TeamGameweekPlayer[];
 }) {
   const fantasyTheme = useFantasySeasonTheme();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const {
+    aspectRatio,
+    isLandscape,
+    source: fieldImage,
+  } = useFutsalFieldLayout();
+
+  const isDesktopWeb =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
+  const shouldUseCompactPitch =
+    Platform.OS !== "web" && (windowWidth <= 420 || windowHeight <= 900);
   const playersBySlot = new Map(players.map((item) => [item.rosterSlot, item]));
   const starters = SQUAD_SLOT_DEFINITIONS.filter(
     (slot) => slot.squadRole === "starter",
@@ -663,17 +588,35 @@ function ReadonlyPitch({
     starterUniversals[2] ?? null,
     starterUniversals[3] ?? null,
   ];
-  const fieldSlotStyles = [
-    styles.futsalFieldSlotGoalkeeper,
-    styles.futsalFieldSlotLeftDeep,
-    styles.futsalFieldSlotRightDeep,
-    styles.futsalFieldSlotLeftHigh,
-    styles.futsalFieldSlotRightHigh,
+  const fieldSlotStyles = isLandscape
+    ? [
+        styles.futsalFieldSlotGoalkeeperLandscape,
+        styles.futsalFieldSlotLeftDeepLandscape,
+        styles.futsalFieldSlotRightDeepLandscape,
+        styles.futsalFieldSlotLeftHighLandscape,
+        styles.futsalFieldSlotRightHighLandscape,
+      ]
+    : [
+        styles.futsalFieldSlotGoalkeeper,
+        styles.futsalFieldSlotLeftDeep,
+        styles.futsalFieldSlotRightDeep,
+        styles.futsalFieldSlotLeftHigh,
+        styles.futsalFieldSlotRightHigh,
+      ];
+  const compactFieldSlotStyles = [
+    styles.futsalFieldSlotGoalkeeperCompact,
+    styles.futsalFieldSlotLeftDeepCompact,
+    styles.futsalFieldSlotRightDeepCompact,
+    styles.futsalFieldSlotLeftHighCompact,
+    styles.futsalFieldSlotRightHighCompact,
   ];
+  const fieldSlotSize: ReadonlySquadSlotSize = shouldUseCompactPitch
+    ? "compact"
+    : "field";
 
   const renderSlot = (
     slot: SquadSlotDefinition,
-    size: "field" | "side" = "field",
+    size: ReadonlySquadSlotSize = "field",
   ) => (
     <ReadonlySquadSlot
       item={playersBySlot.get(slot.rosterSlot) ?? null}
@@ -684,70 +627,73 @@ function ReadonlyPitch({
   );
 
   return (
-    <View style={styles.futsalSquadLayout}>
-      <View style={styles.futsalSquadMainRow}>
-        <View
-          style={[
-            styles.futsalFieldFrame,
-            {
-              backgroundColor: fantasyTheme.softColor,
-              borderColor: fantasyTheme.borderColor,
-            },
-          ]}
-        >
-          <Image
-            {...FANTASY_STATIC_IMAGE_PROPS}
-            contentFit="cover"
-            recyclingKey="gameweek-viewer-field"
-            source={FUTSAL_FIELD_IMAGE}
-            style={styles.futsalFieldImage}
-          />
-          {fieldSlots.map((slot, index) =>
-            slot ? (
-              <View
-                key={slot.rosterSlot}
-                style={[styles.futsalFieldSlot, fieldSlotStyles[index]]}
-              >
-                {renderSlot(slot)}
-              </View>
-            ) : null,
-          )}
+    <SquadPitchLayout
+      aspectRatio={aspectRatio}
+      fitToAvailableHeight={isDesktopWeb}
+      sideSlotHeight={styles.gameweekViewerSlotButtonSide.height}
+      bench={bench.map((slot) => (
+        <View key={slot.rosterSlot} style={styles.futsalBenchSlotWrap}>
+          {renderSlot(slot, "side")}
         </View>
-        <View
-          style={[
-            styles.futsalBenchRail,
-            { backgroundColor: colors.brand.blueDark },
-          ]}
-        >
-          {bench.map((slot) => (
-            <View key={slot.rosterSlot} style={styles.futsalBenchSlotWrap}>
-              {renderSlot(slot, "side")}
-            </View>
-          ))}
+      ))}
+      reserve={reserve.map((slot) => (
+        <View key={slot.rosterSlot} style={styles.futsalReserveSlotWrap}>
+          {renderSlot(slot, "side")}
         </View>
-      </View>
+      ))}
+    >
       <View
         style={[
-          styles.futsalReserveRail,
-          { backgroundColor: colors.brand.blueDark },
+          styles.futsalFieldFrame,
+          {
+            alignSelf: isLandscape ? "flex-start" : "stretch",
+            aspectRatio,
+            backgroundColor: fantasyTheme.softColor,
+            borderColor: fantasyTheme.borderColor,
+          },
         ]}
       >
-        {reserve.map((slot) => (
-          <View key={slot.rosterSlot} style={styles.futsalReserveSlotWrap}>
-            {renderSlot(slot, "side")}
-          </View>
-        ))}
+        <Image
+          {...FANTASY_STATIC_IMAGE_PROPS}
+          contentFit={isLandscape ? "contain" : "cover"}
+          recyclingKey={
+            isLandscape
+              ? "gameweek-viewer-field-horizontal"
+              : "gameweek-viewer-field"
+          }
+          source={fieldImage}
+          style={styles.futsalFieldImage}
+        />
+        {fieldSlots.map((slot, index) =>
+          slot ? (
+            <View
+              key={slot.rosterSlot}
+              style={[
+                styles.futsalFieldSlot,
+                fieldSlotStyles[index],
+                shouldUseCompactPitch ? styles.futsalFieldSlotCompact : null,
+                shouldUseCompactPitch && !isLandscape
+                  ? compactFieldSlotStyles[index]
+                  : null,
+              ]}
+            >
+              {renderSlot(slot, fieldSlotSize)}
+            </View>
+          ) : null,
+        )}
       </View>
-    </View>
+    </SquadPitchLayout>
   );
 }
 
 function ReadonlyList({
   clubs,
+  fitToAvailableHeight = false,
   onPlayerPress,
   players,
 }: {
   clubs: ViewerClub[] | undefined;
+  fitToAvailableHeight?: boolean;
   onPlayerPress: (playerId: Id<"fantasyPlayers">) => void;
   players: TeamGameweekPlayer[];
 }) {
@@ -817,569 +763,95 @@ function ReadonlyList({
   };
 
   return (
-    <View style={styles.squadListPanel}>
-      <ScrollView
-        horizontal
-        bounces={false}
-        disableScrollViewPanResponder
-        directionalLockEnabled
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator
-        contentContainerStyle={styles.squadListHorizontalScrollContent}
-        style={styles.squadListHorizontalScroll}
-      >
-        <View style={styles.squadListStatsTable}>
-          <FantasyPlayerPickerStatsHeader t={t} />
-          {sections.map((section) => (
-            <View key={section.key} style={styles.squadListSection}>
-              <View style={styles.squadSectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-              </View>
-              {section.slots.map((slot) => {
-                const item = playersBySlot.get(slot.rosterSlot) ?? null;
-                const player = item?.player ?? null;
-                const rowPlayer = item ? toReadonlyListPlayer(item) : null;
-                const positionShortLabel = t(
-                  slot.position === "goalkeeper"
-                    ? "players.positionShort.goalkeeper"
-                    : "players.positionShort.universal",
-                );
-
-                if (item && player && rowPlayer) {
-                  return (
-                    <View
-                      key={slot.rosterSlot}
-                      style={styles.squadListPlayerStatsRowWrap}
-                    >
-                      <FantasyPlayerListRow
-                        club={getClubForPlayer(player)}
-                        onPress={() => onPlayerPress(player.id)}
-                        player={rowPlayer}
-                        stateLabel={
-                          item.isCaptain
-                            ? t("team.leadership.captainShort")
-                            : item.isViceCaptain
-                              ? t("team.leadership.viceCaptainShort")
-                              : undefined
-                        }
-                        stateTone={
-                          item.isCaptain || item.isViceCaptain
-                            ? "success"
-                            : undefined
-                        }
-                        t={t}
-                        variant="pickerStats"
-                      />
-                    </View>
-                  );
-                }
-
-                return (
-                  <View
-                    key={slot.rosterSlot}
-                    style={styles.squadListPlayerStatsRowWrap}
-                  >
-                    <View style={styles.playerPickerStatsPlayerRow}>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled
-                        style={styles.playerPickerStatsPlayerCell}
-                      >
-                        <View style={styles.squadListStatusPlaceholder} />
-                        <TeamKitAvatar
-                          displayName={t("team.viewer.emptySlot")}
-                          isMuted
-                          position={slot.position}
-                          size="xs"
-                        />
-                        <View style={styles.playerPickerStatsPlayerMain}>
-                          <Text
-                            numberOfLines={1}
-                            style={styles.playerPickerStatsPlayerName}
-                          >
-                            {t("team.viewer.emptySlot")}
-                          </Text>
-                          <Text
-                            numberOfLines={1}
-                            style={styles.playerPickerStatsClubName}
-                          >
-                            {positionShortLabel}
-                          </Text>
-                        </View>
-                      </Pressable>
-                      {renderEmptyMetrics()}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-function PlayerMatchBreakdownSheet({
-  match,
-  onClose,
-  onOpenFixture,
-  player,
-  visible,
-}: {
-  match: PlayerProfileMatch | null;
-  onClose: () => void;
-  onOpenFixture: (match: PlayerProfileMatch) => void;
-  player: ViewerPlayer | null;
-  visible: boolean;
-}) {
-  const { t } = useI18n();
-  const fantasyTheme = useFantasySeasonTheme();
-  if (!match || !player) return null;
-  const title = getPlayerSurnameLabel(player.displayName);
-
-  return (
-    <BottomSheet
-      contentScrollEnabled={false}
-      onClose={onClose}
-      sheetStyle={styles.playerMatchBreakdownSheet}
-      visible={visible}
+    <SquadListTable
+      fitToAvailableHeight={fitToAvailableHeight}
+      header={<FantasyPlayerPickerStatsHeader t={t} />}
     >
-      <ScrollView
-        bounces={false}
-        contentContainerStyle={styles.playerMatchBreakdownContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.playerMatchBreakdownHeader}>
-          <Text style={styles.playerMatchBreakdownTitle}>
-            {title}
-          </Text>
-          {match.gameweek ? (
-            <Text style={styles.mutedText}>
-              {t("team.pointsBreakdownGameweekTitle").replace(
-                "{number}",
-                String(match.gameweek.number),
-              )}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.playerMatchScoreCard}>
-          <Text numberOfLines={1} style={styles.playerMatchClubName}>
-            {match.fixture.homeClubName}
-          </Text>
-          <Text
-            style={[
-              styles.playerMatchScoreText,
-              { color: fantasyTheme.primaryColor },
-            ]}
-          >
-            {formatMatchScore(match, t("fixtures.dateUnknown"))}
-          </Text>
-          <Text numberOfLines={1} style={styles.playerMatchClubName}>
-            {match.fixture.awayClubName}
-          </Text>
-        </View>
-
-        <View style={styles.teamPointsBreakdownPlayerCard}>
-          <Text
-            style={[
-              styles.teamOverviewTitle,
-              { color: fantasyTheme.primaryColor },
-            ]}
-          >
-            {t("team.viewer.pointsBreakdown")}
-          </Text>
-          {match.lines.length === 0 ? (
-            <Text style={styles.mutedText}>
-              {t("team.pointsBreakdownNoPlayerLines")}
-            </Text>
-          ) : (
-            <View style={styles.playerMatchBreakdownTable}>
-              <View style={styles.playerMatchBreakdownTableHeader}>
-                <Text style={styles.playerMatchBreakdownTypeCell}>
-                  {t("team.viewer.type")}
-                </Text>
-                <Text style={styles.playerMatchBreakdownValueCell}>
-                  {t("team.viewer.value")}
-                </Text>
-                <Text
-                  style={[
-                    styles.playerMatchBreakdownPointsCell,
-                    { color: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  {t("team.viewer.totalPts")}
-                </Text>
-              </View>
-              {match.lines.map((line) => (
-                <View key={line.kind} style={styles.playerMatchBreakdownRow}>
-                  <Text style={styles.playerMatchBreakdownTypeCell}>
-                    {t(POINT_LINE_LABEL_KEYS[line.kind])}
-                  </Text>
-                  <Text style={styles.playerMatchBreakdownValueCell}>
-                    {line.count !== null ? formatViewerNumber(line.count) : "-"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.playerMatchBreakdownPointsCell,
-                      { color: fantasyTheme.primaryColor },
-                    ]}
-                  >
-                    {formatSignedViewerPoints(line.points)}
-                  </Text>
-                </View>
-              ))}
-              <View style={styles.playerMatchBreakdownRow}>
-                <Text style={styles.playerMatchBreakdownTypeCell}>
-                  {t("team.pointsBreakdownTotal")}
-                </Text>
-                <Text style={styles.playerMatchBreakdownValueCell}>-</Text>
-                <Text
-                  style={[
-                    styles.playerMatchBreakdownPointsCell,
-                    { color: fantasyTheme.primaryColor },
-                  ]}
-                >
-                  {formatViewerNumber(match.points)}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.playerMatchBreakdownActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => onOpenFixture(match)}
-            style={[
-              styles.teamBuilderFooterPrimaryButton,
-              { backgroundColor: fantasyTheme.primaryColor },
-            ]}
-          >
-            <Text style={styles.teamBuilderFooterPrimaryText}>
-              {t("team.viewer.viewMatchInfo")}
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </BottomSheet>
-  );
-}
-
-function PlayerProfilePage({
-  canQueryPrivateData = true,
-  onBack,
-  onOpenFixture,
-  playerId,
-  seasonSlug,
-}: {
-  canQueryPrivateData?: boolean;
-  onBack: () => void;
-  onOpenFixture: (match: PlayerProfileMatch) => void;
-  playerId: Id<"fantasyPlayers">;
-  seasonSlug?: string | null;
-}) {
-  const { t } = useI18n();
-  const fantasyTheme = useFantasySeasonTheme();
-  const { width: windowWidth } = useWindowDimensions();
-  const isDesktopWeb =
-    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
-  const profile = useSafeQuery(
-    api.fantasy.playerProfile,
-    canQueryPrivateData
-      ? seasonSlug
-        ? { playerId, seasonSlug }
-        : { playerId }
-      : "skip",
-  ) as PlayerProfileData;
-  const [selectedMatch, setSelectedMatch] = useState<PlayerProfileMatch | null>(
-    null,
-  );
-
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        if (selectedMatch) {
-          setSelectedMatch(null);
-          return true;
-        }
-        onBack();
-        return true;
-      },
-    );
-
-    return () => subscription.remove();
-  }, [onBack, selectedMatch]);
-
-  if (profile === undefined) {
-    return (
-      <View style={styles.gameweekViewerLoading}>
-        <LoadingBlock />
-      </View>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <View style={styles.teamBuilderPanel}>
-        <Text style={styles.sectionTitle}>
-          {t("team.viewer.playerUnavailable")}
-        </Text>
-      </View>
-    );
-  }
-
-  const player = profile.player;
-  const seasonStatItems = getPlayerDetailSeasonStatItems(player, t);
-
-  return (
-    <View style={styles.playerProfilePage}>
-      <View style={styles.teamWorkspaceHeader}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBack}
-          style={[
-            styles.teamWorkspaceBackButton,
-            { backgroundColor: fantasyTheme.softColor },
-          ]}
-        >
-          <ArrowLeft
-            color={fantasyTheme.primaryColor}
-            size={22}
-            strokeWidth={2.5}
-          />
-        </Pressable>
-        <View style={styles.teamWorkspaceTitleGroup}>
-          <Text numberOfLines={1} style={styles.teamWorkspaceTitle}>
-            {player.displayName}
-          </Text>
-          <Text numberOfLines={1} style={styles.teamWorkspaceDeadline}>
-            {player.clubName ?? t("players.noClub")}
-          </Text>
-        </View>
-        <View style={styles.teamWorkspaceHeaderSpacer} />
-      </View>
-
-      <View
-        style={[
-          styles.playerProfileHero,
-          isDesktopWeb ? styles.playerProfileHeroDesktop : null,
-          { backgroundColor: fantasyTheme.primaryColor },
-        ]}
-      >
-        <PlayerAvatar
-          displayName={player.displayName}
-          photoUrl={player.photoUrl ?? player.photoThumbnailUrl ?? null}
-          size="xl"
-        />
-        <View style={styles.playerProfileHeroText}>
-          <Text style={styles.playerDetailPosition}>
-            {t(
-              player.position === "goalkeeper"
-                ? "players.position.goalkeeper"
-                : "players.position.universal",
-            )}
-          </Text>
-          <Text numberOfLines={2} style={styles.playerDetailName}>
-            {player.displayName}
-          </Text>
-          <Text numberOfLines={1} style={styles.playerDetailClub}>
-            {player.clubName ?? t("players.noClub")}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.playerDetailQuickStats}>
-        <View style={styles.playerDetailQuickStat}>
-          <Text style={styles.playerDetailQuickLabel}>
-            {t("players.priceLabel")}
-          </Text>
-          <Text
-            style={[
-              styles.playerDetailQuickValue,
-              { color: fantasyTheme.primaryColor },
-            ]}
-          >
-            {formatFantasyMoney(player.price ?? 0)}
-          </Text>
-        </View>
-        <View style={styles.playerDetailQuickStat}>
-          <Text style={styles.playerDetailQuickLabel}>
-            {t("playerDetails.averagePoints")}
-          </Text>
-          <Text
-            style={[
-              styles.playerDetailQuickValue,
-              { color: fantasyTheme.primaryColor },
-            ]}
-          >
-            {formatViewerNumber(player.averagePointsPerGameweek)}
-          </Text>
-        </View>
-        <View style={styles.playerDetailQuickStat}>
-          <Text style={styles.playerDetailQuickLabel}>
-            {t("playerDetails.selectedPercent")}
-          </Text>
-          <Text
-            style={[
-              styles.playerDetailQuickValue,
-              { color: fantasyTheme.primaryColor },
-            ]}
-          >
-            {formatViewerNumber(player.selectedPercent)}%
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.playerDetailStatsPanel}>
-        <Text style={styles.playerDetailSectionTitle}>
-          {t("playerDetails.currentSeason")}
-        </Text>
-        <View
-          style={[
-            styles.playerDetailStatsGrid,
-            isDesktopWeb ? styles.playerDetailStatsGridDesktop : null,
-          ]}
-        >
-          {seasonStatItems.map((item) => (
-            <View
-              key={item.key}
-              style={[
-                styles.playerDetailStatCell,
-                isDesktopWeb ? styles.playerDetailStatCellDesktop : null,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.playerDetailStatValue,
-                  { color: fantasyTheme.primaryColor },
-                ]}
-              >
-                {item.value}
-              </Text>
-              <Text style={styles.playerDetailStatLabel}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.playerProfileMatchesPanel}>
-        <Text
-          style={[
-            styles.teamOverviewTitle,
-            { color: fantasyTheme.primaryColor },
-          ]}
-        >
-          {t("team.viewer.matches")}
-        </Text>
-        {profile.matches.length === 0 ? (
-          <Text style={styles.mutedText}>{t("team.viewer.noMatches")}</Text>
-        ) : (
-          <View style={styles.playerProfileMatchTable}>
-            <View style={styles.playerProfileMatchHeader}>
-              <Text style={styles.playerProfileMatchGwCell}>
-                {t("team.list.gw")}
-              </Text>
-              <Text style={styles.playerProfileMatchOpponentCell}>
-                {t("team.viewer.opponent")}
-              </Text>
-              <Text
-                style={[
-                  styles.playerProfileMatchCell,
-                  styles.playerProfileMatchResultColumn,
-                ]}
-              >
-                {t("team.viewer.result")}
-              </Text>
-              <Text
-                style={[
-                  styles.playerProfileMatchCell,
-                  styles.playerProfileMatchPointsColumn,
-                ]}
-              >
-                {t("team.viewer.totalPts")}
-              </Text>
-              <Text
-                style={[
-                  styles.playerProfileMatchCell,
-                  styles.playerProfileMatchMoreColumn,
-                ]}
-              >
-                {t("team.viewer.more")}
-              </Text>
-            </View>
-            {profile.matches.map((match) => (
-              <View key={match.id} style={styles.playerProfileMatchRow}>
-                <Text style={styles.playerProfileMatchGwCell}>
-                  {match.gameweek?.number ?? "-"}
-                </Text>
-                <View style={styles.playerProfileMatchOpponentCell}>
-                  <FantasyClubLogo club={match.opponent} size="sm" />
-                  <Text
-                    numberOfLines={1}
-                    style={styles.playerProfileMatchOpponent}
-                  >
-                    {match.opponent?.shortName ?? match.opponent?.name ?? "-"}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.playerProfileMatchResult,
-                    match.resultKind === "win"
-                      ? styles.playerProfileMatchResultWin
-                      : null,
-                    match.resultKind === "loss"
-                      ? styles.playerProfileMatchResultLoss
-                      : null,
-                    styles.playerProfileMatchResultColumn,
-                  ]}
-                >
-                  {formatMatchScore(match, "-")}
-                </Text>
-                <Text
-                  style={[
-                    styles.playerProfileMatchPoints,
-                    { color: fantasyTheme.primaryColor },
-                    styles.playerProfileMatchPointsColumn,
-                  ]}
-                >
-                  {formatViewerNumber(match.points)}
-                </Text>
-                <Pressable
-                  accessibilityLabel={t("team.viewer.more")}
-                  accessibilityRole="button"
-                  onPress={() => setSelectedMatch(match)}
-                  style={[
-                    styles.playerProfileMoreButton,
-                    styles.playerProfileMatchMoreColumn,
-                  ]}
-                >
-                  <Plus
-                    color={fantasyTheme.primaryColor}
-                    size={22}
-                    strokeWidth={3}
-                  />
-                </Pressable>
-              </View>
-            ))}
+      {sections.map((section) => (
+        <View key={section.key} style={styles.squadListSection}>
+          <View style={styles.squadSectionHeader}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
           </View>
-        )}
-      </View>
+          {section.slots.map((slot) => {
+            const item = playersBySlot.get(slot.rosterSlot) ?? null;
+            const player = item?.player ?? null;
+            const rowPlayer = item ? toReadonlyListPlayer(item) : null;
+            const positionShortLabel = t(
+              slot.position === "goalkeeper"
+                ? "players.positionShort.goalkeeper"
+                : "players.positionShort.universal",
+            );
 
-      <PlayerMatchBreakdownSheet
-        match={selectedMatch}
-        onClose={() => setSelectedMatch(null)}
-        onOpenFixture={(match) => {
-          setSelectedMatch(null);
-          onOpenFixture(match);
-        }}
-        player={player}
-        visible={Boolean(selectedMatch)}
-      />
-    </View>
+            if (item && player && rowPlayer) {
+              return (
+                <View
+                  key={slot.rosterSlot}
+                  style={styles.squadListPlayerStatsRowWrap}
+                >
+                  <FantasyPlayerListRow
+                    club={getClubForPlayer(player)}
+                    onPress={() => onPlayerPress(player.id)}
+                    player={rowPlayer}
+                    stateLabel={
+                      item.isCaptain
+                        ? t("team.leadership.captainShort")
+                        : item.isViceCaptain
+                          ? t("team.leadership.viceCaptainShort")
+                          : undefined
+                    }
+                    stateTone={
+                      item.isCaptain || item.isViceCaptain
+                        ? "success"
+                        : undefined
+                    }
+                    t={t}
+                    variant="pickerStats"
+                  />
+                </View>
+              );
+            }
+
+            return (
+              <View
+                key={slot.rosterSlot}
+                style={styles.squadListPlayerStatsRowWrap}
+              >
+                <View style={styles.playerPickerStatsPlayerRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled
+                    style={styles.playerPickerStatsPlayerCell}
+                  >
+                    <View style={styles.squadListStatusPlaceholder} />
+                    <TeamKitAvatar
+                      displayName={t("team.viewer.emptySlot")}
+                      isMuted
+                      position={slot.position}
+                      size="xs"
+                    />
+                    <View style={styles.playerPickerStatsPlayerMain}>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.playerPickerStatsPlayerName}
+                      >
+                        {t("team.viewer.emptySlot")}
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={styles.playerPickerStatsClubName}
+                      >
+                        {positionShortLabel}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {renderEmptyMetrics()}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </SquadListTable>
   );
 }
 
@@ -1406,16 +878,11 @@ export function GameweekTeamViewer({
 }) {
   const { t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
-  const { width: windowWidth } = useWindowDimensions();
-  const isDesktopWeb =
-    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_MIN_WIDTH;
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= WEB_DESKTOP_MIN_WIDTH;
   const [teamViewMode, setTeamViewMode] = useState<"pitch" | "list">("pitch");
   const [selectedPlayerId, setSelectedPlayerId] =
     useState<Id<"fantasyPlayers"> | null>(null);
-  const [selectedFixtureId, setSelectedFixtureId] =
-    useState<Id<"fantasyFixtures"> | null>(null);
-  const [selectedFixtureFallback, setSelectedFixtureFallback] =
-    useState<MatchDetailsPageProps["fallbackFixture"]>(null);
   const teamViewArgs = useMemo(
     () => {
       const baseArgs = gameweekId
@@ -1431,49 +898,21 @@ export function GameweekTeamViewer({
   const dataQuery = useSafeQuery(
     api.fantasy.fantasyTeamGameweekView,
     canQueryPrivateData ? teamViewArgs : "skip",
+    { fallback: null },
   ) as TeamGameweekView;
   const data = useLastDefinedTeamGameweekView(
-    dataQuery,
+    canQueryPrivateData ? dataQuery : null,
     canQueryPrivateData ? teamViewCacheKey : undefined,
   );
-  const selectedFixtureDetails = useSafeQuery(
-    api.fantasy.fixtureDetails,
-    canQueryPrivateData && selectedFixtureId
-      ? { fixtureId: selectedFixtureId }
-      : "skip",
+  const selectedPick = data?.players.find(
+    (item) => item.player?.id === selectedPlayerId,
   );
-  const clubsById = useMemo<MatchDetailsPageProps["clubsById"]>(
-    () =>
-      new Map(
-        (clubs ?? []).map((club, index) => {
-          const matchDetailsClub = toMatchDetailsClub(club, index);
-          return [matchDetailsClub.id, matchDetailsClub];
-        }),
-      ),
-    [clubs],
-  );
-  const clubsByName = useMemo<MatchDetailsPageProps["clubsByName"]>(() => {
-    const result = new Map<string, MatchDetailsClub>();
-    (clubs ?? []).forEach((club, index) => {
-      const matchDetailsClub = toMatchDetailsClub(club, index);
-      result.set(normalizeClubNameKey(club.name), matchDetailsClub);
-      if (club.shortName) {
-        result.set(normalizeClubNameKey(club.shortName), matchDetailsClub);
-      }
-    });
-
-    return result;
-  }, [clubs]);
+  const selectedPlayer = selectedPick?.player ?? null;
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        if (selectedFixtureId) {
-          setSelectedFixtureId(null);
-          setSelectedFixtureFallback(null);
-          return true;
-        }
         if (selectedPlayerId) {
           setSelectedPlayerId(null);
           return true;
@@ -1484,54 +923,19 @@ export function GameweekTeamViewer({
     );
 
     return () => subscription.remove();
-  }, [onBack, selectedFixtureId, selectedPlayerId]);
+  }, [onBack, selectedPlayerId]);
 
   useEffect(() => {
-    setSelectedFixtureId(null);
-    setSelectedFixtureFallback(null);
     setSelectedPlayerId(null);
-  }, [fantasyTeamId, gameweekId]);
-
-  if (selectedFixtureId) {
-    return (
-      <MatchDetailsPage
-        clubsById={clubsById}
-        clubsByName={clubsByName}
-        details={selectedFixtureDetails}
-        fallbackFixture={selectedFixtureFallback}
-        onBack={() => {
-          setSelectedFixtureId(null);
-          setSelectedFixtureFallback(null);
-        }}
-        onPlayerPress={(playerId) => {
-          setSelectedFixtureId(null);
-          setSelectedFixtureFallback(null);
-          setSelectedPlayerId(playerId);
-        }}
-      />
-    );
-  }
-
-  if (selectedPlayerId) {
-    return (
-      <PlayerProfilePage
-        canQueryPrivateData={canQueryPrivateData}
-        onBack={() => setSelectedPlayerId(null)}
-        onOpenFixture={(match) => {
-          setSelectedFixtureFallback(match.fixture);
-          setSelectedFixtureId(match.fixture.id);
-        }}
-        playerId={selectedPlayerId}
-        seasonSlug={seasonSlug}
-      />
-    );
-  }
+  }, [teamViewCacheKey, data?.gameweek?.id]);
 
   if (data === undefined) {
     return (
-      <View style={styles.gameweekViewerLoading}>
-        <LoadingBlock />
-      </View>
+      <AppLoadingOverlay
+        fullScreen
+        onRequestClose={onBack}
+        title={t("team.dashboard.loadingTitle")}
+      />
     );
   }
 
@@ -1552,8 +956,6 @@ export function GameweekTeamViewer({
   const handleHighestPress =
     canOpenHighestTeam && onOpenTeam
       ? () => {
-          setSelectedFixtureId(null);
-          setSelectedFixtureFallback(null);
           setSelectedPlayerId(null);
           onOpenTeam(highestTeamId);
         }
@@ -1636,56 +1038,52 @@ export function GameweekTeamViewer({
   );
 
   return (
-    <View style={styles.gameweekViewerScreen}>
+    <View
+      style={[
+        styles.gameweekViewerScreen,
+        isDesktopWeb ? styles.squadContentFill : null,
+      ]}
+    >
       <TeamViewerHeader
         gameweekNumber={data.gameweek?.number ?? null}
         onBack={onBack}
         teamName={data.team.name}
       />
+      {statsPanel}
 
       {data.players.length === 0 ? (
+        <View style={styles.teamBuilderPanel}>
+          <Text style={styles.sectionTitle}>{t("team.viewer.noSquad")}</Text>
+          <Text style={styles.mutedText}>
+            {t("team.viewer.noSquadDescription")}
+          </Text>
+        </View>
+      ) : (
         <>
-          {statsPanel}
-          <View style={styles.teamBuilderPanel}>
-            <Text style={styles.sectionTitle}>{t("team.viewer.noSquad")}</Text>
-            <Text style={styles.mutedText}>
-              {t("team.viewer.noSquadDescription")}
-            </Text>
-          </View>
-        </>
-      ) : isDesktopWeb && teamViewMode === "pitch" ? (
-        <View style={styles.gameweekViewerDesktopLayout}>
-          <View style={styles.gameweekViewerDesktopFieldPane}>
+          {viewSwitch}
+          {teamViewMode === "list" ? (
+            <ReadonlyList
+              clubs={clubs}
+              fitToAvailableHeight={isDesktopWeb}
+              onPlayerPress={setSelectedPlayerId}
+              players={data.players}
+            />
+          ) : (
             <ReadonlyPitch
               onPlayerPress={setSelectedPlayerId}
               players={data.players}
             />
-          </View>
-          <View style={styles.gameweekViewerDesktopSidePane}>
-            {viewSwitch}
-            {statsPanel}
-          </View>
-        </View>
-      ) : teamViewMode === "list" ? (
-        <>
-          {statsPanel}
-          {viewSwitch}
-          <ReadonlyList
-            clubs={clubs}
-            onPlayerPress={setSelectedPlayerId}
-            players={data.players}
-          />
-        </>
-      ) : (
-        <>
-          {statsPanel}
-          {viewSwitch}
-          <ReadonlyPitch
-            onPlayerPress={setSelectedPlayerId}
-            players={data.players}
-          />
+          )}
         </>
       )}
+      <PlayerMatchBreakdownSheet
+        emptyMessage={t("team.viewer.noMatches")}
+        gameweekNumber={data.gameweek?.number}
+        matches={selectedPick?.matches ?? []}
+        onClose={() => setSelectedPlayerId(null)}
+        player={selectedPlayer}
+        visible={Boolean(selectedPlayer)}
+      />
     </View>
   );
 }

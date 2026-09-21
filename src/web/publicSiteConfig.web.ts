@@ -1,5 +1,7 @@
 import {
   SUPPORT_EMAIL,
+  WEB_FANTASY_TAB_PATHS,
+  WEB_LEGACY_APP_PATH,
   WEB_APP_PATH,
   WEB_OAUTH_CALLBACK_PATH,
 } from "../constants";
@@ -31,6 +33,12 @@ function normalizePathname(pathname: string) {
   return cleanPathname.replace(/\/+$/, "") || "/";
 }
 
+const WEB_APP_PATHS = new Set<string>([
+  WEB_APP_PATH,
+  WEB_OAUTH_CALLBACK_PATH,
+  ...Object.values(WEB_FANTASY_TAB_PATHS),
+]);
+
 export function getCurrentWebPathname() {
   if (typeof window === "undefined") return "/";
 
@@ -47,24 +55,54 @@ export function getPublicWebRoute(
     : NOT_FOUND_PUBLIC_WEB_PATH;
 }
 
-export function isReservedWebAppPath(pathname = getCurrentWebPathname()) {
+export function getLegacyWebAppRedirectPath(
+  pathname = getCurrentWebPathname(),
+) {
+  const normalizedPathname = normalizePathname(pathname);
+  if (normalizedPathname === WEB_LEGACY_APP_PATH) return WEB_APP_PATH;
+
+  const legacyAppPrefix = `${WEB_LEGACY_APP_PATH}/`;
+  if (!normalizedPathname.startsWith(legacyAppPrefix)) return null;
+
+  const legacySegment = normalizedPathname
+    .slice(legacyAppPrefix.length)
+    .split("/")[0];
+  const mappedTabPath =
+    WEB_FANTASY_TAB_PATHS[
+      legacySegment as keyof typeof WEB_FANTASY_TAB_PATHS
+    ];
+
+  return mappedTabPath ?? `/${normalizedPathname.slice(legacyAppPrefix.length)}`;
+}
+
+export function getLegacyWebAppRedirectUrl() {
+  if (typeof window === "undefined") return getLegacyWebAppRedirectPath();
+
+  const redirectPath = getLegacyWebAppRedirectPath(window.location.pathname);
+  if (!redirectPath) return null;
+
+  return `${redirectPath}${window.location.search}${window.location.hash}`;
+}
+
+export function isLegacyWebAppPath(pathname = getCurrentWebPathname()) {
   const normalizedPathname = normalizePathname(pathname);
 
   return (
-    normalizedPathname === WEB_OAUTH_CALLBACK_PATH ||
-    normalizedPathname === WEB_APP_PATH ||
-    normalizedPathname.startsWith(`${WEB_APP_PATH}/`)
+    normalizedPathname === WEB_LEGACY_APP_PATH ||
+    normalizedPathname.startsWith(`${WEB_LEGACY_APP_PATH}/`)
   );
+}
+
+export function isReservedWebAppPath(pathname = getCurrentWebPathname()) {
+  const normalizedPathname = normalizePathname(pathname);
+
+  return WEB_APP_PATHS.has(normalizedPathname) || isLegacyWebAppPath(pathname);
 }
 
 export function isWebAppPath(pathname = getCurrentWebPathname()) {
   const normalizedPathname = normalizePathname(pathname);
 
-  return (
-    normalizedPathname === WEB_APP_PATH ||
-    normalizedPathname.startsWith(`${WEB_APP_PATH}/`) ||
-    normalizedPathname === WEB_OAUTH_CALLBACK_PATH
-  );
+  return WEB_APP_PATHS.has(normalizedPathname);
 }
 
 export function isPublicWebPath(pathname = getCurrentWebPathname()) {

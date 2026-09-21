@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fantasy Futsal",
     "slug": "fantasy-futsal",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "scheme": "fantasy-futsal",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
@@ -89,8 +89,8 @@
       "translucent": false
     },
     "androidNavigationBar": {
-      "backgroundColor": "#160932",
-      "barStyle": "light-content"
+      "backgroundColor": "#F6F8FC",
+      "barStyle": "dark-content"
     },
     "extra": {
       "eas": {

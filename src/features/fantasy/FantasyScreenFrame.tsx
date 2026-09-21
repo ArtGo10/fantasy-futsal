@@ -8,23 +8,40 @@ export function FantasyScreenFrame({
   children,
   contentContainerStyle,
   footer,
+  scrollable = true,
+  scrollEnabled = true,
 }: {
   children: ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
   footer?: ReactNode;
+  scrollable?: boolean;
+  scrollEnabled?: boolean;
   kicker: string;
   title: string;
 }) {
   return (
     <View style={styles.fantasyScreenFrameRoot}>
-      <ScrollView
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        style={styles.fantasyScreenScroll}
-        contentContainerStyle={[styles.fantasyScreen, contentContainerStyle]}
-      >
-        {children}
-      </ScrollView>
+      {scrollable ? (
+        <ScrollView
+          scrollEnabled={scrollEnabled}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          style={styles.fantasyScreenScroll}
+          contentContainerStyle={[styles.fantasyScreen, contentContainerStyle]}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View
+          style={[
+            styles.fantasyScreen,
+            styles.fantasyScreenFixedContent,
+            contentContainerStyle,
+          ]}
+        >
+          {children}
+        </View>
+      )}
       {footer ? (
         <SafeAreaView
           edges={["right", "bottom", "left"]}

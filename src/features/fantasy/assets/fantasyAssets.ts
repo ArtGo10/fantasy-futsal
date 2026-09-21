@@ -22,6 +22,8 @@ export const EKSTRAKLASA_WELCOME_ICON_IMAGE = require("../../../../assets/ekstra
 export const FANTASY_TEAM_IMAGE = require("../../../../assets/fantasy-team.png");
 export const EKSTRAKLASA_FANTASY_TEAM_IMAGE = require("../../../../assets/fantasy-team-ekstraklasa.png");
 export const FUTSAL_FIELD_IMAGE = require("../../../../assets/futsal-field.png");
+export const FUTSAL_FIELD_HORIZONTAL_IMAGE = require("../../../../assets/futsal-field-horizontal.png");
+export const TSHIRT_PLACEHOLDER_IMAGE = require("../../../../assets/tshirt-placeholder.png");
 
 type FantasySeasonAssetSource = {
   leagueName?: string | null;
@@ -342,6 +344,8 @@ export const FANTASY_CRITICAL_IMAGE_MODULES = [
   FANTASY_TEAM_IMAGE,
   EKSTRAKLASA_FANTASY_TEAM_IMAGE,
   FUTSAL_FIELD_IMAGE,
+  FUTSAL_FIELD_HORIZONTAL_IMAGE,
+  TSHIRT_PLACEHOLDER_IMAGE,
 ] as const;
 
 const FANTASY_STATIC_ASSET_MODULES = [

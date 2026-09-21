@@ -28,6 +28,18 @@ export function getPublicWebRoute(_pathname?: string): PublicWebRoute {
   return "/";
 }
 
+export function getLegacyWebAppRedirectPath(_pathname?: string) {
+  return null;
+}
+
+export function getLegacyWebAppRedirectUrl() {
+  return null;
+}
+
+export function isLegacyWebAppPath(_pathname?: string) {
+  return false;
+}
+
 export function isReservedWebAppPath(_pathname?: string) {
   return false;
 }

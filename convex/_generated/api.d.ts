@@ -11,12 +11,16 @@
 import type * as appDiagnostics from "../appDiagnostics.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
+import type * as deadlineReminderScheduling from "../deadlineReminderScheduling.js";
 import type * as fantasy from "../fantasy.js";
+import type * as fantasyChipState from "../fantasyChipState.js";
+import type * as fantasyChips from "../fantasyChips.js";
 import type * as futsalImport from "../futsalImport.js";
 import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as notificationInternals from "../notificationInternals.js";
 import type * as notifications from "../notifications.js";
+import type * as playerProfileStats from "../playerProfileStats.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 
@@ -30,12 +34,16 @@ declare const fullApi: ApiFromModules<{
   appDiagnostics: typeof appDiagnostics;
   authHelpers: typeof authHelpers;
   crons: typeof crons;
+  deadlineReminderScheduling: typeof deadlineReminderScheduling;
   fantasy: typeof fantasy;
+  fantasyChipState: typeof fantasyChipState;
+  fantasyChips: typeof fantasyChips;
   futsalImport: typeof futsalImport;
   health: typeof health;
   http: typeof http;
   notificationInternals: typeof notificationInternals;
   notifications: typeof notifications;
+  playerProfileStats: typeof playerProfileStats;
   users: typeof users;
   validators: typeof validators;
 }>;

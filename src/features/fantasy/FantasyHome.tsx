@@ -21,6 +21,8 @@ import {
   TOKEN_FETCH_TIMEOUT_MS,
   WEB_APP_PATH,
   WEB_DESKTOP_MIN_WIDTH,
+  WEB_FANTASY_TAB_PATHS,
+  WEB_LEGACY_APP_PATH,
 } from "../../constants";
 import { AppConnectionProblemScreen } from "../../components/common/AppConnectionProblemScreen";
 import { AppLoadingOverlay } from "../../components/common/AppLoadingOverlay";
@@ -87,6 +89,10 @@ import {
   getFantasySeasonSoftColor,
 } from "./utils/seasonVisuals";
 import { FantasySeasonThemeProvider } from "./utils/seasonThemeContext";
+import {
+  PlayerProfileCacheProvider,
+  usePlayerProfileCacheSession,
+} from "./utils/playerProfileCacheContext";
 
 const FANTASY_TABS: FantasyTab[] = [
   { id: "team" },
@@ -105,11 +111,11 @@ const FANTASY_TAB_LABEL_KEYS: Record<FantasyTabId, TranslationKey> = {
 };
 
 const FANTASY_TAB_WEB_PATHS: Record<FantasyTabId, string> = {
-  team: `${WEB_APP_PATH}/team`,
-  league: `${WEB_APP_PATH}/league`,
-  market: `${WEB_APP_PATH}/market`,
-  season: `${WEB_APP_PATH}/season`,
-  profile: `${WEB_APP_PATH}/profile`,
+  team: WEB_FANTASY_TAB_PATHS.team,
+  league: WEB_FANTASY_TAB_PATHS.league,
+  market: WEB_FANTASY_TAB_PATHS.market,
+  season: WEB_FANTASY_TAB_PATHS.season,
+  profile: WEB_FANTASY_TAB_PATHS.profile,
 };
 
 const FANTASY_WEB_TAB_IDS = new Set<FantasyTabId>(
@@ -149,11 +155,19 @@ function normalizeFantasyWebPathname(pathname: string) {
 function getFantasyTabFromWebPathname(pathname: string): FantasyTabId | null {
   const normalizedPathname = normalizeFantasyWebPathname(pathname);
   if (normalizedPathname === WEB_APP_PATH) return "team";
+  if (normalizedPathname === WEB_LEGACY_APP_PATH) return "team";
 
-  const appPrefix = `${WEB_APP_PATH}/`;
-  if (!normalizedPathname.startsWith(appPrefix)) return null;
+  const directTabEntry = Object.entries(FANTASY_TAB_WEB_PATHS).find(
+    ([, tabPathname]) => tabPathname === normalizedPathname,
+  );
+  if (directTabEntry) return directTabEntry[0] as FantasyTabId;
 
-  const tabSegment = normalizedPathname.slice(appPrefix.length).split("/")[0];
+  const legacyAppPrefix = `${WEB_LEGACY_APP_PATH}/`;
+  if (!normalizedPathname.startsWith(legacyAppPrefix)) return null;
+
+  const tabSegment = normalizedPathname
+    .slice(legacyAppPrefix.length)
+    .split("/")[0];
   return FANTASY_WEB_TAB_IDS.has(tabSegment as FantasyTabId)
     ? (tabSegment as FantasyTabId)
     : null;
@@ -162,7 +176,7 @@ function getFantasyTabFromWebPathname(pathname: string): FantasyTabId | null {
 function isUnknownFantasyWebTabPathname(pathname: string) {
   const normalizedPathname = normalizeFantasyWebPathname(pathname);
   return (
-    normalizedPathname.startsWith(`${WEB_APP_PATH}/`) &&
+    normalizedPathname.startsWith(`${WEB_LEGACY_APP_PATH}/`) &&
     getFantasyTabFromWebPathname(normalizedPathname) === null
   );
 }
@@ -186,29 +200,7 @@ function normalizeSeasonAccessValue(value: string | null | undefined) {
 function isAdminOnlyFantasySeasonOption(
   season: FantasySeasonOption | null | undefined,
 ) {
-  if (!season) return false;
-
-  const candidates = [
-    season.accessLevel,
-    season.slug,
-    season.logoKey,
-    season.displayName,
-    season.leagueName,
-    season.name,
-    season.shortName,
-  ]
-    .map(normalizeSeasonAccessValue)
-    .filter(Boolean);
-
-  return candidates.some(
-    (candidate) =>
-      candidate === "admin" ||
-      candidate === "polish-ekstraklasa" ||
-      candidate.includes("polish-futsal-ekstraklasa") ||
-      candidate.includes("polish-ekstraklasa") ||
-      candidate.includes("polish ekstraklasa") ||
-      candidate.includes("polska ekstraklasa"),
-  );
+  return normalizeSeasonAccessValue(season?.accessLevel) === "admin";
 }
 
 type ConvexTokenStatus = "idle" | "loading" | "ready" | "failed";
@@ -612,7 +604,7 @@ function FantasyShellHeader({
       </View>
 
       {shouldShowWebNav ? (
-        <View style={styles.fantasyHeaderWebNav}>
+        <View pointerEvents="box-none" style={styles.fantasyHeaderWebNav}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             const label = t(FANTASY_TAB_LABEL_KEYS[tab.id]);
@@ -897,6 +889,28 @@ export function FantasyHome({
     notificationSummaryQuery,
     privateDataCacheKey,
   );
+  const playerProfileRevision = useMemo(
+    () => ({
+      fantasyPlayers,
+      fantasyClubs,
+      fantasyFixtures,
+      fantasyGameweeks,
+      seasonPlayerStatistics,
+    }),
+    [
+      fantasyPlayers,
+      fantasyClubs,
+      fantasyFixtures,
+      fantasyGameweeks,
+      seasonPlayerStatistics,
+    ],
+  );
+  const playerProfileCache = usePlayerProfileCacheSession({
+    scopeKey: currentAuthUserId ? seasonDataCacheKey : undefined,
+    seasonSlug: selectedSeasonSlug,
+    enabled: shouldQuerySelectedSeasonData,
+    revision: playerProfileRevision,
+  });
   const currentBackendUser = currentUserProfile?.user ?? null;
   const currentViewerIsAdmin = Boolean(currentUserProfile?.isAdmin);
   const currentViewerAccessResolved =
@@ -2088,6 +2102,7 @@ export function FantasyHome({
 
   return (
     <FantasySeasonThemeProvider season={activeFantasySeason}>
+      <PlayerProfileCacheProvider value={playerProfileCache}>
       <View style={styles.fantasyShell}>
         <FantasyStaticImagePreloader />
         {isShellHeaderHidden ? null : (
@@ -2203,6 +2218,7 @@ export function FantasyHome({
         )
       ) : null}
       </View>
+      </PlayerProfileCacheProvider>
     </FantasySeasonThemeProvider>
   );
 }

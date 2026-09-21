@@ -702,6 +702,9 @@ async function deleteUserDataForUser(
     .collect();
 
   for (const fantasyTeam of fantasyTeams) {
+    const chipStates = await ctx.db.query("fantasyTeamGameweekStates")
+      .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id)).collect();
+    for (const state of chipStates) await ctx.db.delete(state._id);
     const picks = await ctx.db
       .query("fantasySquadPicks")
       .withIndex("by_team", (q) => q.eq("fantasyTeamId", fantasyTeam._id))

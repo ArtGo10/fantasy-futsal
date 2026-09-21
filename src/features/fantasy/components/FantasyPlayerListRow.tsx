@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
-import { ArrowDown, ArrowUp, Coins, Star } from "lucide-react-native";
-import { memo, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, Coins, Info, Star } from "lucide-react-native";
+import { memo, type ReactNode, useRef } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { TranslationKey } from "../../../i18n/translations";
@@ -13,6 +13,7 @@ import {
 import { formatFantasyMoney } from "../utils/money";
 import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import { TeamKitAvatar } from "./TeamKitAvatar";
+import { createScrollTapGuard } from "../utils/scrollTapGuard";
 
 type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
@@ -39,6 +40,8 @@ export type FantasyPlayerListRowPlayer = {
   photoUrl: string | null;
   appearances?: number | null;
   assists?: number | null;
+  averagePointsPerGameweek?: number | null;
+  form?: number | null;
   goals?: number | null;
   lastGameweekPoints?: number | null;
   penaltiesMissed?: number | null;
@@ -62,6 +65,11 @@ export type FantasyPlayerListRowPlayer = {
   yellowCards?: number | null;
   redCards?: number | null;
 };
+
+type PlayerName = Pick<
+  FantasyPlayerListRowPlayer,
+  "displayName" | "firstName" | "lastName"
+>;
 
 export const FANTASY_PLAYER_LIST_ROW_HEIGHT = 86;
 export const FANTASY_PLAYER_PICKER_STATS_ROW_HEIGHT = 64;
@@ -102,7 +110,7 @@ function stripTrailingBracketAlias(value: string) {
   return value.replace(/\s*\([^()]*\)\s*$/g, "").trim();
 }
 
-function getPlayerFirstInitial(player: FantasyPlayerListRowPlayer) {
+function getPlayerFirstInitial(player: PlayerName) {
   const firstName = player.firstName?.trim();
   if (firstName) return Array.from(firstName)[0] ?? null;
 
@@ -115,7 +123,7 @@ function getPlayerFirstInitial(player: FantasyPlayerListRowPlayer) {
   return null;
 }
 
-function getPlayerLastNameLabel(player: FantasyPlayerListRowPlayer) {
+function getPlayerLastNameLabel(player: PlayerName) {
   const aliasLabel = getBracketAliasLabel(player.displayName);
   if (aliasLabel) {
     const aliasParts = aliasLabel.trim().split(/\s+/).filter(Boolean);
@@ -139,7 +147,7 @@ function getPlayerLastNameLabel(player: FantasyPlayerListRowPlayer) {
 }
 
 export function formatFantasyPlayerListName(
-  player: FantasyPlayerListRowPlayer,
+  player: PlayerName,
 ) {
   const firstInitial = getPlayerFirstInitial(player);
   const lastName = getPlayerLastNameLabel(player);
@@ -175,11 +183,12 @@ export function FantasyPlayerStatusBadge({
   status,
   t,
 }: {
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   status: PlayerStatus;
   t: Translate;
 }) {
-  const isCompact = size === "sm";
+  const isCompact = size !== "md";
+  const isExtraSmall = size === "xs";
 
   if (status === "active") {
     return (
@@ -188,6 +197,7 @@ export function FantasyPlayerStatusBadge({
         style={[
           styles.marketStatusIcon,
           isCompact ? styles.fantasyPlayerStatusBadgeCompact : null,
+          isExtraSmall ? styles.fantasyPlayerStatusBadgeExtraSmall : null,
           styles.marketStatusIconActive,
         ]}
       >
@@ -195,6 +205,7 @@ export function FantasyPlayerStatusBadge({
           style={[
             styles.marketStatusIconText,
             isCompact ? styles.fantasyPlayerStatusTextCompact : null,
+            isExtraSmall ? styles.fantasyPlayerStatusTextExtraSmall : null,
           ]}
         >
           ✓
@@ -211,6 +222,7 @@ export function FantasyPlayerStatusBadge({
       style={[
         styles.fantasyPlayerStatusTriangleWrap,
         isCompact ? styles.fantasyPlayerStatusTriangleWrapCompact : null,
+        isExtraSmall ? styles.fantasyPlayerStatusTriangleWrapExtraSmall : null,
       ]}
     >
       <View
@@ -218,6 +230,7 @@ export function FantasyPlayerStatusBadge({
           styles.fantasyPlayerStatusTriangle,
           isDoubtful ? styles.fantasyPlayerStatusTriangleDoubtful : null,
           isCompact ? styles.fantasyPlayerStatusTriangleCompact : null,
+          isExtraSmall ? styles.fantasyPlayerStatusTriangleExtraSmall : null,
         ]}
       />
       <Text
@@ -300,6 +313,10 @@ export function FantasyPlayerPickerStatsSeparator() {
 function formatListStat(value: number | null | undefined) {
   const rounded = Number((value ?? 0).toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function getFantasyPlayerForm(player: FantasyPlayerListRowPlayer) {
+  return player.form ?? player.averagePointsPerGameweek ?? 0;
 }
 
 function FantasyPlayerPickerMetric({
@@ -420,6 +437,7 @@ export function FantasyPlayerPickerStatsHeader({
 
 type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
   club: FantasyPlayerListRowClub | null;
+  disabledAppearance?: "background" | "opacity";
   isDisabled?: boolean;
   isFavorite?: boolean;
   isHighlighted?: boolean;
@@ -427,6 +445,7 @@ type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
   loadImages?: boolean;
   nameAccessory?: ReactNode;
   onPress: (player: TPlayer) => void;
+  onInfoPress?: (player: TPlayer) => void;
   pickerNameFormat?: "lastName" | "initialLastName";
   player: TPlayer;
   showStatsMarkerColumn?: boolean;
@@ -439,12 +458,14 @@ type FantasyPlayerListRowProps<TPlayer extends FantasyPlayerListRowPlayer> = {
 
 function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
   club,
+  disabledAppearance = "background",
   isDisabled = false,
   isFavorite = false,
   isHighlighted = false,
   isSelected = false,
   nameAccessory = null,
   onPress,
+  onInfoPress,
   pickerNameFormat = "lastName",
   player,
   showStatsMarkerColumn = false,
@@ -455,6 +476,7 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
   variant = "market",
 }: FantasyPlayerListRowProps<TPlayer>) {
   const fantasyTheme = useFantasySeasonTheme();
+  const tapGuard = useRef(createScrollTapGuard()).current;
   const sideTextStyle = isDisabled
     ? styles.marketSideValueMuted
     : styles.marketSideValue;
@@ -474,137 +496,190 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
     return (
       <View
         style={[
-          styles.playerPickerStatsPlayerRow,
-          isHighlighted ? styles.playerPickerRowIncomingTransfer : null,
-          isSelected
-            ? [
-                styles.playerPickerRowSelected,
-                {
-                  backgroundColor: fantasyTheme.softColor,
-                  borderColor: fantasyTheme.primaryColor,
-                },
-              ]
+          styles.playerPickerStatsRowContainer,
+          isDisabled && disabledAppearance === "opacity"
+            ? styles.playerPickerRowDisabled
             : null,
-          isDisabled ? styles.playerPickerRowDisabled : null,
         ]}
+        onTouchStart={(event) => tapGuard.start(event.nativeEvent)}
+        onTouchMove={(event) => tapGuard.move(event.nativeEvent)}
+        onTouchEnd={(event) => tapGuard.move(event.nativeEvent)}
+        onTouchCancel={() => tapGuard.cancel()}
       >
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={player.displayName}
+          accessibilityState={{ selected: isSelected }}
           disabled={isDisabled}
-          onPress={() => onPress(player)}
-          style={styles.playerPickerStatsPlayerCell}
+          onAccessibilityTap={() => { if (!isDisabled) onPress(player); }}
+          onPress={(event) => {
+            if (tapGuard.allowsPress(event.nativeEvent)) onPress(player);
+          }}
+          style={[
+            styles.playerPickerStatsPlayerRow,
+            isHighlighted ? styles.playerPickerRowIncomingTransfer : null,
+            isSelected
+              ? [
+                  styles.playerPickerRowSelected,
+                  {
+                    backgroundColor: fantasyTheme.softColor,
+                    borderColor: fantasyTheme.primaryColor,
+                  },
+                ]
+              : null,
+            isDisabled && disabledAppearance === "background"
+              ? styles.playerPickerStatsRowDisabled
+              : null,
+          ]}
         >
-          <FantasyPlayerStatusBadge status={player.status} t={t} size="sm" />
-          <TeamKitAvatar
-            clubName={player.clubName}
-            clubShortName={club?.shortName ?? club?.name ?? null}
-            displayName={player.displayName}
-            isMuted={isDisabled}
-            position={player.position}
-            size="xs"
-          />
-          <View style={styles.playerPickerStatsPlayerMain}>
-            <View style={styles.playerPickerStatsNameLine}>
-              <Text
-                numberOfLines={1}
-                style={styles.playerPickerStatsPlayerName}
-              >
-                {formatFantasyPlayerPickerName(player, {
-                  includeFirstInitial: pickerNameFormat === "initialLastName",
-                })}
-              </Text>
-              {isFavorite ? (
-                <Star
-                  color={colors.state.warning}
-                  fill={colors.brand.yellow}
-                  size={12}
-                  strokeWidth={2.4}
-                />
-              ) : null}
-              {nameAccessory ? (
-                <View style={styles.playerPickerStatsNameAccessory}>
-                  {nameAccessory}
+          <View style={styles.playerPickerStatsPlayerCell}>
+            {onInfoPress ? (
+              <View style={styles.playerPickerInfoSpacer} />
+            ) : (
+              <FantasyPlayerStatusBadge
+                status={player.status}
+                t={t}
+                size="sm"
+              />
+            )}
+            <View style={styles.playerPickerShirtContainer}>
+              <TeamKitAvatar
+                clubName={player.clubName}
+                clubShortName={club?.shortName ?? club?.name ?? null}
+                displayName={player.displayName}
+                position={player.position}
+                size="xs"
+              />
+              {onInfoPress && player.status !== "active" ? (
+                <View style={styles.playerPickerShirtStatus}>
+                  <FantasyPlayerStatusBadge
+                    status={player.status}
+                    t={t}
+                    size="xs"
+                  />
                 </View>
               ) : null}
             </View>
-            <View style={styles.playerPickerStatsMetaLine}>
-              <Text numberOfLines={1} style={styles.playerPickerStatsClubName}>
-                {player.clubName ?? t("players.noClub")}
-              </Text>
-              {stateLabel ? (
+            <View style={styles.playerPickerStatsPlayerMain}>
+              <View style={styles.playerPickerStatsNameLine}>
                 <Text
                   numberOfLines={1}
-                  style={
-                    stateTone === "danger"
-                      ? styles.playerPickerStatsStateLabelDanger
-                      : styles.playerPickerStatsStateLabelSuccess
-                  }
+                  style={styles.playerPickerStatsPlayerName}
                 >
-                  {stateLabel}
+                  {formatFantasyPlayerPickerName(player, {
+                    includeFirstInitial: pickerNameFormat === "initialLastName",
+                  })}
+                </Text>
+                {isFavorite ? (
+                  <Star
+                    color={colors.state.warning}
+                    fill={colors.brand.yellow}
+                    size={12}
+                    strokeWidth={2.4}
+                  />
+                ) : null}
+                {nameAccessory ? (
+                  <View style={styles.playerPickerStatsNameAccessory}>
+                    {nameAccessory}
+                  </View>
+                ) : null}
+              </View>
+              <View style={styles.playerPickerStatsMetaLine}>
+                <Text
+                  numberOfLines={1}
+                  style={styles.playerPickerStatsClubName}
+                >
+                  {player.clubName ?? t("players.noClub")}
+                </Text>
+                {stateLabel ? (
+                  <Text
+                    numberOfLines={1}
+                    style={
+                      stateTone === "danger"
+                        ? styles.playerPickerStatsStateLabelDanger
+                        : styles.playerPickerStatsStateLabelSuccess
+                    }
+                  >
+                    {stateLabel}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          {showStatsMarkerColumn ? (
+            <View style={styles.playerPickerStatsMarkerCell}>
+              {statsMarkerLabel ? (
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.playerPickerStatsMarkerText,
+                    { color: fantasyTheme.primaryColor },
+                  ]}
+                >
+                  {statsMarkerLabel}
                 </Text>
               ) : null}
             </View>
+          ) : null}
+
+          <View style={styles.playerPickerStatsMetrics}>
+            <FantasyPlayerPickerMetric
+              isFirst
+              label={t("team.list.price")}
+              tone="price"
+              value={formatFantasyMoney(player.price)}
+              wide
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.pointsShort")}
+              value={formatListStat(player.seasonPoints)}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("team.list.form")}
+              value={formatListStat(getFantasyPlayerForm(player))}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("team.list.selected")}
+              value={formatListStat(player.selectedPercent) + "%"}
+              wide
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.appsShort")}
+              value={formatListStat(player.appearances)}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.goalsShort")}
+              value={formatListStat(player.goals)}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.assistsShort")}
+              value={formatListStat(player.assists)}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.yellowCardsShort")}
+              value={formatListStat(player.yellowCards)}
+            />
+            <FantasyPlayerPickerMetric
+              label={t("season.stats.redCardsShort")}
+              value={formatListStat(player.redCards)}
+            />
           </View>
         </Pressable>
-
-        {showStatsMarkerColumn ? (
-          <View style={styles.playerPickerStatsMarkerCell}>
-            {statsMarkerLabel ? (
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.playerPickerStatsMarkerText,
-                  { color: fantasyTheme.primaryColor },
-                ]}
-              >
-                {statsMarkerLabel}
-              </Text>
-            ) : null}
-          </View>
+        {onInfoPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("playerDetails.open")}: ${player.displayName}`}
+            hitSlop={8}
+            onAccessibilityTap={() => onInfoPress(player)}
+            onPress={(event) => {
+              if (tapGuard.allowsPress(event.nativeEvent)) onInfoPress(player);
+            }}
+            style={styles.playerPickerInfoButton}
+          >
+            <Info color="#000000" fill="#FFFFFF" size={18} strokeWidth={2} />
+          </Pressable>
         ) : null}
-
-        <View style={styles.playerPickerStatsMetrics}>
-          <FantasyPlayerPickerMetric
-            isFirst
-            label={t("team.list.price")}
-            tone="price"
-            value={formatFantasyMoney(player.price)}
-            wide
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.pointsShort")}
-            value={formatListStat(player.seasonPoints)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("team.list.form")}
-            value={formatListStat(player.lastGameweekPoints)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("team.list.selected")}
-            value={formatListStat(player.selectedPercent) + "%"}
-            wide
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.appsShort")}
-            value={formatListStat(player.appearances)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.goalsShort")}
-            value={formatListStat(player.goals)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.assistsShort")}
-            value={formatListStat(player.assists)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.yellowCardsShort")}
-            value={formatListStat(player.yellowCards)}
-          />
-          <FantasyPlayerPickerMetric
-            label={t("season.stats.redCardsShort")}
-            value={formatListStat(player.redCards)}
-          />
-        </View>
       </View>
     );
   }
@@ -629,17 +704,23 @@ function FantasyPlayerListRowInner<TPlayer extends FantasyPlayerListRowPlayer>({
         isDisabled ? styles.playerPickerRowDisabled : null,
       ]}
     >
-      <TeamKitAvatar
-        clubName={player.clubName}
-        clubShortName={club?.shortName ?? club?.name ?? null}
-        displayName={player.displayName}
-        isMuted={isDisabled}
-        position={player.position}
-        size="lg"
-      />
+      <View style={styles.playerPickerShirtContainer}>
+        <TeamKitAvatar
+          clubName={player.clubName}
+          clubShortName={club?.shortName ?? club?.name ?? null}
+          displayName={player.displayName}
+          isMuted={isDisabled}
+          position={player.position}
+          size="lg"
+        />
+        {player.status !== "active" ? (
+          <View style={styles.playerPickerShirtStatus}>
+            <FantasyPlayerStatusBadge status={player.status} t={t} size="md" />
+          </View>
+        ) : null}
+      </View>
       <View style={styles.marketPlayerMain}>
         <View style={styles.marketPlayerNameRow}>
-          <FantasyPlayerStatusBadge status={player.status} t={t} />
           <Text numberOfLines={1} style={styles.marketPlayerName}>
             {formatFantasyPlayerListName(player)}
           </Text>

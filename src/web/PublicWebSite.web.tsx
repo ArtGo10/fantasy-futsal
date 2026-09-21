@@ -525,7 +525,7 @@ export function PublicWebSite() {
       >
         <Pressable
           accessibilityRole="link"
-          onPress={() => navigate("/")}
+          onPress={openApp}
           style={[
             webStyles.brand,
             layout.isNarrow ? webStyles.brandNarrow : null,
@@ -588,14 +588,7 @@ export function PublicWebSite() {
         </View>
       </View>
 
-      {route === "/" ? (
-        <LandingPage
-          copy={copy}
-          layout={layout}
-          navigate={navigate}
-          openApp={openApp}
-        />
-      ) : route === "/privacy" ? (
+      {route === "/privacy" ? (
         <LegalPage
           copy={copy}
           kind="privacy"
@@ -625,7 +618,7 @@ export function PublicWebSite() {
           openMail={openMail}
         />
       ) : route === NOT_FOUND_PUBLIC_WEB_PATH ? (
-        <NotFoundPage copy={copy} layout={layout} navigate={navigate} />
+        <NotFoundPage copy={copy} layout={layout} openApp={openApp} />
       ) : null}
 
       <Footer copy={copy} layout={layout} navigate={navigate} />
@@ -936,11 +929,11 @@ function AccountDeletionPage({
 function NotFoundPage({
   copy,
   layout,
-  navigate,
+  openApp,
 }: {
   copy: PublicCopy;
   layout: PublicLayout;
-  navigate: (path: PublicWebPath) => void;
+  openApp: () => void;
 }) {
   return (
     <ArticleShell
@@ -949,7 +942,7 @@ function NotFoundPage({
       layout={layout}
       title={copy.notFound.title}
     >
-      <Pressable onPress={() => navigate("/")} style={webStyles.primaryButton}>
+      <Pressable onPress={openApp} style={webStyles.primaryButton}>
         <Text style={webStyles.primaryButtonText}>{copy.notFound.cta}</Text>
       </Pressable>
     </ArticleShell>
@@ -1076,7 +1069,6 @@ const webStyles = StyleSheet.create({
   },
   header: {
     width: "100%",
-    maxWidth: 1120,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1168,7 +1160,6 @@ const webStyles = StyleSheet.create({
   },
   main: {
     width: "100%",
-    maxWidth: 1120,
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
   },
@@ -1224,7 +1215,6 @@ const webStyles = StyleSheet.create({
     lineHeight: 39,
   },
   heroDescription: {
-    maxWidth: 560,
     color: colors.text.secondary,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.medium,
@@ -1401,7 +1391,7 @@ const webStyles = StyleSheet.create({
   },
   articleShell: {
     width: "100%",
-    maxWidth: 860,
+    alignItems: "flex-start",
     gap: spacing.xl,
     paddingTop: spacing.xxxl,
   },
@@ -1414,6 +1404,8 @@ const webStyles = StyleSheet.create({
     paddingTop: spacing.lg,
   },
   articleHero: {
+    width: "100%",
+    alignItems: "flex-start",
     gap: spacing.sm,
   },
   articleTitle: {
@@ -1506,7 +1498,6 @@ const webStyles = StyleSheet.create({
   },
   footer: {
     width: "100%",
-    maxWidth: 1120,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
     gap: spacing.sm,
