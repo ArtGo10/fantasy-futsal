@@ -79,6 +79,9 @@ export const api = {
     deleteFixtureLineup: functionRef<
       GeneratedApi["fantasy"]["deleteFixtureLineup"]
     >("fantasy:deleteFixtureLineup"),
+    deleteAdminPlayer: functionRef<
+      GeneratedApi["fantasy"]["deleteAdminPlayer"]
+    >("fantasy:deleteAdminPlayer"),
     lockGameweek: functionRef<GeneratedApi["fantasy"]["lockGameweek"]>(
       "fantasy:lockGameweek",
     ),
@@ -100,6 +103,9 @@ export const api = {
     setFixtureResult: functionRef<GeneratedApi["fantasy"]["setFixtureResult"]>(
       "fantasy:setFixtureResult",
     ),
+    saveAdminFixtureSheet: functionRef<
+      GeneratedApi["fantasy"]["saveAdminFixtureSheet"]
+    >("fantasy:saveAdminFixtureSheet"),
     syncDefaultScoringRules: functionRef<
       GeneratedApi["fantasy"]["syncDefaultScoringRules"]
     >("fantasy:syncDefaultScoringRules"),
@@ -112,6 +118,9 @@ export const api = {
     upsertFixtureLineup: functionRef<
       GeneratedApi["fantasy"]["upsertFixtureLineup"]
     >("fantasy:upsertFixtureLineup"),
+    upsertAdminPlayer: functionRef<
+      GeneratedApi["fantasy"]["upsertAdminPlayer"]
+    >("fantasy:upsertAdminPlayer"),
   },
   notifications: {
     currentUserNotificationSummary: functionRef<

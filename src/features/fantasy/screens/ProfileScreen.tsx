@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Pencil, Plus, Save, Trash2, X } from "lucide-react-native";
 
 import { ClearableTextInput } from "../../../components/common/ClearableTextInput";
 import { LoadingBlock } from "../../../components/common/LoadingBlock";
@@ -39,6 +39,13 @@ import { useFantasySeasonTheme } from "../utils/seasonThemeContext";
 import type { FantasyFixture, FantasyGameweek } from "./FixturesScreen";
 
 type AdminGameweekAction = "lock" | "recalculate" | "complete";
+type AdminTab = "fixtures" | "players" | "tools";
+type AdminFixtureStatus =
+  | "scheduled"
+  | "live"
+  | "completed"
+  | "postponed"
+  | "cancelled";
 type AdminFixtureEventType =
   | "goal"
   | "assist"
@@ -49,18 +56,78 @@ type AdminFixtureEventType =
   | "penalty_missed"
   | "penalty_saved";
 type AdminFixtureSide = "home" | "away";
+type AdminPlayerPosition = "goalkeeper" | "universal";
+type AdminPlayerStatus =
+  | "active"
+  | "doubtful"
+  | "injured"
+  | "suspended"
+  | "unavailable"
+  | "left";
+
+type FantasyClub = {
+  id: Id<"fantasyClubs">;
+  isActive?: boolean;
+  name: string;
+  shortName: string | null;
+  sortOrder?: number;
+};
 
 type FantasyPlayer = {
   clubId: Id<"fantasyClubs"> | null;
   clubName: string | null;
   displayName: string;
+  firstName: string | null;
   id: Id<"fantasyPlayers">;
+  initialPrice?: number | null;
+  jerseyNumber?: number | null;
+  lastName: string;
+  photoThumbnailUrl?: string | null;
+  photoUrl?: string | null;
   position: "goalkeeper" | "universal";
-  status: string;
+  price: number;
+  status: AdminPlayerStatus;
+  statusDetails?: {
+    message?: string | null;
+    messageEn?: string | null;
+    messagePl?: string | null;
+    messageUk?: string | null;
+    updatedAt?: number | null;
+  } | null;
+};
+
+type AdminPlayerFormState = {
+  clubId: string;
+  displayName: string;
+  firstName: string;
+  initialPrice: string;
+  jerseyNumber: string;
+  lastName: string;
+  photoThumbnailUrl: string;
+  photoUrl: string;
+  position: AdminPlayerPosition;
+  price: string;
+  status: AdminPlayerStatus;
+  statusMessage: string;
+};
+
+type AdminFixtureSheetRow = {
+  playerId: Id<"fantasyPlayers">;
+  side: AdminFixtureSide;
+  appeared: boolean;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  secondYellowRedCards: number;
+  redCards: number;
+  ownGoals: number;
+  penaltiesMissed: number;
+  penaltiesSaved: number;
 };
 
 type ProfileScreenProps = {
   canQueryPrivateData?: boolean;
+  clubs: FantasyClub[] | undefined;
   email: string | undefined;
   fixtures: FantasyFixture[] | undefined;
   gameweeks: FantasyGameweek[] | undefined;
@@ -75,26 +142,156 @@ type ProfileScreenProps = {
   seasonSlug?: string | null;
 };
 
-const ADMIN_EVENT_TYPES: AdminFixtureEventType[] = [
-  "goal",
-  "assist",
-  "yellow_card",
-  "second_yellow_red",
-  "red_card",
-  "own_goal",
-  "penalty_missed",
-  "penalty_saved",
+const ADMIN_TABS: AdminTab[] = ["fixtures", "players", "tools"];
+
+const ADMIN_TAB_LABEL_KEYS: Record<AdminTab, TranslationKey> = {
+  fixtures: "profile.adminTabFixtures",
+  players: "profile.adminTabPlayers",
+  tools: "profile.adminTabTools",
+};
+
+const ADMIN_FIXTURE_STAT_FIELDS: Array<{
+  key: keyof Omit<
+    AdminFixtureSheetRow,
+    "appeared" | "playerId" | "side"
+  >;
+  labelKey: TranslationKey;
+}> = [
+  { key: "goals", labelKey: "profile.adminFixtureStat.goals" },
+  { key: "assists", labelKey: "profile.adminFixtureStat.assists" },
+  { key: "yellowCards", labelKey: "profile.adminFixtureStat.yellowCards" },
+  {
+    key: "secondYellowRedCards",
+    labelKey: "profile.adminFixtureStat.secondYellowRedCards",
+  },
+  { key: "redCards", labelKey: "profile.adminFixtureStat.redCards" },
+  { key: "ownGoals", labelKey: "profile.adminFixtureStat.ownGoals" },
+  {
+    key: "penaltiesMissed",
+    labelKey: "profile.adminFixtureStat.penaltiesMissed",
+  },
+  {
+    key: "penaltiesSaved",
+    labelKey: "profile.adminFixtureStat.penaltiesSaved",
+  },
 ];
 
-const ADMIN_EVENT_LABEL_KEYS: Record<AdminFixtureEventType, TranslationKey> = {
-  assist: "profile.adminFixtureEventType.assist",
-  goal: "profile.adminFixtureEventType.goal",
-  own_goal: "profile.adminFixtureEventType.ownGoal",
-  penalty_missed: "profile.adminFixtureEventType.penaltyMissed",
-  penalty_saved: "profile.adminFixtureEventType.penaltySaved",
-  red_card: "profile.adminFixtureEventType.redCard",
-  second_yellow_red: "profile.adminFixtureEventType.secondYellowRed",
-  yellow_card: "profile.adminFixtureEventType.yellowCard",
+const ADMIN_FIXTURE_STAT_EVENT_TYPES: Record<
+  keyof Omit<AdminFixtureSheetRow, "appeared" | "playerId" | "side">,
+  AdminFixtureEventType
+> = {
+  assists: "assist",
+  goals: "goal",
+  ownGoals: "own_goal",
+  penaltiesMissed: "penalty_missed",
+  penaltiesSaved: "penalty_saved",
+  redCards: "red_card",
+  secondYellowRedCards: "second_yellow_red",
+  yellowCards: "yellow_card",
+};
+
+const ADMIN_FIXTURE_STAT_MAX = 9;
+
+const ADMIN_FIXTURE_STAT_ZERO_ROW = {
+  assists: 0,
+  goals: 0,
+  ownGoals: 0,
+  penaltiesMissed: 0,
+  penaltiesSaved: 0,
+  redCards: 0,
+  secondYellowRedCards: 0,
+  yellowCards: 0,
+};
+
+const ADMIN_FIXTURE_STAT_LABEL_SHORT: Record<
+  keyof typeof ADMIN_FIXTURE_STAT_ZERO_ROW,
+  string
+> = {
+  assists: "A",
+  goals: "G",
+  ownGoals: "OG",
+  penaltiesMissed: "PM",
+  penaltiesSaved: "PS",
+  redCards: "RC",
+  secondYellowRedCards: "2Y",
+  yellowCards: "YC",
+};
+
+const ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE: Record<
+  AdminFixtureEventType,
+  keyof typeof ADMIN_FIXTURE_STAT_ZERO_ROW
+> = {
+  assist: "assists",
+  goal: "goals",
+  own_goal: "ownGoals",
+  penalty_missed: "penaltiesMissed",
+  penalty_saved: "penaltiesSaved",
+  red_card: "redCards",
+  second_yellow_red: "secondYellowRedCards",
+  yellow_card: "yellowCards",
+};
+
+const ADMIN_FIXTURE_STAT_EVENT_TYPE_SET = new Set<AdminFixtureEventType>(
+  Object.values(ADMIN_FIXTURE_STAT_EVENT_TYPES),
+);
+
+const ADMIN_FIXTURE_STAT_KEYS = Object.keys(
+  ADMIN_FIXTURE_STAT_ZERO_ROW,
+) as Array<keyof typeof ADMIN_FIXTURE_STAT_ZERO_ROW>;
+
+const ADMIN_PLAYER_STATUSES: AdminPlayerStatus[] = [
+  "active",
+  "doubtful",
+  "injured",
+  "suspended",
+  "unavailable",
+  "left",
+];
+
+const ADMIN_PLAYER_STATUS_LABEL_KEYS: Record<
+  AdminPlayerStatus,
+  TranslationKey
+> = {
+  active: "players.playerStatus.active",
+  doubtful: "players.playerStatus.doubtful",
+  injured: "players.playerStatus.injured",
+  left: "players.playerStatus.left",
+  suspended: "players.playerStatus.suspended",
+  unavailable: "players.playerStatus.unavailable",
+};
+
+const ADMIN_FIXTURE_STATUSES: AdminFixtureStatus[] = [
+  "scheduled",
+  "live",
+  "completed",
+  "postponed",
+  "cancelled",
+];
+
+const ADMIN_FIXTURE_STATUS_LABEL_KEYS: Record<
+  AdminFixtureStatus,
+  TranslationKey
+> = {
+  cancelled: "profile.adminFixtureStatus.cancelled",
+  completed: "profile.adminFixtureStatus.completed",
+  live: "profile.adminFixtureStatus.live",
+  postponed: "profile.adminFixtureStatus.postponed",
+  scheduled: "profile.adminFixtureStatus.scheduled",
+};
+
+const EMPTY_ADMIN_PLAYER_FORM: AdminPlayerFormState = {
+  clubId: "",
+  displayName: "",
+  firstName: "",
+  initialPrice: "",
+  jerseyNumber: "",
+  lastName: "",
+  photoThumbnailUrl: "",
+  photoUrl: "",
+  position: "universal",
+  price: "",
+  status: "active",
+  statusMessage: "",
 };
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
@@ -126,6 +323,50 @@ function formatFixtureScore(fixture: FantasyFixture) {
   return `${fixture.homeScore}:${fixture.awayScore}`;
 }
 
+function formatDateTimeInputValue(value: number | null | undefined) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseDateTimeInputValue(value: string) {
+  const normalized = value.trim();
+  if (!normalized) throw new Error("Дата матча обязательна.");
+
+  const timestamp = new Date(normalized).getTime();
+  if (!Number.isFinite(timestamp)) {
+    throw new Error("Введите дату матча в формате YYYY-MM-DDTHH:mm.");
+  }
+
+  return timestamp;
+}
+
+function parseNullableAdminInteger(value: string, fieldName: string) {
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const parsed = Number(normalized);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${fieldName}: нужно неотрицательное целое число.`);
+  }
+
+  return parsed;
+}
+
+function parseRequiredAdminNumber(value: string, fieldName: string) {
+  const normalized = value.trim().replace(",", ".");
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${fieldName}: нужно неотрицательное число.`);
+  }
+
+  return parsed;
+}
+
 function getFixtureClubIdBySide(
   fixture: FantasyFixture | null,
   side: AdminFixtureSide,
@@ -134,8 +375,40 @@ function getFixtureClubIdBySide(
   return side === "home" ? fixture.homeClubId : fixture.awayClubId;
 }
 
+function createAdminPlayerForm(player?: FantasyPlayer | null) {
+  if (!player) return EMPTY_ADMIN_PLAYER_FORM;
+
+  return {
+    clubId: player.clubId ?? "",
+    displayName: player.displayName,
+    firstName: player.firstName ?? "",
+    initialPrice: String(player.initialPrice ?? player.price),
+    jerseyNumber:
+      player.jerseyNumber === null || player.jerseyNumber === undefined
+        ? ""
+        : String(player.jerseyNumber),
+    lastName: player.lastName,
+    photoThumbnailUrl: player.photoThumbnailUrl ?? "",
+    photoUrl: player.photoUrl ?? "",
+    position: player.position,
+    price: String(player.price),
+    status: player.status,
+    statusMessage:
+      player.statusDetails?.message ??
+      player.statusDetails?.messageEn ??
+      player.statusDetails?.messageUk ??
+      player.statusDetails?.messagePl ??
+      "",
+  };
+}
+
+function getAdminFixtureRowEventCount(row: AdminFixtureSheetRow) {
+  return ADMIN_FIXTURE_STAT_KEYS.reduce((total, key) => total + row[key], 0);
+}
+
 export function ProfileScreen({
   canQueryPrivateData = true,
+  clubs,
   email,
   fixtures,
   gameweeks,
@@ -181,17 +454,16 @@ export function ProfileScreen({
   const completeGameweekAndGrantTransfers = useMutation(
     api.fantasy.completeGameweekAndGrantTransfers,
   );
-  const setFixtureResult = useMutation(api.fantasy.setFixtureResult);
-  const upsertFixtureEvent = useMutation(api.fantasy.upsertFixtureEvent);
-  const deleteFixtureEvent = useMutation(api.fantasy.deleteFixtureEvent);
-  const upsertFixtureLineup = useMutation(api.fantasy.upsertFixtureLineup);
-  const deleteFixtureLineup = useMutation(api.fantasy.deleteFixtureLineup);
+  const saveAdminFixtureSheet = useMutation(api.fantasy.saveAdminFixtureSheet);
+  const upsertAdminPlayer = useMutation(api.fantasy.upsertAdminPlayer);
+  const deleteAdminPlayer = useMutation(api.fantasy.deleteAdminPlayer);
   const submitFeedback = useMutation(api.users.submitFeedback);
   const sendTestPush = useAction(api.notifications.sendTestPushToCurrentUser);
   const sendResultsReadyPush = useAction(
     api.notifications.sendGameweekResultsReadyPushToAll,
   );
   const [scoringBusy, setScoringBusy] = useState(false);
+  const [adminTab, setAdminTab] = useState<AdminTab>("fixtures");
   const [adminStatusText, setAdminStatusText] = useState<string | null>(null);
   const [adminErrorText, setAdminErrorText] = useState<string | null>(null);
   const [adminGameweekText, setAdminGameweekText] = useState("1");
@@ -205,16 +477,14 @@ export function ProfileScreen({
   >(null);
   const [selectedAdminFixtureId, setSelectedAdminFixtureId] =
     useState<Id<"fantasyFixtures"> | null>(null);
+  const [adminFixtureDateText, setAdminFixtureDateText] = useState("");
+  const [adminFixtureStatus, setAdminFixtureStatus] =
+    useState<AdminFixtureStatus>("scheduled");
   const [adminHomeScoreText, setAdminHomeScoreText] = useState("");
   const [adminAwayScoreText, setAdminAwayScoreText] = useState("");
-  const [adminEventType, setAdminEventType] =
-    useState<AdminFixtureEventType>("goal");
-  const [adminEventSide, setAdminEventSide] =
-    useState<AdminFixtureSide>("home");
-  const [adminEventMinuteText, setAdminEventMinuteText] = useState("");
-  const [adminEventPlayerSearch, setAdminEventPlayerSearch] = useState("");
-  const [adminEventPlayerId, setAdminEventPlayerId] =
-    useState<Id<"fantasyPlayers"> | null>(null);
+  const [adminFixtureRows, setAdminFixtureRows] = useState<
+    Record<string, AdminFixtureSheetRow>
+  >({});
   const [adminFixtureBusy, setAdminFixtureBusy] = useState(false);
   const [adminFixtureStatusText, setAdminFixtureStatusText] = useState<
     string | null
@@ -222,6 +492,22 @@ export function ProfileScreen({
   const [adminFixtureErrorText, setAdminFixtureErrorText] = useState<
     string | null
   >(null);
+  const [adminPlayerSearch, setAdminPlayerSearch] = useState("");
+  const [adminPlayerFormOpen, setAdminPlayerFormOpen] = useState(false);
+  const [adminPlayerEditingId, setAdminPlayerEditingId] =
+    useState<Id<"fantasyPlayers"> | null>(null);
+  const [adminPlayerForm, setAdminPlayerForm] = useState<AdminPlayerFormState>(
+    EMPTY_ADMIN_PLAYER_FORM,
+  );
+  const [adminPlayerBusy, setAdminPlayerBusy] = useState(false);
+  const [adminPlayerStatusText, setAdminPlayerStatusText] = useState<
+    string | null
+  >(null);
+  const [adminPlayerErrorText, setAdminPlayerErrorText] = useState<
+    string | null
+  >(null);
+  const [adminPlayerDeleteTargetId, setAdminPlayerDeleteTargetId] =
+    useState<Id<"fantasyPlayers"> | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushStatusText, setPushStatusText] = useState<string | null>(null);
   const [pushErrorText, setPushErrorText] = useState<string | null>(null);
@@ -248,10 +534,10 @@ export function ProfileScreen({
 
   useDismissKeyboardOnChange([
     mode,
+    adminTab,
     selectedAdminFixtureId,
-    adminEventType,
-    adminEventSide,
-    adminEventPlayerId,
+    adminPlayerFormOpen,
+    adminPlayerEditingId,
     legalSheetKind,
     feedbackSheetOpen,
     deleteConfirmOpen,
@@ -262,17 +548,57 @@ export function ProfileScreen({
 
   const selectedFixtureDetails = useSafeQuery(
     api.fantasy.fixtureDetails,
-    isAdmin && mode === "adminActions" && selectedAdminFixtureId
+    isAdmin &&
+      mode === "adminActions" &&
+      adminTab === "fixtures" &&
+      selectedAdminFixtureId
       ? { fixtureId: selectedAdminFixtureId }
       : "skip",
   );
   const adminFeedbackItems = useSafeQuery(
     api.users.listFeedback,
-    isAdmin && mode === "adminActions" && canQueryPrivateData
+    isAdmin &&
+      mode === "adminActions" &&
+      adminTab === "tools" &&
+      canQueryPrivateData
       ? { limit: 10 }
       : "skip",
   );
-
+  const playersById = useMemo(() => {
+    const result = new Map<Id<"fantasyPlayers">, FantasyPlayer>();
+    for (const player of players ?? []) result.set(player.id, player);
+    return result;
+  }, [players]);
+  const sortedAdminClubs = useMemo(
+    () =>
+      [...(clubs ?? [])].sort(
+        (a, b) =>
+          (a.sortOrder ?? 999) - (b.sortOrder ?? 999) ||
+          a.name.localeCompare(b.name),
+      ),
+    [clubs],
+  );
+  const filteredAdminPlayers = useMemo(() => {
+    const searchValue = normalizeSearchValue(adminPlayerSearch);
+    return [...(players ?? [])]
+      .filter((player) => {
+        if (!searchValue) return true;
+        return [
+          player.displayName,
+          player.firstName,
+          player.lastName,
+          player.clubName,
+          player.jerseyNumber === null || player.jerseyNumber === undefined
+            ? null
+            : String(player.jerseyNumber),
+        ].some((value) => normalizeSearchValue(value).includes(searchValue));
+      })
+      .sort(
+        (a, b) =>
+          (a.clubName ?? "").localeCompare(b.clubName ?? "") ||
+          a.displayName.localeCompare(b.displayName),
+      );
+  }, [adminPlayerSearch, players]);
   const sortedGameweeks = useMemo(
     () => [...(gameweeks ?? [])].sort((a, b) => a.number - b.number),
     [gameweeks],
@@ -301,31 +627,26 @@ export function ProfileScreen({
   );
   const selectedAdminFixtureForForm =
     selectedFixtureDetails?.fixture ?? selectedAdminFixture;
-  const selectedAdminFixtureClubId = getFixtureClubIdBySide(
-    selectedAdminFixture,
-    adminEventSide,
-  );
-  const selectedAdminEventPlayer = useMemo(
-    () =>
-      (players ?? []).find((player) => player.id === adminEventPlayerId) ??
-      null,
-    [adminEventPlayerId, players],
-  );
-  const adminEventPlayerOptions = useMemo(() => {
-    if (!selectedAdminFixtureClubId) return [];
+  const getAdminFixturePlayersBySide = (side: AdminFixtureSide) => {
+    const clubId = getFixtureClubIdBySide(selectedAdminFixtureForForm, side);
+    if (!clubId) return [];
 
-    const searchValue = normalizeSearchValue(adminEventPlayerSearch);
     return [...(players ?? [])]
-      .filter(
-        (player) =>
-          player.clubId === selectedAdminFixtureClubId &&
-          player.status !== "left" &&
-          (!searchValue ||
-            normalizeSearchValue(player.displayName).includes(searchValue)),
-      )
-      .sort((a, b) => a.displayName.localeCompare(b.displayName))
-      .slice(0, 12);
-  }, [adminEventPlayerSearch, players, selectedAdminFixtureClubId]);
+      .filter((player) => player.clubId === clubId)
+      .sort(
+        (a, b) =>
+          (a.jerseyNumber ?? 999) - (b.jerseyNumber ?? 999) ||
+          a.displayName.localeCompare(b.displayName),
+      );
+  };
+  const adminHomeFixturePlayers = useMemo(
+    () => getAdminFixturePlayersBySide("home"),
+    [players, selectedAdminFixtureForForm?.homeClubId],
+  );
+  const adminAwayFixturePlayers = useMemo(
+    () => getAdminFixturePlayersBySide("away"),
+    [players, selectedAdminFixtureForForm?.awayClubId],
+  );
 
   useEffect(() => {
     if (!isAdmin || mode !== "adminActions") return;
@@ -346,11 +667,24 @@ export function ProfileScreen({
 
   useEffect(() => {
     if (!selectedAdminFixtureForForm) {
+      setAdminFixtureDateText("");
+      setAdminFixtureStatus("scheduled");
       setAdminHomeScoreText("");
       setAdminAwayScoreText("");
+      setAdminFixtureRows({});
       return;
     }
 
+    setAdminFixtureDateText(
+      formatDateTimeInputValue(selectedAdminFixtureForForm.scheduledAt),
+    );
+    setAdminFixtureStatus(
+      ADMIN_FIXTURE_STATUSES.includes(
+        selectedAdminFixtureForForm.status as AdminFixtureStatus,
+      )
+        ? (selectedAdminFixtureForForm.status as AdminFixtureStatus)
+        : "scheduled",
+    );
     setAdminHomeScoreText(
       selectedAdminFixtureForForm.homeScore === null
         ? ""
@@ -361,16 +695,76 @@ export function ProfileScreen({
         ? ""
         : String(selectedAdminFixtureForForm.awayScore),
     );
+
+    const nextRows: Record<string, AdminFixtureSheetRow> = {};
+    const addPlayerRow = (player: FantasyPlayer, side: AdminFixtureSide) => {
+      nextRows[player.id] = {
+        playerId: player.id,
+        side,
+        appeared: false,
+        ...ADMIN_FIXTURE_STAT_ZERO_ROW,
+      };
+    };
+    for (const player of adminHomeFixturePlayers) addPlayerRow(player, "home");
+    for (const player of adminAwayFixturePlayers) addPlayerRow(player, "away");
+
+    for (const lineup of selectedFixtureDetails?.lineups ?? []) {
+      if (!lineup.playerId) continue;
+      const player = playersById.get(lineup.playerId as Id<"fantasyPlayers">);
+      const fallbackSide = lineup.side as AdminFixtureSide;
+      const current =
+        nextRows[lineup.playerId] ??
+        (player
+          ? {
+              playerId: player.id,
+              side: fallbackSide,
+              appeared: false,
+              ...ADMIN_FIXTURE_STAT_ZERO_ROW,
+            }
+          : null);
+      if (!current) continue;
+      nextRows[lineup.playerId] = { ...current, appeared: true };
+    }
+
+    for (const event of selectedFixtureDetails?.events ?? []) {
+      if (
+        !event.playerId ||
+        !ADMIN_FIXTURE_STAT_EVENT_TYPE_SET.has(event.type)
+      ) {
+        continue;
+      }
+      const player = playersById.get(event.playerId as Id<"fantasyPlayers">);
+      const key = ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE[event.type];
+      const current =
+        nextRows[event.playerId] ??
+        (player
+          ? {
+              playerId: player.id,
+              side: event.side as AdminFixtureSide,
+              appeared: false,
+              ...ADMIN_FIXTURE_STAT_ZERO_ROW,
+            }
+          : null);
+      if (!current) continue;
+      nextRows[event.playerId] = {
+        ...current,
+        [key]: Math.min(ADMIN_FIXTURE_STAT_MAX, current[key] + 1),
+      };
+    }
+
+    setAdminFixtureRows(nextRows);
   }, [
     selectedAdminFixtureForForm?.awayScore,
     selectedAdminFixtureForForm?.homeScore,
     selectedAdminFixtureForForm?.id,
+    selectedAdminFixtureForForm?.scheduledAt,
+    selectedAdminFixtureForForm?.status,
+    selectedFixtureDetails?.events,
+    selectedFixtureDetails?.lineups,
+    adminHomeFixturePlayers,
+    adminAwayFixturePlayers,
+    playersById,
   ]);
-
-  useEffect(() => {
-    setAdminEventPlayerId(null);
-    setAdminEventPlayerSearch("");
-  }, [adminEventSide, selectedAdminFixtureId]);
 
   const handleSendTestPush = async () => {
     try {
@@ -476,120 +870,47 @@ export function ProfileScreen({
     setAdminFixtureErrorText(null);
   };
 
-  const getAdminFixtureScore = () => {
-    const homeScore = Number(adminHomeScoreText.trim());
-    const awayScore = Number(adminAwayScoreText.trim());
-    if (
-      !Number.isInteger(homeScore) ||
-      homeScore < 0 ||
-      !Number.isInteger(awayScore) ||
-      awayScore < 0
-    ) {
-      throw new Error(t("profile.adminFixtureScoreInvalid"));
-    }
-
-    return { awayScore, homeScore };
-  };
-
-  const handleSaveAdminFixtureScore = async () => {
-    if (!selectedAdminFixtureId) return;
-
-    try {
-      const score = getAdminFixtureScore();
-      setAdminFixtureBusy(true);
-      setAdminFixtureStatusText(null);
-      setAdminFixtureErrorText(null);
-
-      await setFixtureResult({
-        fixtureId: selectedAdminFixtureId,
-        status: "completed",
-        ...score,
-      });
-      setAdminFixtureStatusText(t("profile.adminFixtureScoreSaved"));
-    } catch (error) {
-      setAdminFixtureErrorText(getErrorMessage(error));
-    } finally {
-      setAdminFixtureBusy(false);
-    }
-  };
-
-  const getAdminEventMinute = () => {
-    const rawValue = adminEventMinuteText.trim();
-    if (!rawValue) return undefined;
-
-    const minute = Number(rawValue);
-    if (!Number.isInteger(minute) || minute < 0) {
-      throw new Error(t("profile.adminFixtureMinuteInvalid"));
-    }
-
-    return minute;
-  };
-
-  const handleMarkAdminFixtureAppearance = async () => {
-    if (!selectedAdminFixtureId) return;
-
-    try {
-      if (!adminEventPlayerId) {
-        throw new Error(t("profile.adminFixturePlayerRequired"));
-      }
-
-      setAdminFixtureBusy(true);
-      setAdminFixtureStatusText(null);
-      setAdminFixtureErrorText(null);
-
-      await upsertFixtureLineup({
-        fixtureId: selectedAdminFixtureId,
-        playerId: adminEventPlayerId,
-        side: adminEventSide,
-      });
-      setAdminFixtureStatusText(t("profile.adminFixtureAppearanceMarked"));
-    } catch (error) {
-      setAdminFixtureErrorText(getErrorMessage(error));
-    } finally {
-      setAdminFixtureBusy(false);
-    }
-  };
-
-  const handleAddAdminFixtureEvent = async () => {
-    if (!selectedAdminFixtureId) return;
-
-    try {
-      if (!adminEventPlayerId) {
-        throw new Error(t("profile.adminFixturePlayerRequired"));
-      }
-
-      setAdminFixtureBusy(true);
-      setAdminFixtureStatusText(null);
-      setAdminFixtureErrorText(null);
-
-      await upsertFixtureEvent({
-        fixtureId: selectedAdminFixtureId,
-        minute: getAdminEventMinute(),
-        playerId: adminEventPlayerId,
-        side: adminEventSide,
-        type: adminEventType,
-      });
-      setAdminEventMinuteText("");
-      setAdminEventPlayerId(null);
-      setAdminEventPlayerSearch("");
-      setAdminFixtureStatusText(t("profile.adminFixtureEventAdded"));
-    } catch (error) {
-      setAdminFixtureErrorText(getErrorMessage(error));
-    } finally {
-      setAdminFixtureBusy(false);
-    }
-  };
-
-  const handleDeleteAdminFixtureLineup = async (
-    lineupId: Id<"fantasyFixtureLineups">,
+  const updateAdminFixtureRow = (
+    playerId: Id<"fantasyPlayers">,
+    updater: (row: AdminFixtureSheetRow) => AdminFixtureSheetRow,
   ) => {
+    setAdminFixtureRows((currentRows) => {
+      const current = currentRows[playerId];
+      if (!current) return currentRows;
+      return {
+        ...currentRows,
+        [playerId]: updater(current),
+      };
+    });
+  };
+
+  const handleSaveAdminFixtureSheet = async () => {
+    if (!selectedAdminFixtureId) return;
+
     try {
       setAdminFixtureBusy(true);
       setAdminFixtureStatusText(null);
       setAdminFixtureErrorText(null);
 
-      await deleteFixtureLineup({ lineupId });
-      setAdminFixtureStatusText(t("profile.adminFixtureAppearanceDeleted"));
+      const scheduledAt = parseDateTimeInputValue(adminFixtureDateText);
+      const rows = Object.values(adminFixtureRows);
+      const result = await saveAdminFixtureSheet({
+        fixtureId: selectedAdminFixtureId,
+        scheduledAt,
+        status: adminFixtureStatus,
+        homeScore: parseNullableAdminInteger(
+          adminHomeScoreText,
+          t("profile.adminFixtureHomeScore"),
+        ),
+        awayScore: parseNullableAdminInteger(
+          adminAwayScoreText,
+          t("profile.adminFixtureAwayScore"),
+        ),
+        rows,
+      });
+      setAdminFixtureStatusText(
+        `${t("profile.adminFixtureSheetSaved")} ${result.lineups}/${result.events}.`,
+      );
     } catch (error) {
       setAdminFixtureErrorText(getErrorMessage(error));
     } finally {
@@ -597,20 +918,97 @@ export function ProfileScreen({
     }
   };
 
-  const handleDeleteAdminFixtureEvent = async (
-    eventId: Id<"fantasyFixtureEvents">,
-  ) => {
-    try {
-      setAdminFixtureBusy(true);
-      setAdminFixtureStatusText(null);
-      setAdminFixtureErrorText(null);
+  const handleOpenAdminPlayerCreate = () => {
+    setAdminPlayerEditingId(null);
+    setAdminPlayerForm(EMPTY_ADMIN_PLAYER_FORM);
+    setAdminPlayerFormOpen(true);
+    setAdminPlayerStatusText(null);
+    setAdminPlayerErrorText(null);
+    setAdminPlayerDeleteTargetId(null);
+  };
 
-      await deleteFixtureEvent({ eventId });
-      setAdminFixtureStatusText(t("profile.adminFixtureEventDeleted"));
+  const handleOpenAdminPlayerEdit = (player: FantasyPlayer) => {
+    setAdminPlayerEditingId(player.id);
+    setAdminPlayerForm(createAdminPlayerForm(player));
+    setAdminPlayerFormOpen(true);
+    setAdminPlayerStatusText(null);
+    setAdminPlayerErrorText(null);
+    setAdminPlayerDeleteTargetId(null);
+  };
+
+  const handleSaveAdminPlayer = async () => {
+    try {
+      setAdminPlayerBusy(true);
+      setAdminPlayerStatusText(null);
+      setAdminPlayerErrorText(null);
+
+      const price = parseRequiredAdminNumber(
+        adminPlayerForm.price,
+        t("players.priceLabel"),
+      );
+      const initialPrice = parseRequiredAdminNumber(
+        adminPlayerForm.initialPrice || adminPlayerForm.price,
+        t("profile.adminPlayerInitialPrice"),
+      );
+      const jerseyNumber = parseNullableAdminInteger(
+        adminPlayerForm.jerseyNumber,
+        t("profile.adminPlayerJerseyNumber"),
+      );
+      const result = await upsertAdminPlayer({
+        ...(seasonSlug ? { seasonSlug } : {}),
+        ...(adminPlayerEditingId ? { playerId: adminPlayerEditingId } : {}),
+        clubId: adminPlayerForm.clubId
+          ? (adminPlayerForm.clubId as Id<"fantasyClubs">)
+          : null,
+        displayName: adminPlayerForm.displayName,
+        firstName: adminPlayerForm.firstName || null,
+        initialPrice,
+        jerseyNumber,
+        lastName: adminPlayerForm.lastName,
+        photoThumbnailUrl: adminPlayerForm.photoThumbnailUrl || null,
+        photoUrl: adminPlayerForm.photoUrl || null,
+        position: adminPlayerForm.position,
+        price,
+        status: adminPlayerForm.status,
+        statusDetails: adminPlayerForm.statusMessage.trim()
+          ? { message: adminPlayerForm.statusMessage.trim() }
+          : null,
+      });
+
+      setAdminPlayerEditingId(result.playerId);
+      setAdminPlayerStatusText(
+        result.created
+          ? t("profile.adminPlayerCreated")
+          : t("profile.adminPlayerSaved"),
+      );
     } catch (error) {
-      setAdminFixtureErrorText(getErrorMessage(error));
+      setAdminPlayerErrorText(getErrorMessage(error));
     } finally {
-      setAdminFixtureBusy(false);
+      setAdminPlayerBusy(false);
+    }
+  };
+
+  const handleDeleteAdminPlayer = async (playerId: Id<"fantasyPlayers">) => {
+    try {
+      setAdminPlayerBusy(true);
+      setAdminPlayerStatusText(null);
+      setAdminPlayerErrorText(null);
+      const result = await deleteAdminPlayer({ playerId });
+      setAdminPlayerDeleteTargetId(null);
+      if (adminPlayerEditingId === playerId) {
+        setAdminPlayerEditingId(null);
+        setAdminPlayerForm(EMPTY_ADMIN_PLAYER_FORM);
+        setAdminPlayerFormOpen(false);
+      }
+      setAdminPlayerStatusText(
+        result.deleted
+          ? t("profile.adminPlayerDeleted")
+          : t("profile.adminPlayerAlreadyDeleted"),
+      );
+    } catch (error) {
+      setAdminPlayerErrorText(getErrorMessage(error));
+    } finally {
+      setAdminPlayerBusy(false);
     }
   };
 
@@ -660,23 +1058,754 @@ export function ProfileScreen({
     }
   };
 
-  const adminActionsContent = isAdmin ? (
-    <View style={[styles.panel, styles.adminPanel]}>
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>{t("profile.adminTitle")}</Text>
-        <Text
+  const renderAdminStatStepper = (
+    row: AdminFixtureSheetRow,
+    key: keyof typeof ADMIN_FIXTURE_STAT_ZERO_ROW,
+  ) => (
+    <View key={key} style={styles.adminStatStepper}>
+      <Text style={styles.adminStatLabel}>
+        {ADMIN_FIXTURE_STAT_LABEL_SHORT[key]}
+      </Text>
+      <View style={styles.adminStatControls}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            updateAdminFixtureRow(row.playerId, (current) => ({
+              ...current,
+              [key]: Math.max(0, current[key] - 1),
+            }))
+          }
+          style={styles.adminStatButton}
+        >
+          <Text style={styles.adminStatButtonText}>-</Text>
+        </Pressable>
+        <Text style={styles.adminStatValue}>{row[key]}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            updateAdminFixtureRow(row.playerId, (current) => ({
+              ...current,
+              [key]: Math.min(ADMIN_FIXTURE_STAT_MAX, current[key] + 1),
+            }))
+          }
+          style={styles.adminStatButton}
+        >
+          <Text style={styles.adminStatButtonText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const renderAdminFixturePlayerRow = (player: FantasyPlayer) => {
+    const row = adminFixtureRows[player.id];
+    if (!row) return null;
+    const eventCount = getAdminFixtureRowEventCount(row);
+
+    return (
+      <View key={player.id} style={styles.adminFixtureSheetRow}>
+        <View style={styles.adminFixtureSheetPlayerCell}>
+          <Text numberOfLines={1} style={styles.adminEventRowTitle}>
+            {player.jerseyNumber ? `${player.jerseyNumber}. ` : ""}
+            {player.displayName}
+          </Text>
+          <Text style={styles.adminEventRowMeta}>
+            {player.position === "goalkeeper"
+              ? t("players.positionShort.goalkeeper")
+              : t("players.positionShort.universal")}
+            {eventCount > 0 ? ` · ${eventCount}` : ""}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: row.appeared }}
+          onPress={() =>
+            updateAdminFixtureRow(player.id, (current) => ({
+              ...current,
+              appeared: !current.appeared,
+            }))
+          }
           style={[
-            styles.adminBadge,
-            {
-              backgroundColor: fantasyTheme.softColor,
-              color: fantasyTheme.primaryColor,
-            },
+            styles.adminAppearanceToggle,
+            row.appeared
+              ? [
+                  styles.adminAppearanceToggleActive,
+                  { backgroundColor: fantasyTheme.primaryColor },
+                ]
+              : null,
           ]}
         >
-          {t("profile.adminBadge")}
+          <Text
+            style={[
+              styles.adminAppearanceToggleText,
+              row.appeared ? styles.adminAppearanceToggleTextActive : null,
+            ]}
+          >
+            {row.appeared ? "Y" : ""}
+          </Text>
+        </Pressable>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.adminFixtureSheetStatsScroll}
+          contentContainerStyle={styles.adminFixtureSheetStats}
+        >
+          {ADMIN_FIXTURE_STAT_KEYS.map((key) =>
+            renderAdminStatStepper(row, key),
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderAdminFixtureTeamEditor = (
+    side: AdminFixtureSide,
+    title: string,
+    teamPlayers: FantasyPlayer[],
+  ) => (
+    <View style={styles.adminFixtureTeamColumn}>
+      <Text style={styles.adminFixtureTeamTitle}>{title}</Text>
+      <View style={styles.adminFixtureSheetHeader}>
+        <Text style={styles.adminFixtureSheetHeaderPlayer}>
+          {t("profile.adminFixturePlayerColumn")}
+        </Text>
+        <Text style={styles.adminFixtureSheetHeaderAppear}>
+          {t("profile.adminFixtureAppearedShort")}
         </Text>
       </View>
-      <Text style={styles.mutedText}>{t("profile.adminDescription")}</Text>
+      {teamPlayers.length === 0 ? (
+        <Text style={styles.mutedText}>{t("profile.adminFixtureNoPlayers")}</Text>
+      ) : (
+        teamPlayers.map((player) => renderAdminFixturePlayerRow(player))
+      )}
+    </View>
+  );
+
+  const adminFixturesContent = (
+    <View style={styles.adminToolGroup}>
+      <Text style={styles.sectionTitle}>{t("profile.adminFixtureTitle")}</Text>
+      <Text style={styles.mutedText}>
+        {t("profile.adminFixtureSheetDescription")}
+      </Text>
+      {fixtures === undefined || gameweeks === undefined ? (
+        <LoadingBlock />
+      ) : null}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.adminGameweekChips}
+      >
+        {sortedGameweeks.map((gameweek) => {
+          const isSelected = gameweek.number === Number(adminGameweekText);
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={gameweek.id}
+              onPress={() => setAdminGameweekText(String(gameweek.number))}
+              style={[
+                styles.adminGameweekChip,
+                isSelected
+                  ? [
+                      styles.adminGameweekChipActive,
+                      {
+                        backgroundColor: fantasyTheme.softColor,
+                        borderColor: fantasyTheme.primaryColor,
+                      },
+                    ]
+                  : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.adminGameweekChipText,
+                  isSelected ? { color: fantasyTheme.primaryColor } : null,
+                ]}
+              >
+                {gameweek.number}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {fixtures !== undefined && adminFixtureOptions.length === 0 ? (
+        <Text style={styles.mutedText}>{t("profile.adminFixtureEmpty")}</Text>
+      ) : null}
+      {adminFixtureOptions.length > 0 ? (
+        <View style={styles.adminFixtureList}>
+          {adminFixtureOptions.map((fixture) => {
+            const isSelected = fixture.id === selectedAdminFixtureId;
+            const score = formatFixtureScore(fixture);
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={fixture.id}
+                onPress={() => handleSelectAdminFixture(fixture)}
+                style={[
+                  styles.adminFixtureOption,
+                  isSelected
+                    ? [
+                        styles.adminFixtureOptionSelected,
+                        {
+                          backgroundColor: fantasyTheme.softColor,
+                          borderColor: fantasyTheme.primaryColor,
+                        },
+                      ]
+                    : null,
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.adminFixtureOptionTitle,
+                    isSelected
+                      ? [
+                          styles.adminFixtureOptionTitleSelected,
+                          { color: fantasyTheme.primaryColor },
+                        ]
+                      : null,
+                  ]}
+                >
+                  {fixture.homeClubName} - {fixture.awayClubName}
+                </Text>
+                <Text style={styles.adminFixtureOptionMeta}>
+                  {formatAdminDateTime(fixture.scheduledAt, language)}
+                  {score ? ` · ${score}` : ""}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {selectedAdminFixtureForForm ? (
+        <View style={styles.adminFixtureEditor}>
+          <View style={styles.adminFixtureMetaGrid}>
+            <View style={styles.adminFixtureMetaField}>
+              <Text style={styles.label}>{t("profile.adminFixtureDate")}</Text>
+              <TextInput
+                onChangeText={setAdminFixtureDateText}
+                placeholder="YYYY-MM-DDTHH:mm"
+                placeholderTextColor="#7B8798"
+                style={styles.input}
+                value={adminFixtureDateText}
+              />
+            </View>
+            <View style={styles.adminFixtureMetaField}>
+              <Text style={styles.label}>{t("profile.adminFixtureScoreTitle")}</Text>
+              <View style={styles.adminScoreRow}>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setAdminHomeScoreText}
+                  placeholder={selectedAdminFixtureForForm.homeClubName}
+                  placeholderTextColor="#7B8798"
+                  style={[styles.input, styles.adminScoreInput]}
+                  value={adminHomeScoreText}
+                />
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setAdminAwayScoreText}
+                  placeholder={selectedAdminFixtureForForm.awayClubName}
+                  placeholderTextColor="#7B8798"
+                  style={[styles.input, styles.adminScoreInput]}
+                  value={adminAwayScoreText}
+                />
+              </View>
+            </View>
+          </View>
+          <View style={styles.adminEventTypeGrid}>
+            {ADMIN_FIXTURE_STATUSES.map((status) => {
+              const isSelected = adminFixtureStatus === status;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  key={status}
+                  onPress={() => setAdminFixtureStatus(status)}
+                  style={[
+                    styles.adminEventTypeButton,
+                    isSelected
+                      ? [
+                          styles.segmentButtonActive,
+                          {
+                            backgroundColor: fantasyTheme.softColor,
+                            borderColor: fantasyTheme.primaryColor,
+                          },
+                        ]
+                      : null,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.segmentText,
+                      isSelected
+                        ? [
+                            styles.segmentTextActive,
+                            { color: fantasyTheme.primaryColor },
+                          ]
+                        : null,
+                    ]}
+                  >
+                    {t(ADMIN_FIXTURE_STATUS_LABEL_KEYS[status])}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.adminStatLegend}>
+            {ADMIN_FIXTURE_STAT_FIELDS.map((field) => (
+              <Text key={field.key} style={styles.adminFixtureOptionMeta}>
+                {ADMIN_FIXTURE_STAT_LABEL_SHORT[field.key]} ·{" "}
+                {t(field.labelKey)}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.adminFixtureSheetColumns}>
+            {renderAdminFixtureTeamEditor(
+              "home",
+              selectedAdminFixtureForForm.homeClubName,
+              adminHomeFixturePlayers,
+            )}
+            {renderAdminFixtureTeamEditor(
+              "away",
+              selectedAdminFixtureForForm.awayClubName,
+              adminAwayFixturePlayers,
+            )}
+          </View>
+          <Pressable
+            disabled={adminFixtureBusy}
+            onPress={() => void handleSaveAdminFixtureSheet()}
+            style={[
+              themedPrimaryButtonStyle,
+              styles.adminButtonInline,
+              adminFixtureBusy ? styles.buttonDisabled : null,
+            ]}
+          >
+            <Save color="#FFFFFF" size={18} strokeWidth={2.5} />
+            <Text style={styles.primaryButtonText}>
+              {adminFixtureBusy
+                ? t("profile.adminFixtureSaving")
+                : t("profile.adminFixtureSaveSheet")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {adminFixtureStatusText ? (
+        <Text style={styles.successText}>{adminFixtureStatusText}</Text>
+      ) : null}
+      {adminFixtureErrorText ? (
+        <Text style={styles.errorText}>{adminFixtureErrorText}</Text>
+      ) : null}
+    </View>
+  );
+
+  const adminPlayersContent = (
+    <View style={styles.adminToolGroup}>
+      <View style={styles.sectionHeaderRow}>
+        <View>
+          <Text style={styles.sectionTitle}>{t("profile.adminPlayersTitle")}</Text>
+          <Text style={styles.mutedText}>
+            {t("profile.adminPlayersDescription")}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleOpenAdminPlayerCreate}
+          style={[themedSecondaryButtonStyle, styles.adminCompactButton]}
+        >
+          <Plus color={fantasyTheme.primaryColor} size={17} strokeWidth={2.6} />
+          <Text style={themedSecondaryButtonTextStyle}>
+            {t("profile.adminPlayerAdd")}
+          </Text>
+        </Pressable>
+      </View>
+      <ClearableTextInput
+        clearAccessibilityLabel={t("common.clearInput")}
+        onChangeText={setAdminPlayerSearch}
+        placeholder={t("profile.adminPlayerSearch")}
+        placeholderTextColor="#7B8798"
+        style={styles.input}
+        value={adminPlayerSearch}
+      />
+      {players === undefined ? <LoadingBlock /> : null}
+      {adminPlayerFormOpen ? (
+        <View style={styles.adminPlayerEditor}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>
+              {adminPlayerEditingId
+                ? t("profile.adminPlayerEditTitle")
+                : t("profile.adminPlayerCreateTitle")}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setAdminPlayerFormOpen(false)}
+              style={styles.adminIconButton}
+            >
+              <X color={colors.text.secondary} size={18} strokeWidth={2.4} />
+            </Pressable>
+          </View>
+          <View style={styles.adminPlayerFormGrid}>
+            <TextInput
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  firstName: value,
+                }))
+              }
+              placeholder={t("profile.adminPlayerFirstName")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.firstName}
+            />
+            <TextInput
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  lastName: value,
+                }))
+              }
+              placeholder={t("profile.adminPlayerLastName")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.lastName}
+            />
+            <TextInput
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  displayName: value,
+                }))
+              }
+              placeholder={t("profile.adminPlayerDisplayName")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.displayName}
+            />
+            <TextInput
+              keyboardType="decimal-pad"
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  initialPrice: value,
+                }))
+              }
+              placeholder={t("profile.adminPlayerInitialPrice")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.initialPrice}
+            />
+            <TextInput
+              keyboardType="decimal-pad"
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({ ...current, price: value }))
+              }
+              placeholder={t("players.priceLabel")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.price}
+            />
+            <TextInput
+              keyboardType="number-pad"
+              onChangeText={(value) =>
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  jerseyNumber: value,
+                }))
+              }
+              placeholder={t("profile.adminPlayerJerseyNumber")}
+              placeholderTextColor="#7B8798"
+              style={styles.input}
+              value={adminPlayerForm.jerseyNumber}
+            />
+          </View>
+          <Text style={styles.label}>{t("profile.adminPlayerClub")}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.adminGameweekChips}
+          >
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                setAdminPlayerForm((current) => ({ ...current, clubId: "" }))
+              }
+              style={[
+                styles.adminGameweekChip,
+                !adminPlayerForm.clubId
+                  ? [
+                      styles.adminGameweekChipActive,
+                      {
+                        backgroundColor: fantasyTheme.softColor,
+                        borderColor: fantasyTheme.primaryColor,
+                      },
+                    ]
+                  : null,
+              ]}
+            >
+              <Text style={styles.adminGameweekChipText}>
+                {t("players.freeAgents")}
+              </Text>
+            </Pressable>
+            {sortedAdminClubs.map((club) => {
+              const isSelected = adminPlayerForm.clubId === club.id;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  key={club.id}
+                  onPress={() =>
+                    setAdminPlayerForm((current) => ({
+                      ...current,
+                      clubId: club.id,
+                    }))
+                  }
+                  style={[
+                    styles.adminGameweekChip,
+                    isSelected
+                      ? [
+                          styles.adminGameweekChipActive,
+                          {
+                            backgroundColor: fantasyTheme.softColor,
+                            borderColor: fantasyTheme.primaryColor,
+                          },
+                        ]
+                      : null,
+                  ]}
+                >
+                  <Text style={styles.adminGameweekChipText}>
+                    {club.shortName ?? club.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text style={styles.label}>{t("players.statusLabel")}</Text>
+          <View style={styles.adminEventTypeGrid}>
+            {ADMIN_PLAYER_STATUSES.map((status) => {
+              const isSelected = adminPlayerForm.status === status;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  key={status}
+                  onPress={() =>
+                    setAdminPlayerForm((current) => ({
+                      ...current,
+                      status,
+                    }))
+                  }
+                  style={[
+                    styles.adminEventTypeButton,
+                    isSelected
+                      ? [
+                          styles.segmentButtonActive,
+                          {
+                            backgroundColor: fantasyTheme.softColor,
+                            borderColor: fantasyTheme.primaryColor,
+                          },
+                        ]
+                      : null,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.segmentText,
+                      isSelected
+                        ? [
+                            styles.segmentTextActive,
+                            { color: fantasyTheme.primaryColor },
+                          ]
+                        : null,
+                    ]}
+                  >
+                    {t(ADMIN_PLAYER_STATUS_LABEL_KEYS[status])}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.label}>{t("players.position.goalkeeper")}</Text>
+          <View style={styles.segment}>
+            {(["goalkeeper", "universal"] as AdminPlayerPosition[]).map(
+              (position) => {
+                const isSelected = adminPlayerForm.position === position;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={position}
+                    onPress={() =>
+                      setAdminPlayerForm((current) => ({
+                        ...current,
+                        position,
+                      }))
+                    }
+                    style={[
+                      styles.segmentButton,
+                      isSelected
+                        ? [
+                            styles.segmentButtonActive,
+                            {
+                              backgroundColor: fantasyTheme.softColor,
+                              borderColor: fantasyTheme.primaryColor,
+                            },
+                          ]
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        isSelected
+                          ? [
+                              styles.segmentTextActive,
+                              { color: fantasyTheme.primaryColor },
+                            ]
+                          : null,
+                      ]}
+                    >
+                      {position === "goalkeeper"
+                        ? t("players.position.goalkeeper")
+                        : t("players.position.universal")}
+                    </Text>
+                  </Pressable>
+                );
+              },
+            )}
+          </View>
+          <TextInput
+            onChangeText={(value) =>
+              setAdminPlayerForm((current) => ({
+                ...current,
+                photoUrl: value,
+              }))
+            }
+            placeholder={t("profile.adminPlayerPhotoUrl")}
+            placeholderTextColor="#7B8798"
+            style={styles.input}
+            value={adminPlayerForm.photoUrl}
+          />
+          <TextInput
+            onChangeText={(value) =>
+              setAdminPlayerForm((current) => ({
+                ...current,
+                photoThumbnailUrl: value,
+              }))
+            }
+            placeholder={t("profile.adminPlayerPhotoThumbnailUrl")}
+            placeholderTextColor="#7B8798"
+            style={styles.input}
+            value={adminPlayerForm.photoThumbnailUrl}
+          />
+          <TextInput
+            multiline
+            onChangeText={(value) =>
+              setAdminPlayerForm((current) => ({
+                ...current,
+                statusMessage: value,
+              }))
+            }
+            placeholder={t("profile.adminPlayerStatusMessage")}
+            placeholderTextColor="#7B8798"
+            style={[styles.input, styles.profileFeedbackTextArea]}
+            value={adminPlayerForm.statusMessage}
+          />
+          <Pressable
+            disabled={adminPlayerBusy}
+            onPress={() => void handleSaveAdminPlayer()}
+            style={[
+              themedPrimaryButtonStyle,
+              styles.adminButtonInline,
+              adminPlayerBusy ? styles.buttonDisabled : null,
+            ]}
+          >
+            <Save color="#FFFFFF" size={18} strokeWidth={2.5} />
+            <Text style={styles.primaryButtonText}>
+              {adminPlayerBusy
+                ? t("profile.adminPlayerSaving")
+                : t("common.save")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={styles.adminPlayerList}>
+        {filteredAdminPlayers.map((player) => {
+          const deletePending = adminPlayerDeleteTargetId === player.id;
+          return (
+            <View key={player.id} style={styles.adminPlayerRow}>
+              <View style={styles.adminPlayerMain}>
+                <Text numberOfLines={1} style={styles.adminEventRowTitle}>
+                  {player.displayName}
+                </Text>
+                <Text style={styles.adminEventRowMeta}>
+                  {player.clubName ?? t("players.freeAgents")} ·{" "}
+                  {player.position === "goalkeeper"
+                    ? t("players.positionShort.goalkeeper")
+                    : t("players.positionShort.universal")}{" "}
+                  · {player.price.toFixed(1)}
+                </Text>
+              </View>
+              {deletePending ? (
+                <View style={styles.adminPlayerActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={adminPlayerBusy}
+                    onPress={() => void handleDeleteAdminPlayer(player.id)}
+                    style={styles.adminEventDeleteButton}
+                  >
+                    <Text style={styles.adminEventDeleteText}>
+                      {t("profile.adminPlayerConfirmDelete")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setAdminPlayerDeleteTargetId(null)}
+                    style={styles.adminIconButton}
+                  >
+                    <X color={colors.text.secondary} size={18} strokeWidth={2.4} />
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.adminPlayerActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => handleOpenAdminPlayerEdit(player)}
+                    style={styles.adminIconButton}
+                  >
+                    <Pencil
+                      color={fantasyTheme.primaryColor}
+                      size={18}
+                      strokeWidth={2.4}
+                    />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setAdminPlayerDeleteTargetId(player.id)}
+                    style={styles.adminIconButtonDanger}
+                  >
+                    <Trash2
+                      color={colors.state.danger}
+                      size={18}
+                      strokeWidth={2.4}
+                    />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          );
+        })}
+        {players !== undefined && filteredAdminPlayers.length === 0 ? (
+          <Text style={styles.mutedText}>{t("profile.adminPlayersEmpty")}</Text>
+        ) : null}
+      </View>
+      {adminPlayerStatusText ? (
+        <Text style={styles.successText}>{adminPlayerStatusText}</Text>
+      ) : null}
+      {adminPlayerErrorText ? (
+        <Text style={styles.errorText}>{adminPlayerErrorText}</Text>
+      ) : null}
+    </View>
+  );
+
+  const adminToolsContent = (
+    <View style={styles.adminToolGroup}>
       <View style={styles.profileFeedbackAdminBlock}>
         <Text style={styles.adminFixtureOptionTitle}>
           {t("profile.feedbackAdminTitle")}
@@ -684,9 +1813,7 @@ export function ProfileScreen({
         {adminFeedbackItems === undefined ? (
           <LoadingBlock />
         ) : adminFeedbackItems.length === 0 ? (
-          <Text style={styles.mutedText}>
-            {t("profile.feedbackAdminEmpty")}
-          </Text>
+          <Text style={styles.mutedText}>{t("profile.feedbackAdminEmpty")}</Text>
         ) : (
           <View style={styles.profileFeedbackAdminList}>
             {adminFeedbackItems.map((item) => (
@@ -712,18 +1839,11 @@ export function ProfileScreen({
         ]}
       >
         <Text style={themedSecondaryButtonTextStyle}>
-          {pushBusy
-            ? t("profile.pushTestSending")
-            : t("profile.pushTestButton")}
+          {pushBusy ? t("profile.pushTestSending") : t("profile.pushTestButton")}
         </Text>
       </Pressable>
-      {pushStatusText ? (
-        <Text style={styles.successText}>{pushStatusText}</Text>
-      ) : null}
-      {pushErrorText ? (
-        <Text style={styles.errorText}>{pushErrorText}</Text>
-      ) : null}
-
+      {pushStatusText ? <Text style={styles.successText}>{pushStatusText}</Text> : null}
+      {pushErrorText ? <Text style={styles.errorText}>{pushErrorText}</Text> : null}
       <Pressable
         disabled={resultsPushBusy}
         onPress={handleSendResultsReadyPush}
@@ -744,7 +1864,6 @@ export function ProfileScreen({
       {resultsPushErrorText ? (
         <Text style={styles.errorText}>{resultsPushErrorText}</Text>
       ) : null}
-
       <Pressable
         disabled={scoringBusy}
         onPress={handleSyncDefaultScoringRules}
@@ -759,13 +1878,8 @@ export function ProfileScreen({
             : t("profile.adminScoringSyncButton")}
         </Text>
       </Pressable>
-      {adminStatusText ? (
-        <Text style={styles.successText}>{adminStatusText}</Text>
-      ) : null}
-      {adminErrorText ? (
-        <Text style={styles.errorText}>{adminErrorText}</Text>
-      ) : null}
-
+      {adminStatusText ? <Text style={styles.successText}>{adminStatusText}</Text> : null}
+      {adminErrorText ? <Text style={styles.errorText}>{adminErrorText}</Text> : null}
       <View style={styles.adminToolGroup}>
         <Text style={styles.sectionTitle}>
           {t("profile.adminGameweekTitle")}
@@ -833,404 +1947,72 @@ export function ProfileScreen({
           <Text style={styles.errorText}>{adminGameweekErrorText}</Text>
         ) : null}
       </View>
+    </View>
+  );
 
-      <View style={styles.adminToolGroup}>
-        <Text style={styles.sectionTitle}>
-          {t("profile.adminFixtureTitle")}
-        </Text>
-        <Text style={styles.mutedText}>
-          {t("profile.adminFixtureDescription")}
-        </Text>
-        {fixtures === undefined || gameweeks === undefined ? (
-          <Text style={styles.mutedText}>
-            {t("profile.adminFixtureLoading")}
-          </Text>
-        ) : null}
-        {fixtures !== undefined && adminFixtureOptions.length === 0 ? (
-          <Text style={styles.mutedText}>{t("profile.adminFixtureEmpty")}</Text>
-        ) : null}
-        {adminFixtureOptions.length > 0 ? (
-          <View style={styles.adminFixtureList}>
-            {adminFixtureOptions.map((fixture) => {
-              const isSelected = fixture.id === selectedAdminFixtureId;
-              const score = formatFixtureScore(fixture);
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={fixture.id}
-                  onPress={() => handleSelectAdminFixture(fixture)}
-                  style={[
-                    styles.adminFixtureOption,
-                    isSelected
-                      ? [
-                          styles.adminFixtureOptionSelected,
-                          {
-                            backgroundColor: fantasyTheme.softColor,
-                            borderColor: fantasyTheme.primaryColor,
-                          },
-                        ]
-                      : null,
-                  ]}
-                >
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.adminFixtureOptionTitle,
-                      isSelected
-                        ? [
-                            styles.adminFixtureOptionTitleSelected,
-                            { color: fantasyTheme.primaryColor },
-                          ]
-                        : null,
-                    ]}
-                  >
-                    {fixture.homeClubName} - {fixture.awayClubName}
-                  </Text>
-                  <Text style={styles.adminFixtureOptionMeta}>
-                    {formatAdminDateTime(fixture.scheduledAt, language)}
-                    {score ? ` · ${score}` : ""}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
+  const activeAdminContent =
+    adminTab === "fixtures"
+      ? adminFixturesContent
+      : adminTab === "players"
+        ? adminPlayersContent
+        : adminToolsContent;
 
-        {selectedAdminFixtureForForm ? (
-          <View style={styles.adminFixtureEditor}>
-            <Text style={styles.sectionTitle}>
-              {t("profile.adminFixtureScoreTitle")}
-            </Text>
-            <View style={styles.adminScoreRow}>
-              <TextInput
-                keyboardType="number-pad"
-                onChangeText={setAdminHomeScoreText}
-                placeholder={selectedAdminFixtureForForm.homeClubName}
-                placeholderTextColor="#7B8798"
-                style={[styles.input, styles.adminScoreInput]}
-                value={adminHomeScoreText}
-              />
-              <TextInput
-                keyboardType="number-pad"
-                onChangeText={setAdminAwayScoreText}
-                placeholder={selectedAdminFixtureForForm.awayClubName}
-                placeholderTextColor="#7B8798"
-                style={[styles.input, styles.adminScoreInput]}
-                value={adminAwayScoreText}
-              />
-            </View>
+  const adminActionsContent = isAdmin ? (
+    <View style={[styles.panel, styles.adminPanel]}>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>{t("profile.adminTitle")}</Text>
+        <Text
+          style={[
+            styles.adminBadge,
+            {
+              backgroundColor: fantasyTheme.softColor,
+              color: fantasyTheme.primaryColor,
+            },
+          ]}
+        >
+          {t("profile.adminBadge")}
+        </Text>
+      </View>
+      <Text style={styles.mutedText}>{t("profile.adminDescription")}</Text>
+      <View style={styles.adminTabs}>
+        {ADMIN_TABS.map((tab) => {
+          const isSelected = adminTab === tab;
+          return (
             <Pressable
-              disabled={adminFixtureBusy}
-              onPress={() => void handleSaveAdminFixtureScore()}
+              accessibilityRole="button"
+              key={tab}
+              onPress={() => setAdminTab(tab)}
               style={[
-                themedPrimaryButtonStyle,
-                adminFixtureBusy ? styles.buttonDisabled : null,
+                styles.adminTabButton,
+                isSelected
+                  ? [
+                      styles.segmentButtonActive,
+                      {
+                        backgroundColor: fantasyTheme.softColor,
+                        borderColor: fantasyTheme.primaryColor,
+                      },
+                    ]
+                  : null,
               ]}
             >
-              <Text style={styles.primaryButtonText}>
-                {adminFixtureBusy
-                  ? t("profile.adminFixtureSaving")
-                  : t("profile.adminFixtureSaveScore")}
+              <Text
+                style={[
+                  styles.segmentText,
+                  isSelected
+                    ? [
+                        styles.segmentTextActive,
+                        { color: fantasyTheme.primaryColor },
+                      ]
+                    : null,
+                ]}
+              >
+                {t(ADMIN_TAB_LABEL_KEYS[tab])}
               </Text>
             </Pressable>
-
-            <Text style={styles.sectionTitle}>
-              {t("profile.adminFixtureEventsTitle")}
-            </Text>
-            <View style={styles.adminEventTypeGrid}>
-              {ADMIN_EVENT_TYPES.map((eventType) => {
-                const isSelected = adminEventType === eventType;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={eventType}
-                    onPress={() => setAdminEventType(eventType)}
-                    style={[
-                      styles.adminEventTypeButton,
-                      isSelected
-                        ? [
-                            styles.segmentButtonActive,
-                            {
-                              backgroundColor: fantasyTheme.softColor,
-                              borderColor: fantasyTheme.primaryColor,
-                            },
-                          ]
-                        : null,
-                    ]}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.segmentText,
-                        isSelected
-                          ? [
-                              styles.segmentTextActive,
-                              { color: fantasyTheme.primaryColor },
-                            ]
-                          : null,
-                      ]}
-                    >
-                      {t(ADMIN_EVENT_LABEL_KEYS[eventType])}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.segment}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setAdminEventSide("home")}
-                style={[
-                  styles.segmentButton,
-                  adminEventSide === "home"
-                    ? [
-                        styles.segmentButtonActive,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.primaryColor,
-                        },
-                      ]
-                    : null,
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.segmentText,
-                    adminEventSide === "home"
-                      ? [
-                          styles.segmentTextActive,
-                          { color: fantasyTheme.primaryColor },
-                        ]
-                      : null,
-                  ]}
-                >
-                  {selectedAdminFixtureForForm.homeClubName}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setAdminEventSide("away")}
-                style={[
-                  styles.segmentButton,
-                  adminEventSide === "away"
-                    ? [
-                        styles.segmentButtonActive,
-                        {
-                          backgroundColor: fantasyTheme.softColor,
-                          borderColor: fantasyTheme.primaryColor,
-                        },
-                      ]
-                    : null,
-                ]}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.segmentText,
-                    adminEventSide === "away"
-                      ? [
-                          styles.segmentTextActive,
-                          { color: fantasyTheme.primaryColor },
-                        ]
-                      : null,
-                  ]}
-                >
-                  {selectedAdminFixtureForForm.awayClubName}
-                </Text>
-              </Pressable>
-            </View>
-            <ClearableTextInput
-              clearAccessibilityLabel={t("common.clearInput")}
-              onChangeText={setAdminEventPlayerSearch}
-              placeholder={t("profile.adminFixturePlayerSearch")}
-              placeholderTextColor="#7B8798"
-              style={styles.input}
-              value={adminEventPlayerSearch}
-            />
-            <ScrollView
-              nestedScrollEnabled
-              style={styles.adminEventPlayerScroll}
-              contentContainerStyle={styles.adminEventPlayerList}
-            >
-              {adminEventPlayerOptions.map((player) => {
-                const isSelected = player.id === adminEventPlayerId;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={player.id}
-                    onPress={() => setAdminEventPlayerId(player.id)}
-                    style={[
-                      styles.adminEventPlayerOption,
-                      isSelected
-                        ? [
-                            styles.adminEventPlayerOptionSelected,
-                            {
-                              backgroundColor: fantasyTheme.softColor,
-                              borderColor: fantasyTheme.primaryColor,
-                            },
-                          ]
-                        : null,
-                    ]}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.adminEventPlayerName,
-                        isSelected
-                          ? [
-                              styles.adminEventPlayerNameSelected,
-                              { color: fantasyTheme.primaryColor },
-                            ]
-                          : null,
-                      ]}
-                    >
-                      {player.displayName}
-                    </Text>
-                    <Text style={styles.adminEventPlayerMeta}>
-                      {player.position === "goalkeeper"
-                        ? t("players.positionShort.goalkeeper")
-                        : t("players.positionShort.universal")}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              {adminEventPlayerOptions.length === 0 ? (
-                <Text style={styles.mutedText}>
-                  {t("profile.adminFixtureNoPlayers")}
-                </Text>
-              ) : null}
-            </ScrollView>
-            <ClearableTextInput
-              clearAccessibilityLabel={t("common.clearInput")}
-              keyboardType="number-pad"
-              onChangeText={setAdminEventMinuteText}
-              placeholder={t("profile.adminFixtureMinutePlaceholder")}
-              placeholderTextColor="#7B8798"
-              style={styles.input}
-              value={adminEventMinuteText}
-            />
-            <View style={styles.adminFixtureActionRow}>
-              <Pressable
-                disabled={adminFixtureBusy || !selectedAdminEventPlayer}
-                onPress={() => void handleMarkAdminFixtureAppearance()}
-                style={[
-                  themedSecondaryButtonStyle,
-                  styles.adminFixtureActionButton,
-                  adminFixtureBusy || !selectedAdminEventPlayer
-                    ? styles.buttonDisabled
-                    : null,
-                ]}
-              >
-                <Text style={themedSecondaryButtonTextStyle}>
-                  {t("profile.adminFixtureMarkAppearance")}
-                </Text>
-              </Pressable>
-              <Pressable
-                disabled={adminFixtureBusy || !selectedAdminEventPlayer}
-                onPress={() => void handleAddAdminFixtureEvent()}
-                style={[
-                  themedPrimaryButtonStyle,
-                  styles.adminFixtureActionButton,
-                  adminFixtureBusy || !selectedAdminEventPlayer
-                    ? styles.buttonDisabled
-                    : null,
-                ]}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {adminFixtureBusy
-                    ? t("profile.adminFixtureAddingEvent")
-                    : t("profile.adminFixtureAddEvent")}
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.adminEventList}>
-              <Text style={styles.sectionTitle}>
-                {t("profile.adminFixtureAppearancesTitle")}
-              </Text>
-              {(selectedFixtureDetails?.lineups ?? []).map((lineup) => (
-                <View key={lineup.id} style={styles.adminEventRow}>
-                  <View style={styles.adminEventRowMain}>
-                    <Text style={styles.adminEventRowTitle}>
-                      {lineup.playerName}
-                    </Text>
-                    <Text style={styles.adminEventRowMeta}>
-                      {lineup.side === "home"
-                        ? selectedAdminFixtureForForm.homeClubName
-                        : selectedAdminFixtureForForm.awayClubName}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={adminFixtureBusy}
-                    onPress={() =>
-                      void handleDeleteAdminFixtureLineup(
-                        lineup.id as Id<"fantasyFixtureLineups">,
-                      )
-                    }
-                    style={styles.adminEventDeleteButton}
-                  >
-                    <Text style={styles.adminEventDeleteText}>
-                      {t("common.delete")}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-              {selectedFixtureDetails &&
-              selectedFixtureDetails.lineups.length === 0 ? (
-                <Text style={styles.mutedText}>
-                  {t("profile.adminFixtureNoAppearances")}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={styles.adminEventList}>
-              {(selectedFixtureDetails?.events ?? []).map((event) => (
-                <View key={event.id} style={styles.adminEventRow}>
-                  <View style={styles.adminEventRowMain}>
-                    <Text style={styles.adminEventRowTitle}>
-                      {event.playerName ?? "-"}
-                    </Text>
-                    <Text style={styles.adminEventRowMeta}>
-                      {t(ADMIN_EVENT_LABEL_KEYS[event.type])}
-                      {event.minute !== null ? ` · ${event.minute}'` : ""}
-                      {event.points !== null ? ` · ${event.points}` : ""}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={adminFixtureBusy}
-                    onPress={() =>
-                      void handleDeleteAdminFixtureEvent(
-                        event.id as Id<"fantasyFixtureEvents">,
-                      )
-                    }
-                    style={styles.adminEventDeleteButton}
-                  >
-                    <Text style={styles.adminEventDeleteText}>
-                      {t("common.delete")}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-              {selectedFixtureDetails &&
-              selectedFixtureDetails.events.length === 0 ? (
-                <Text style={styles.mutedText}>
-                  {t("profile.adminFixtureNoEvents")}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-
-        {adminFixtureStatusText ? (
-          <Text style={styles.successText}>{adminFixtureStatusText}</Text>
-        ) : null}
-        {adminFixtureErrorText ? (
-          <Text style={styles.errorText}>{adminFixtureErrorText}</Text>
-        ) : null}
+          );
+        })}
       </View>
+      {activeAdminContent}
     </View>
   ) : null;
 

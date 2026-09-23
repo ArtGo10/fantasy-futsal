@@ -1741,6 +1741,7 @@ export function FantasyHome({
     () => (
       <ProfileScreen
         canQueryPrivateData={shouldQueryPrivateData}
+        clubs={localizedFantasyClubs}
         email={profileEmail}
         fixtures={localizedFantasyFixtures}
         gameweeks={localizedFantasyGameweeks}
@@ -1749,7 +1750,7 @@ export function FantasyHome({
         onDeleteAccount={handleDeleteAccount}
         onOpenAdminActions={handleOpenAdminActions}
         onSignOut={handleSignOut}
-        players={localizedActiveClubFantasyPlayers}
+        players={localizedFantasyPlayers}
         seasonSlug={selectedSeasonSlug}
       />
     ),
@@ -1760,8 +1761,9 @@ export function FantasyHome({
       handleDeleteAccount,
       handleOpenAdminActions,
       handleSignOut,
+      localizedFantasyClubs,
       localizedFantasyFixtures,
-      localizedActiveClubFantasyPlayers,
+      localizedFantasyPlayers,
       profileEmail,
       profileName,
       selectedSeasonSlug,
@@ -2083,6 +2085,7 @@ export function FantasyHome({
       <FantasySeasonThemeProvider season={activeFantasySeason}>
         <ProfileScreen
           canQueryPrivateData={shouldQueryPrivateData}
+          clubs={localizedFantasyClubs}
           email={profileEmail}
           fixtures={localizedFantasyFixtures}
           gameweeks={localizedFantasyGameweeks}
@@ -2093,7 +2096,7 @@ export function FantasyHome({
           onDeleteAccount={handleDeleteAccount}
           onOpenAdminActions={handleOpenAdminActions}
           onSignOut={handleSignOut}
-          players={localizedActiveClubFantasyPlayers}
+          players={localizedFantasyPlayers}
           seasonSlug={selectedSeasonSlug}
         />
       </FantasySeasonThemeProvider>
