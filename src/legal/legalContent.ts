@@ -96,7 +96,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "August 29, 2026",
+      updatedAt: "September 23, 2026",
       sections: [
         {
           title: "How the game works",
@@ -144,6 +144,14 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Some real clubs may play twice in one fantasy gameweek because of postponed or rescheduled matches. This is a double gameweek.",
             "Some clubs may have no match in a fantasy gameweek. This is a blank gameweek.",
             "The calendar screen highlights double and blank gameweeks when they exist, so managers can plan transfers and captain choices before the deadline.",
+          ],
+        },
+        {
+          title: "Suspensions",
+          body: [
+            "Every fourth accumulated yellow card creates an automatic suspension. In the Ukrainian Extra-liga each such threshold means one match. In the Polish Futsal Ekstraklasa the 4th and 8th yellow cards mean one match, while the 12th and every later fourth yellow card mean two matches.",
+            "A direct red card or a sending-off after a second yellow card immediately creates an automatic suspension for the next league match. If the league's disciplinary decision is longer, an administrator extends the player's status manually.",
+            "A suspension is served only when the player's club completes the required league match without that player appearing. Postponed and cancelled matches do not clear it. After the required match or matches are served, the app removes the automatic suspension status.",
           ],
         },
         {
@@ -251,7 +259,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "29 серпня 2026",
+      updatedAt: "23 вересня 2026",
       sections: [
         {
           title: "Як працює гра",
@@ -299,6 +307,14 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Деякі реальні клуби можуть зіграти двічі в одному fantasy-турі через перенесені або зміщені матчі. Це подвійний тур.",
             "Деякі клуби можуть не мати матчу в fantasy-турі. Це порожній тур для такої команди.",
             "Екран календаря підсвічує подвійні та порожні тури, якщо вони є, щоб менеджери могли планувати трансфери і вибір капітана до дедлайну.",
+          ],
+        },
+        {
+          title: "Дискваліфікації",
+          body: [
+            "Кожна четверта накопичена жовта картка автоматично призводить до дискваліфікації. В українській Екстра-лізі кожен такий поріг означає один матч. У польській Futsal Ekstraklasa 4-та і 8-ма жовті картки означають один матч, а 12-та і кожна наступна четверта картка - два матчі.",
+            "Пряма червона картка або вилучення після другої жовтої картки одразу створює автоматичну дискваліфікацію на наступний матч ліги. Якщо офіційне рішення ліги передбачає довший строк, адміністратор продовжує статус гравця вручну.",
+            "Дискваліфікація вважається відбутою лише тоді, коли клуб гравця завершив потрібний матч ліги без участі цього гравця. Перенесені та скасовані матчі її не знімають. Після відбуття потрібної кількості матчів застосунок автоматично прибирає статус дискваліфікації.",
           ],
         },
         {
@@ -406,7 +422,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
       ],
     },
     rules: {
-      updatedAt: "29 sierpnia 2026",
+      updatedAt: "23 września 2026",
       sections: [
         {
           title: "Jak działa gra",
@@ -454,6 +470,14 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Niektóre realne kluby mogą grać dwa razy w jednej kolejce fantasy z powodu przełożonych lub zmienionych terminów meczów. To podwójna kolejka.",
             "Niektóre kluby mogą nie mieć meczu w kolejce fantasy. To pusta kolejka.",
             "Ekran kalendarza wyróżnia podwójne i puste kolejki, jeśli istnieją, aby menedżerowie mogli planować transfery i wybór kapitana przed deadline'em.",
+          ],
+        },
+        {
+          title: "Zawieszenia",
+          body: [
+            "Każda czwarta zgromadzona żółta kartka automatycznie powoduje zawieszenie. W ukraińskiej Ekstra-lidze każdy taki próg oznacza jeden mecz. W polskiej Futsal Ekstraklasie 4. i 8. żółta kartka oznaczają jeden mecz, natomiast 12. i każda kolejna czwarta kartka - dwa mecze.",
+            "Bezpośrednia czerwona kartka albo wykluczenie po drugiej żółtej kartce natychmiast powoduje automatyczne zawieszenie na najbliższy mecz ligowy. Jeśli oficjalna decyzja dyscyplinarna ligi przewiduje dłuższą karę, administrator ręcznie przedłuża status zawodnika.",
+            "Zawieszenie zostaje odbyte tylko wtedy, gdy klub zawodnika zakończy wymagany mecz ligowy bez jego występu. Mecze przełożone i odwołane nie zdejmują zawieszenia. Po odbyciu wymaganej liczby meczów aplikacja automatycznie usuwa status zawieszenia.",
           ],
         },
         {
