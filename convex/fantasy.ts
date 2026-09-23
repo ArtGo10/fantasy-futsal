@@ -4109,11 +4109,9 @@ async function buildFantasyTeamGameweekPointsBreakdown(
   const pickRows =
     canParticipate && snapshots.length > 0
       ? snapshots.map(toGameweekSnapshotPickRow)
-      : canParticipate
-        ? currentPicks.map((pick) =>
-            toCurrentSquadPickRow(pick, gameweek._id, chipState?.chip),
-          )
-        : [];
+      : currentPicks.map((pick) =>
+          toCurrentSquadPickRow(pick, gameweek._id, chipState?.chip),
+        );
   const sortedPickRows = [...pickRows].sort(
     (a, b) => a.rosterSlot - b.rosterSlot,
   );
