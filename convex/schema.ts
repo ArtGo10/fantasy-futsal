@@ -262,6 +262,7 @@ export default defineSchema({
     status: fantasyPlayerStatusValidator,
     statusDetails: v.optional(fantasyPlayerStatusDetailsValidator),
     suspensionGameweekNumbers: v.optional(v.array(v.number())),
+    activeSuspensionGameweekNumbers: v.optional(v.array(v.number())),
     suspensionSourceEventIds: v.optional(
       v.array(v.id("fantasyFixtureEvents")),
     ),

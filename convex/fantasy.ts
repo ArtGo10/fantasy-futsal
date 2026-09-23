@@ -124,9 +124,9 @@ const FANTASY_SUSPENSION_EVENT_TYPES = new Set<FantasyFixtureEventType>([
 ]);
 const FANTASY_SUSPENSION_STATUS_DETAILS = {
   message: "Дискваліфікація",
-  messageEn: "Suspended for 1 gameweek",
-  messagePl: "Dyskwalifikacja na 1 kolejkę",
-  messageUk: "Дискваліфікація на 1 тур",
+  messageEn: "Suspended for the next league match",
+  messagePl: "Zawieszony na najbliższy mecz ligowy",
+  messageUk: "Дискваліфікований на наступний матч ліги",
 } as const;
 const FANTASY_NON_PARTICIPATION_STATUS_DETAILS = {
   message: "Не грав у минулому турі",
@@ -646,7 +646,43 @@ function getFantasyPlayerSuspensionGameweekNumbers(
     .sort((a, b) => a - b);
 }
 
+function getFantasyPlayerActiveSuspensionGameweekNumbers(
+  player: Pick<
+    Doc<"fantasyPlayers">,
+    "activeSuspensionGameweekNumbers" | "suspensionGameweekNumbers"
+  >,
+) {
+  const values =
+    player.activeSuspensionGameweekNumbers ??
+    player.suspensionGameweekNumbers ??
+    [];
+  return [...new Set(values)]
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((a, b) => a - b);
+}
+
 function isFantasyPlayerSuspendedForGameweek(
+  player: Pick<
+    Doc<"fantasyPlayers">,
+    "activeSuspensionGameweekNumbers" | "suspensionGameweekNumbers"
+  >,
+  context?: FantasyPlayerAvailabilityContext,
+) {
+  const currentGameweekNumber = context?.currentGameweekNumber;
+  if (
+    currentGameweekNumber === undefined ||
+    currentGameweekNumber === null ||
+    !Number.isInteger(currentGameweekNumber)
+  ) {
+    return false;
+  }
+
+  return getFantasyPlayerActiveSuspensionGameweekNumbers(player).includes(
+    currentGameweekNumber,
+  );
+}
+
+function hasFantasyPlayerSuspensionForGameweek(
   player: Pick<Doc<"fantasyPlayers">, "suspensionGameweekNumbers">,
   context?: FantasyPlayerAvailabilityContext,
 ) {
@@ -667,7 +703,10 @@ function isFantasyPlayerSuspendedForGameweek(
 function toFantasyPlayerStatusDetailsView(
   player: Pick<
     Doc<"fantasyPlayers">,
-    "statusDetails" | "suspensionGameweekNumbers" | "suspensionUpdatedAt"
+    | "activeSuspensionGameweekNumbers"
+    | "statusDetails"
+    | "suspensionGameweekNumbers"
+    | "suspensionUpdatedAt"
   >,
   context?: FantasyPlayerAvailabilityContext,
 ) {
@@ -695,7 +734,10 @@ function toFantasyPlayerStatusDetailsView(
 function getEffectiveFantasyPlayerStatus(
   player: Pick<
     Doc<"fantasyPlayers">,
-    "clubId" | "status" | "suspensionGameweekNumbers"
+    | "activeSuspensionGameweekNumbers"
+    | "clubId"
+    | "status"
+    | "suspensionGameweekNumbers"
   >,
   context?: FantasyPlayerAvailabilityContext,
 ): FantasyPlayerStatus {
@@ -3408,7 +3450,7 @@ async function markGameweekNonParticipantsDoubtfulInternal(
     if (hasLaterParticipation) continue;
 
     const appeared = appearedPlayerIds.has(player._id);
-    const suspendedForGameweek = isFantasyPlayerSuspendedForGameweek(
+    const suspendedForGameweek = hasFantasyPlayerSuspensionForGameweek(
       player,
       statusContext,
     );
@@ -3443,7 +3485,7 @@ async function markGameweekNonParticipantsDoubtfulInternal(
       if (
         !participation?.eligibleClubIds.has(clubId) ||
         participation.appearedPlayerIds.has(player._id) ||
-        isFantasyPlayerSuspendedForGameweek(player, {
+        hasFantasyPlayerSuspensionForGameweek(player, {
           currentGameweekNumber: number,
         })
       ) {
@@ -4045,8 +4087,10 @@ async function buildFantasyTeamGameweekPointsBreakdown(
     fantasyTeam,
     gameweek,
   );
+  // Late-created teams cannot score in this gameweek, but their current squad
+  // should still be visible from the league table and points dashboard.
   const currentPicks =
-    !canParticipate || snapshots.length > 0
+    canParticipate && snapshots.length > 0
       ? []
       : await ctx.db
           .query("fantasySquadPicks")
@@ -4670,27 +4714,219 @@ function areFixtureEventIdArraysEqual(
   );
 }
 
+function getYellowCardSuspensionMatchCount(
+  season: Doc<"fantasySeasons">,
+  accumulatedYellowCards: number,
+) {
+  if (accumulatedYellowCards <= 0 || accumulatedYellowCards % 4 !== 0) {
+    return 0;
+  }
+
+  const leagueKey = `${season.country} ${season.leagueName} ${season.slug}`
+    .trim()
+    .toLowerCase();
+  const isPolishLeague =
+    leagueKey.includes("poland") ||
+    leagueKey.includes("polska") ||
+    leagueKey.includes("polish");
+
+  return isPolishLeague && accumulatedYellowCards >= 12 ? 2 : 1;
+}
+
+function compareFantasyFixturesChronologically(
+  a: Doc<"fantasyFixtures">,
+  b: Doc<"fantasyFixtures">,
+) {
+  return (
+    a.scheduledAt - b.scheduledAt ||
+    String(a._id).localeCompare(String(b._id))
+  );
+}
+
+function compareFantasySuspensionFixtures(
+  a: Doc<"fantasyFixtures">,
+  b: Doc<"fantasyFixtures">,
+) {
+  return (
+    Number(a.status === "postponed") - Number(b.status === "postponed") ||
+    compareFantasyFixturesChronologically(a, b)
+  );
+}
+
 async function syncFantasyPlayerSuspensionsForSeason(
   ctx: MutationCtx,
   seasonId: Id<"fantasySeasons">,
   now = Date.now(),
 ) {
-  const [players, gameweeks, events] = await Promise.all([
-    ctx.db
-      .query("fantasyPlayers")
-      .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
-      .collect(),
-    getSeasonGameweeks(ctx, seasonId),
-    ctx.db
-      .query("fantasyFixtureEvents")
-      .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
-      .collect(),
-  ]);
+  const [season, players, gameweeks, fixtures, lineups, events] =
+    await Promise.all([
+      ctx.db.get(seasonId),
+      ctx.db
+        .query("fantasyPlayers")
+        .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+        .collect(),
+      getSeasonGameweeks(ctx, seasonId),
+      ctx.db
+        .query("fantasyFixtures")
+        .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureLineups")
+        .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureEvents")
+        .withIndex("by_season", (q) => q.eq("seasonId", seasonId))
+        .collect(),
+    ]);
+  if (!season) {
+    throw new Error("Season not found while syncing player suspensions.");
+  }
+
+  const playersById = new Map(players.map((player) => [player._id, player]));
+  const fixturesById = new Map(
+    fixtures.map((fixture) => [fixture._id, fixture]),
+  );
   const gameweeksById = new Map(
     gameweeks.map((gameweek) => [gameweek._id, gameweek]),
   );
-  const gameweekNumbers = new Set(gameweeks.map((gameweek) => gameweek.number));
+  const fixturesByClubId = new Map<
+    Id<"fantasyClubs">,
+    Doc<"fantasyFixtures">[]
+  >();
+  const addClubFixture = (
+    clubId: Id<"fantasyClubs"> | undefined,
+    fixture: Doc<"fantasyFixtures">,
+  ) => {
+    if (!clubId) return;
+    const clubFixtures = fixturesByClubId.get(clubId) ?? [];
+    clubFixtures.push(fixture);
+    fixturesByClubId.set(clubId, clubFixtures);
+  };
+  for (const fixture of fixtures) {
+    if (fixture.status === "cancelled") continue;
+    addClubFixture(fixture.homeClubId, fixture);
+    addClubFixture(fixture.awayClubId, fixture);
+  }
+  for (const clubFixtures of fixturesByClubId.values()) {
+    clubFixtures.sort(compareFantasySuspensionFixtures);
+  }
+
+  const appearedPlayerFixtureKeys = new Set<string>();
+  const addAppearance = (
+    playerId: Id<"fantasyPlayers"> | undefined,
+    fixtureId: Id<"fantasyFixtures">,
+  ) => {
+    if (playerId) {
+      appearedPlayerFixtureKeys.add(`${String(playerId)}:${String(fixtureId)}`);
+    }
+  };
+  for (const lineup of lineups) {
+    addAppearance(lineup.playerId, lineup.fixtureId);
+  }
+  for (const event of events) {
+    addAppearance(event.playerId, event.fixtureId);
+  }
+
+  type SuspensionObligation = {
+    clubId?: Id<"fantasyClubs">;
+    matchCount: number;
+    playerId: Id<"fantasyPlayers">;
+    sourceEventIds: Id<"fantasyFixtureEvents">[];
+    sourceFixtureId: Id<"fantasyFixtures">;
+  };
+  const obligationsByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    SuspensionObligation[]
+  >();
+  const addObligation = (obligation: SuspensionObligation) => {
+    const obligations = obligationsByPlayerId.get(obligation.playerId) ?? [];
+    obligations.push(obligation);
+    obligationsByPlayerId.set(obligation.playerId, obligations);
+  };
+  const yellowCardsByPlayerId = new Map<Id<"fantasyPlayers">, number>();
+  const eventsByFixtureId = new Map<
+    Id<"fantasyFixtures">,
+    Doc<"fantasyFixtureEvents">[]
+  >();
+  for (const event of events) {
+    const fixtureEvents = eventsByFixtureId.get(event.fixtureId) ?? [];
+    fixtureEvents.push(event);
+    eventsByFixtureId.set(event.fixtureId, fixtureEvents);
+  }
+
+  for (const fixture of [...fixtures].sort(
+    compareFantasyFixturesChronologically,
+  )) {
+    const cardEventsByPlayerId = new Map<
+      Id<"fantasyPlayers">,
+      Doc<"fantasyFixtureEvents">[]
+    >();
+    for (const event of eventsByFixtureId.get(fixture._id) ?? []) {
+      if (
+        !event.playerId ||
+        (event.type !== "yellow_card" &&
+          !FANTASY_SUSPENSION_EVENT_TYPES.has(event.type))
+      ) {
+        continue;
+      }
+      const playerEvents = cardEventsByPlayerId.get(event.playerId) ?? [];
+      playerEvents.push(event);
+      cardEventsByPlayerId.set(event.playerId, playerEvents);
+    }
+
+    for (const [playerId, cardEvents] of cardEventsByPlayerId) {
+      cardEvents.sort(
+        (a, b) =>
+          a.createdAt - b.createdAt ||
+          String(a._id).localeCompare(String(b._id)),
+      );
+      const clubId =
+        cardEvents.find((event) => event.clubId)?.clubId ??
+        getFixtureClubIdBySide(fixture, cardEvents[0].side) ??
+        playersById.get(playerId)?.clubId;
+
+      for (const yellowCard of cardEvents.filter(
+        (event) => event.type === "yellow_card",
+      )) {
+        const accumulatedYellowCards =
+          (yellowCardsByPlayerId.get(playerId) ?? 0) + 1;
+        yellowCardsByPlayerId.set(playerId, accumulatedYellowCards);
+        const matchCount = getYellowCardSuspensionMatchCount(
+          season,
+          accumulatedYellowCards,
+        );
+        if (matchCount > 0) {
+          addObligation({
+            clubId,
+            matchCount,
+            playerId,
+            sourceEventIds: [yellowCard._id],
+            sourceFixtureId: fixture._id,
+          });
+        }
+      }
+
+      const sendingOffEvents = cardEvents.filter((event) =>
+        FANTASY_SUSPENSION_EVENT_TYPES.has(event.type),
+      );
+      if (sendingOffEvents.length > 0) {
+        addObligation({
+          clubId,
+          matchCount: 1,
+          playerId,
+          sourceEventIds: sendingOffEvents.map((event) => event._id),
+          sourceFixtureId: fixture._id,
+        });
+      }
+    }
+  }
+
   const suspensionGameweeksByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    Set<number>
+  >();
+  const activeSuspensionGameweeksByPlayerId = new Map<
     Id<"fantasyPlayers">,
     Set<number>
   >();
@@ -4698,31 +4934,72 @@ async function syncFantasyPlayerSuspensionsForSeason(
     Id<"fantasyPlayers">,
     Id<"fantasyFixtureEvents">[]
   >();
+  for (const [playerId, obligations] of obligationsByPlayerId) {
+    const reservedFixtureIds = new Set<Id<"fantasyFixtures">>();
+    const sourceEventIds: Id<"fantasyFixtureEvents">[] = [];
+    const suspensionGameweeks = new Set<number>();
+    const activeSuspensionGameweeks = new Set<number>();
 
-  for (const event of events) {
-    if (
-      !event.playerId ||
-      !event.gameweekId ||
-      !FANTASY_SUSPENSION_EVENT_TYPES.has(event.type)
-    ) {
-      continue;
+    for (const obligation of obligations) {
+      sourceEventIds.push(...obligation.sourceEventIds);
+      if (!obligation.clubId) continue;
+
+      const clubFixtures = fixturesByClubId.get(obligation.clubId) ?? [];
+      const sourceFixture = fixturesById.get(obligation.sourceFixtureId);
+      if (!sourceFixture) continue;
+      const sourceFixtureIndex = clubFixtures.findIndex(
+        (fixture) => fixture._id === obligation.sourceFixtureId,
+      );
+      let candidateIndex =
+        sourceFixtureIndex >= 0
+          ? sourceFixtureIndex + 1
+          : clubFixtures.findIndex(
+              (fixture) =>
+                compareFantasyFixturesChronologically(
+                  fixture,
+                  sourceFixture,
+                ) > 0,
+            );
+      if (candidateIndex < 0) continue;
+
+      for (
+        let matchNumber = 0;
+        matchNumber < obligation.matchCount;
+        matchNumber += 1
+      ) {
+        while (candidateIndex < clubFixtures.length) {
+          const targetFixture = clubFixtures[candidateIndex];
+          candidateIndex += 1;
+          if (reservedFixtureIds.has(targetFixture._id)) continue;
+
+          const appeared = appearedPlayerFixtureKeys.has(
+            `${String(playerId)}:${String(targetFixture._id)}`,
+          );
+          if (targetFixture.status === "completed" && appeared) {
+            continue;
+          }
+
+          reservedFixtureIds.add(targetFixture._id);
+          const targetGameweek = targetFixture.gameweekId
+            ? gameweeksById.get(targetFixture.gameweekId)
+            : null;
+          if (targetGameweek) {
+            suspensionGameweeks.add(targetGameweek.number);
+            if (targetFixture.status !== "completed") {
+              activeSuspensionGameweeks.add(targetGameweek.number);
+            }
+          }
+          break;
+        }
+      }
     }
 
-    const gameweek = gameweeksById.get(event.gameweekId);
-    if (!gameweek) continue;
-
-    const suspensionGameweekNumber = gameweek.number + 1;
-    if (!gameweekNumbers.has(suspensionGameweekNumber)) continue;
-
-    const currentGameweeks =
-      suspensionGameweeksByPlayerId.get(event.playerId) ?? new Set<number>();
-    currentGameweeks.add(suspensionGameweekNumber);
-    suspensionGameweeksByPlayerId.set(event.playerId, currentGameweeks);
-
-    const currentEventIds =
-      suspensionEventIdsByPlayerId.get(event.playerId) ?? [];
-    currentEventIds.push(event._id);
-    suspensionEventIdsByPlayerId.set(event.playerId, currentEventIds);
+    suspensionGameweeksByPlayerId.set(playerId, suspensionGameweeks);
+    activeSuspensionGameweeksByPlayerId.set(
+      playerId,
+      activeSuspensionGameweeks,
+    );
+    suspensionEventIdsByPlayerId.set(playerId, sourceEventIds);
   }
 
   const changedPlayers = [];
@@ -4730,17 +5007,27 @@ async function syncFantasyPlayerSuspensionsForSeason(
     const nextGameweekNumbers = [
       ...(suspensionGameweeksByPlayerId.get(player._id) ?? new Set<number>()),
     ].sort((a, b) => a - b);
+    const nextActiveGameweekNumbers = [
+      ...(activeSuspensionGameweeksByPlayerId.get(player._id) ??
+        new Set<number>()),
+    ].sort((a, b) => a - b);
     const nextSourceEventIds = [
       ...(suspensionEventIdsByPlayerId.get(player._id) ?? []),
     ].sort((a, b) => String(a).localeCompare(String(b)));
     const previousGameweekNumbers =
       getFantasyPlayerSuspensionGameweekNumbers(player);
+    const previousActiveGameweekNumbers =
+      getFantasyPlayerActiveSuspensionGameweekNumbers(player);
     const previousSourceEventIds = [
       ...(player.suspensionSourceEventIds ?? []),
     ].sort((a, b) => String(a).localeCompare(String(b)));
 
     if (
       areNumberArraysEqual(previousGameweekNumbers, nextGameweekNumbers) &&
+      areNumberArraysEqual(
+        previousActiveGameweekNumbers,
+        nextActiveGameweekNumbers,
+      ) &&
       areFixtureEventIdArraysEqual(previousSourceEventIds, nextSourceEventIds)
     ) {
       continue;
@@ -4749,17 +5036,19 @@ async function syncFantasyPlayerSuspensionsForSeason(
     await ctx.db.patch(player._id, {
       suspensionGameweekNumbers:
         nextGameweekNumbers.length > 0 ? nextGameweekNumbers : undefined,
+      activeSuspensionGameweekNumbers: nextActiveGameweekNumbers,
       suspensionSourceEventIds:
         nextSourceEventIds.length > 0 ? nextSourceEventIds : undefined,
       suspensionUpdatedAt:
-        nextGameweekNumbers.length > 0 ? now : undefined,
+        nextActiveGameweekNumbers.length > 0 ? now : undefined,
       updatedAt: now,
     });
     changedPlayers.push({
       playerId: player._id,
       displayName: player.displayName,
       gameweekNumbers: nextGameweekNumbers,
-      suspended: nextGameweekNumbers.length > 0,
+      activeGameweekNumbers: nextActiveGameweekNumbers,
+      suspended: nextActiveGameweekNumbers.length > 0,
     });
   }
 
