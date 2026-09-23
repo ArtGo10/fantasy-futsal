@@ -268,6 +268,63 @@ function shouldExposePlayerPriceTrend(
   );
 }
 
+function getPlayerInitialPriceFromHistory(
+  player: Doc<"fantasyPlayers">,
+  priceHistory: Doc<"fantasyPlayerPriceHistory">[],
+) {
+  const initialHistory = priceHistory
+    .filter(
+      (history) =>
+        history.playerId === player._id && history.reason === "initial_import",
+    )
+    .sort((a, b) => a.createdAt - b.createdAt)[0];
+
+  return initialHistory?.newPrice ?? player.price;
+}
+
+function validateAdminPrice(value: number, fieldName: string) {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} должна быть неотрицательным числом.`);
+  }
+
+  return roundFantasyMoney(value);
+}
+
+function normalizeAdminPlayerStatusDetails(
+  details:
+    | {
+        message?: string;
+        messageEn?: string;
+        messagePl?: string;
+        messageUk?: string;
+        updatedAt?: number;
+      }
+    | null
+    | undefined,
+  now: number,
+) {
+  if (!details) return undefined;
+
+  const normalized = {
+    message: toOptionalText(details.message),
+    messageEn: toOptionalText(details.messageEn),
+    messagePl: toOptionalText(details.messagePl),
+    messageUk: toOptionalText(details.messageUk),
+  };
+  const hasMessage = Boolean(
+    normalized.message ||
+      normalized.messageEn ||
+      normalized.messagePl ||
+      normalized.messageUk,
+  );
+  if (!hasMessage) return undefined;
+
+  return {
+    ...normalized,
+    updatedAt: details.updatedAt ?? now,
+  };
+}
+
 const EXTRA_LEAGUE_2026_27_CLUBS: ExtraLeagueClubSeed[] = [
   { name: "ХІТ", shortName: "ХІТ", city: "Київ", sortOrder: 1 },
   {
@@ -1917,6 +1974,10 @@ export const listPlayers = query({
         const priceDelta = latestPriceHistory
           ? Number(latestPriceHistory.delta.toFixed(1))
           : 0;
+        const initialPrice = getPlayerInitialPriceFromHistory(
+          player,
+          playerPriceHistory,
+        );
         const averagePointsPerMatch = getFantasyPlayerForm(stats);
         const latestGameweekStat = latestScoredGameweek
           ? statsByGameweekAndPlayerId.get(
@@ -1939,6 +2000,7 @@ export const listPlayers = query({
           displayName: player.displayName,
           position: toPublicFantasyPlayerPosition(player.position),
           price: player.price,
+          initialPrice,
           previousPrice:
             latestPriceHistory && Math.abs(priceDelta) >= 0.1
               ? latestPriceHistory.oldPrice
@@ -7007,6 +7069,523 @@ export const setFixtureResult = mutation({
       fixtureId: fixture._id,
       refresh,
       status: args.status ?? "completed",
+    };
+  },
+});
+
+export const upsertAdminPlayer = mutation({
+  args: {
+    seasonSlug: v.optional(v.string()),
+    playerId: v.optional(v.id("fantasyPlayers")),
+    clubId: v.optional(v.union(v.id("fantasyClubs"), v.null())),
+    firstName: v.optional(v.union(v.string(), v.null())),
+    lastName: v.string(),
+    displayName: v.optional(v.string()),
+    position: fantasyPlayerPositionValidator,
+    price: v.number(),
+    initialPrice: v.optional(v.number()),
+    status: fantasyPlayerStatusValidator,
+    statusDetails: v.optional(v.union(fantasyPlayerStatusDetailsValidator, v.null())),
+    jerseyNumber: v.optional(v.union(v.number(), v.null())),
+    photoUrl: v.optional(v.union(v.string(), v.null())),
+    photoThumbnailUrl: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const existingPlayer = args.playerId ? await ctx.db.get(args.playerId) : null;
+    if (args.playerId && (!existingPlayer || existingPlayer.seasonId !== season._id)) {
+      throw new Error("Игрок не найден в этом сезоне.");
+    }
+
+    const clubId =
+      args.clubId === null ? undefined : args.clubId ?? existingPlayer?.clubId;
+    const club = clubId ? await ctx.db.get(clubId) : null;
+    if (clubId && (!club || club.seasonId !== season._id)) {
+      throw new Error("Клуб не найден в этом сезоне.");
+    }
+
+    const lastName = normalizeText(args.lastName);
+    const firstName = toOptionalText(args.firstName ?? undefined);
+    if (!lastName) {
+      throw new Error("Фамилия игрока обязательна.");
+    }
+
+    const displayName =
+      toOptionalText(args.displayName) ??
+      normalizeText([firstName, lastName].filter(Boolean).join(" "));
+    if (!displayName) {
+      throw new Error("Имя игрока обязательно.");
+    }
+
+    const now = Date.now();
+    const price = validateAdminPrice(args.price, "Цена игрока");
+    const initialPrice = validateAdminPrice(
+      args.initialPrice ?? existingPlayer?.price ?? price,
+      "Стартовая цена игрока",
+    );
+    const statusDetails = normalizeAdminPlayerStatusDetails(
+      args.statusDetails,
+      now,
+    );
+    const jerseyNumber =
+      args.jerseyNumber === null || args.jerseyNumber === undefined
+        ? undefined
+        : args.jerseyNumber;
+    if (
+      jerseyNumber !== undefined &&
+      (!Number.isInteger(jerseyNumber) || jerseyNumber < 0)
+    ) {
+      throw new Error("Номер игрока должен быть неотрицательным целым числом.");
+    }
+
+    const payload = {
+      seasonId: season._id,
+      clubId,
+      firstName,
+      lastName,
+      displayName,
+      position: args.position,
+      price,
+      status: args.status,
+      statusDetails,
+      jerseyNumber,
+      photoUrl: toOptionalText(args.photoUrl ?? undefined),
+      photoThumbnailUrl: toOptionalText(args.photoThumbnailUrl ?? undefined),
+      updatedAt: now,
+    };
+
+    let playerId: Id<"fantasyPlayers">;
+    let created = false;
+
+    if (existingPlayer) {
+      playerId = existingPlayer._id;
+      await ctx.db.patch(existingPlayer._id, payload);
+
+      if (Math.abs(roundFantasyMoney(price - existingPlayer.price)) >= 0.1) {
+        await ctx.db.insert("fantasyPlayerPriceHistory", {
+          seasonId: season._id,
+          playerId,
+          oldPrice: existingPlayer.price,
+          newPrice: price,
+          delta: roundFantasyMoney(price - existingPlayer.price),
+          reason: "manual_adjustment",
+          createdAt: now,
+        });
+      }
+    } else {
+      created = true;
+      playerId = await ctx.db.insert("fantasyPlayers", {
+        ...payload,
+        createdAt: now,
+      });
+
+      await ctx.db.insert("fantasyPlayerPriceHistory", {
+        seasonId: season._id,
+        playerId,
+        oldPrice: initialPrice,
+        newPrice: initialPrice,
+        delta: 0,
+        reason: "initial_import",
+        createdAt: now,
+      });
+      if (Math.abs(roundFantasyMoney(price - initialPrice)) >= 0.1) {
+        await ctx.db.insert("fantasyPlayerPriceHistory", {
+          seasonId: season._id,
+          playerId,
+          oldPrice: initialPrice,
+          newPrice: price,
+          delta: roundFantasyMoney(price - initialPrice),
+          reason: "manual_adjustment",
+          createdAt: now,
+        });
+      }
+    }
+
+    if (existingPlayer) {
+      const initialHistory = (
+        await ctx.db
+          .query("fantasyPlayerPriceHistory")
+          .withIndex("by_player", (q) => q.eq("playerId", existingPlayer._id))
+          .collect()
+      )
+        .filter((history) => history.reason === "initial_import")
+        .sort((a, b) => a.createdAt - b.createdAt)[0];
+
+      if (initialHistory) {
+        await ctx.db.patch(initialHistory._id, {
+          oldPrice: initialPrice,
+          newPrice: initialPrice,
+          delta: 0,
+        });
+      } else {
+        await ctx.db.insert("fantasyPlayerPriceHistory", {
+          seasonId: season._id,
+          playerId,
+          oldPrice: initialPrice,
+          newPrice: initialPrice,
+          delta: 0,
+          reason: "initial_import",
+          createdAt: existingPlayer.createdAt,
+        });
+      }
+    }
+
+    return { created, playerId };
+  },
+});
+
+export const deleteAdminPlayer = mutation({
+  args: {
+    playerId: v.id("fantasyPlayers"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const player = await ctx.db.get(args.playerId);
+    if (!player) return { deleted: false };
+
+    const [
+      favorites,
+      squadPicks,
+      gameweekSquadPicks,
+      gameweekStates,
+      playerStats,
+      priceHistory,
+      lineups,
+      events,
+      transfers,
+    ] = await Promise.all([
+      ctx.db
+        .query("fantasyPlayerFavorites")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasySquadPicks")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasyGameweekSquadPicks")
+        .withIndex("by_season", (q) => q.eq("seasonId", player.seasonId))
+        .collect(),
+      ctx.db
+        .query("fantasyTeamGameweekStates")
+        .withIndex("by_season", (q) => q.eq("seasonId", player.seasonId))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerGameweekStats")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasyPlayerPriceHistory")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureLineups")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureEvents")
+        .withIndex("by_player", (q) => q.eq("playerId", player._id))
+        .collect(),
+      ctx.db
+        .query("fantasyTransfers")
+        .withIndex("by_season", (q) => q.eq("seasonId", player.seasonId))
+        .collect(),
+    ]);
+
+    const relatedTransfers = transfers.filter(
+      (transfer) =>
+        transfer.fromPlayerId === player._id || transfer.toPlayerId === player._id,
+    );
+    const relatedGameweekSquadPicks = gameweekSquadPicks.filter(
+      (pick) => pick.playerId === player._id,
+    );
+    const now = Date.now();
+
+    for (const favorite of favorites) await ctx.db.delete(favorite._id);
+    for (const pick of squadPicks) await ctx.db.delete(pick._id);
+    for (const pick of relatedGameweekSquadPicks) await ctx.db.delete(pick._id);
+    for (const stat of playerStats) await ctx.db.delete(stat._id);
+    for (const history of priceHistory) await ctx.db.delete(history._id);
+    for (const lineup of lineups) await ctx.db.delete(lineup._id);
+    for (const event of events) await ctx.db.delete(event._id);
+
+    let patchedGameweekStates = 0;
+    for (const state of gameweekStates) {
+      const filteredPicks = state.initialPicks.filter(
+        (pick) => pick.playerId !== player._id,
+      );
+      if (filteredPicks.length === state.initialPicks.length) continue;
+      await ctx.db.patch(state._id, {
+        initialPicks: filteredPicks,
+        updatedAt: now,
+      });
+      patchedGameweekStates += 1;
+    }
+
+    for (const transfer of relatedTransfers) {
+      const deductions = await ctx.db
+        .query("fantasyPointDeductions")
+        .withIndex("by_source", (q) =>
+          q.eq("source", "transfer").eq("sourceId", transfer._id),
+        )
+        .collect();
+      for (const deduction of deductions) await ctx.db.delete(deduction._id);
+      await ctx.db.delete(transfer._id);
+    }
+
+    await ctx.db.delete(player._id);
+
+    const fixtureIds = new Set([
+      ...lineups.map((lineup) => lineup.fixtureId),
+      ...events.map((event) => event.fixtureId),
+    ]);
+    for (const fixtureId of fixtureIds) {
+      const fixture = await ctx.db.get(fixtureId);
+      if (fixture) {
+        await refreshGameweekAfterFixtureChange(ctx, fixture, now);
+      }
+    }
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      player.seasonId,
+      now,
+    );
+
+    return {
+      deleted: true,
+      deletedEvents: events.length,
+      deletedFavorites: favorites.length,
+      deletedGameweekSquadPicks: relatedGameweekSquadPicks.length,
+      deletedLineups: lineups.length,
+      deletedPriceHistory: priceHistory.length,
+      deletedSquadPicks: squadPicks.length,
+      deletedStats: playerStats.length,
+      deletedTransfers: relatedTransfers.length,
+      patchedGameweekStates,
+      playerId: player._id,
+      suspensionSync,
+    };
+  },
+});
+
+export const saveAdminFixtureSheet = mutation({
+  args: {
+    fixtureId: v.id("fantasyFixtures"),
+    scheduledAt: v.optional(v.number()),
+    status: fantasyFixtureStatusValidator,
+    homeScore: v.optional(v.union(v.number(), v.null())),
+    awayScore: v.optional(v.union(v.number(), v.null())),
+    rows: v.array(
+      v.object({
+        playerId: v.id("fantasyPlayers"),
+        side: fantasyFixtureSideValidator,
+        appeared: v.boolean(),
+        goals: v.number(),
+        assists: v.number(),
+        yellowCards: v.number(),
+        secondYellowRedCards: v.number(),
+        redCards: v.number(),
+        ownGoals: v.number(),
+        penaltiesMissed: v.number(),
+        penaltiesSaved: v.number(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const fixture = await ctx.db.get(args.fixtureId);
+    if (!fixture) {
+      throw new Error("Матч не найден.");
+    }
+    if (
+      args.scheduledAt !== undefined &&
+      (!Number.isFinite(args.scheduledAt) || args.scheduledAt <= 0)
+    ) {
+      throw new Error("Дата матча некорректна.");
+    }
+
+    const normalizeScore = (value: number | null | undefined, label: string) => {
+      if (value === null || value === undefined) return undefined;
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error(`${label} должен быть неотрицательным целым числом.`);
+      }
+      return value;
+    };
+    const homeScore = normalizeScore(args.homeScore, "Счет хозяев");
+    const awayScore = normalizeScore(args.awayScore, "Счет гостей");
+    if (
+      (args.status === "completed" || args.status === "live") &&
+      (homeScore === undefined || awayScore === undefined)
+    ) {
+      throw new Error("Для live/завершенного матча нужен счет обеих команд.");
+    }
+
+    const players = await Promise.all(
+      args.rows.map((row) => ctx.db.get(row.playerId)),
+    );
+    const playersById = new Map<Id<"fantasyPlayers">, Doc<"fantasyPlayers">>();
+    for (const player of players) {
+      if (!player || player.seasonId !== fixture.seasonId) {
+        throw new Error("Один из игроков не найден в сезоне этого матча.");
+      }
+      playersById.set(player._id, player);
+    }
+
+    const validateCount = (value: number, label: string) => {
+      if (!Number.isInteger(value) || value < 0 || value > 20) {
+        throw new Error(`${label} должен быть целым числом от 0 до 20.`);
+      }
+      return value;
+    };
+    for (const row of args.rows) {
+      validateCount(row.goals, "Голы");
+      validateCount(row.assists, "Ассисты");
+      validateCount(row.yellowCards, "Желтые карточки");
+      validateCount(row.secondYellowRedCards, "Вторые желтые");
+      validateCount(row.redCards, "Красные карточки");
+      validateCount(row.ownGoals, "Автоголы");
+      validateCount(row.penaltiesMissed, "Незабитые пенальти");
+      validateCount(row.penaltiesSaved, "Отбитые пенальти");
+
+      const player = playersById.get(row.playerId)!;
+      const sideClubId = getFixtureClubIdBySide(fixture, row.side);
+      if (sideClubId && player.clubId && player.clubId !== sideClubId) {
+        throw new Error(
+          `Игрок ${player.displayName} не относится к выбранной стороне матча.`,
+        );
+      }
+    }
+
+    const [existingLineups, existingEvents, scoringRule] = await Promise.all([
+      ctx.db
+        .query("fantasyFixtureLineups")
+        .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+        .collect(),
+      ctx.db
+        .query("fantasyFixtureEvents")
+        .withIndex("by_fixture", (q) => q.eq("fixtureId", fixture._id))
+        .collect(),
+      getSeasonScoringRules(ctx, fixture.seasonId),
+    ]);
+
+    const now = Date.now();
+    for (const lineup of existingLineups) await ctx.db.delete(lineup._id);
+    for (const event of existingEvents) await ctx.db.delete(event._id);
+
+    const fixturePatch: Partial<Doc<"fantasyFixtures">> = {
+      scheduledAt: args.scheduledAt ?? fixture.scheduledAt,
+      status: args.status,
+      homeScore,
+      awayScore,
+      updatedAt: now,
+    };
+    await ctx.db.patch(fixture._id, fixturePatch);
+
+    const scoringRuleValues = getScoringRuleValues(scoringRule);
+    let createdLineups = 0;
+    let createdEvents = 0;
+
+    const insertRepeatedEvents = async (
+      row: (typeof args.rows)[number],
+      player: Doc<"fantasyPlayers">,
+      type: FantasyFixtureEventType,
+      count: number,
+    ) => {
+      for (let index = 0; index < count; index += 1) {
+        await ctx.db.insert("fantasyFixtureEvents", {
+          seasonId: fixture.seasonId,
+          fixtureId: fixture._id,
+          gameweekId: fixture.gameweekId,
+          clubId: player.clubId ?? getFixtureClubIdBySide(fixture, row.side),
+          playerId: player._id,
+          playerName: player.displayName,
+          side: row.side,
+          type,
+          points: getFixtureEventPoints(type, player, scoringRuleValues),
+          createdAt: now,
+          updatedAt: now,
+        });
+        createdEvents += 1;
+      }
+    };
+
+    for (const row of args.rows) {
+      const player = playersById.get(row.playerId)!;
+      const eventCount =
+        row.goals +
+        row.assists +
+        row.yellowCards +
+        row.secondYellowRedCards +
+        row.redCards +
+        row.ownGoals +
+        row.penaltiesMissed +
+        row.penaltiesSaved;
+      if (row.appeared || eventCount > 0) {
+        await ctx.db.insert("fantasyFixtureLineups", {
+          seasonId: fixture.seasonId,
+          fixtureId: fixture._id,
+          clubId: player.clubId ?? getFixtureClubIdBySide(fixture, row.side),
+          playerId: player._id,
+          playerName: player.displayName,
+          side: row.side,
+          jerseyNumber: player.jerseyNumber,
+          position: player.position,
+          isStarter: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+        createdLineups += 1;
+      }
+
+      await insertRepeatedEvents(row, player, "goal", row.goals);
+      await insertRepeatedEvents(row, player, "assist", row.assists);
+      await insertRepeatedEvents(row, player, "yellow_card", row.yellowCards);
+      await insertRepeatedEvents(
+        row,
+        player,
+        "second_yellow_red",
+        row.secondYellowRedCards,
+      );
+      await insertRepeatedEvents(row, player, "red_card", row.redCards);
+      await insertRepeatedEvents(row, player, "own_goal", row.ownGoals);
+      await insertRepeatedEvents(
+        row,
+        player,
+        "penalty_missed",
+        row.penaltiesMissed,
+      );
+      await insertRepeatedEvents(
+        row,
+        player,
+        "penalty_saved",
+        row.penaltiesSaved,
+      );
+    }
+
+    const updatedFixture = (await ctx.db.get(fixture._id)) ?? fixture;
+    const refresh = await refreshGameweekAfterFixtureChange(
+      ctx,
+      updatedFixture,
+      now,
+    );
+    const suspensionSync = await syncFantasyPlayerSuspensionsForSeason(
+      ctx,
+      fixture.seasonId,
+      now,
+    );
+
+    return {
+      deletedEvents: existingEvents.length,
+      deletedLineups: existingLineups.length,
+      fixtureId: fixture._id,
+      lineups: createdLineups,
+      events: createdEvents,
+      refresh,
+      suspensionSync,
     };
   },
 });
