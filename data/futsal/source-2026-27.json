@@ -889,7 +889,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -1065,7 +1065,7 @@
       "photoStorageKey": "players/15226.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2007/07/Danylo-Davydenko.Priamo-removebg-preview.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2007/07/Danylo-Davydenko.Priamo-removebg-preview-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -1280,7 +1280,7 @@
       "photoStorageKey": "players/4585.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2004/12/sokhoruk.jpg",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2004/12/sokhoruk-150x150.jpg",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -1874,7 +1874,7 @@
       "photoStorageKey": "players/4787.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2004/09/zaporozhan-1-Photoroom.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2004/09/zaporozhan-1-Photoroom-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -2527,7 +2527,7 @@
       "photoStorageKey": "players/10867.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1993/09/Horovoy_H.D.-removebg-preview.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/09/Horovoy_H.D.-removebg-preview-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -3227,7 +3227,7 @@
       "photoStorageKey": "players/18863.jpg",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2004/03/Kalyna-chervonyy-scaled.jpg",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2004/03/Kalyna-chervonyy-150x150.jpg",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -3602,7 +3602,7 @@
       "photoStorageKey": "players/4467.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1999/03/zavhorodniy.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1999/03/zavhorodniy-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -4113,7 +4113,7 @@
       "photoStorageKey": "players/12226.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Bukhanevych.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2001/11/Bukhanevych-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -4757,7 +4757,7 @@
       "photoStorageKey": "players/11854.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2024/01/Ruslan-Savenko.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2024/01/Ruslan-Savenko-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -5791,7 +5791,7 @@
       "photoStorageKey": "players/19262.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1987/08/IMG_20251110_090957_970-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1987/08/IMG_20251110_090957_970-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -5834,7 +5834,7 @@
       "photoStorageKey": "players/10805.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1995/08/IMG_20251110_085757_087-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1995/08/IMG_20251110_085757_087-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -5865,7 +5865,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 8,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -5908,7 +5908,7 @@
       "photoStorageKey": "players/11744.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/2000/09/IMG_20251110_092812_116-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/2000/09/IMG_20251110_092812_116-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -5951,7 +5951,7 @@
       "photoStorageKey": "players/12085.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1997/05/IMG_20251110_101631_930-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1997/05/IMG_20251110_101631_930-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -6059,7 +6059,7 @@
       "photoStorageKey": "players/19260.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1989/07/IMG_20251110_093006_206-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1989/07/IMG_20251110_093006_206-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -6175,7 +6175,7 @@
       "photoStorageKey": "players/6494.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1993/01/IMG_20251110_093237_599-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1993/01/IMG_20251110_093237_599-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -6254,7 +6254,7 @@
       "photoStorageKey": "players/8343.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1990/11/IMG_20251110_090746_944-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1990/11/IMG_20251110_090746_944-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -6333,7 +6333,7 @@
       "photoStorageKey": "players/6712.png",
       "photoSourceUrl": "https://futsal.com.ua/wp-content/uploads/1986/06/IMG_20251110_101840_840-scaled.png",
       "photoSourceThumbnailUrl": "https://futsal.com.ua/wp-content/uploads/1986/06/IMG_20251110_101840_840-150x150.png",
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8034,7 +8034,7 @@
         }
       },
       "suggestedPrice": 6.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8065,7 +8065,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8101,7 +8101,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8137,7 +8137,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8173,7 +8173,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8209,7 +8209,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8245,7 +8245,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8281,7 +8281,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8317,7 +8317,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8353,7 +8353,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",
@@ -8389,7 +8389,7 @@
         "firstLeague2025_26": null
       },
       "suggestedPrice": 5.5,
-      "status": "doubtful",
+      "status": "unknown",
       "statusDetails": {
         "message": "Отсутствует в начальной заявке на сезон.",
         "messageEn": "Missing from the initial season roster.",

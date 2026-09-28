@@ -230,6 +230,32 @@ function normalizeImportPlayerStatusDetails(
   };
 }
 
+function hasNeutralAbsenceStatusDetails(
+  details: ImportPlayer["statusDetails"],
+) {
+  if (!details) return false;
+
+  const messages = [
+    details.message,
+    details.messageEn,
+    details.messagePl,
+    details.messageUk,
+  ]
+    .map((value) => normalizeText(value ?? "").toLowerCase())
+    .filter(Boolean);
+  return messages.some(
+    (message) =>
+      message === "missing from the initial season roster." ||
+      message === "missing from the initial season roster" ||
+      message === "отсутствует в начальной заявке на сезон." ||
+      message === "отсутствует в начальной заявке на сезон" ||
+      message === "відсутній у початковій заявці на сезон." ||
+      message === "відсутній у початковій заявці на сезон" ||
+      message === "brak w początkowej kadrze na sezon." ||
+      message === "brak w początkowej kadrze na sezon",
+  );
+}
+
 function parseSourceTimestamp(generatedAt: string) {
   const timestamp = Date.parse(generatedAt);
   return Number.isFinite(timestamp) ? timestamp : Date.now();
@@ -565,8 +591,13 @@ async function upsertPlayer(
       : player.statusDetails === null
         ? undefined
         : normalizeImportPlayerStatusDetails(player.statusDetails, now);
+  const importedStatus =
+    player.status === "doubtful" &&
+    hasNeutralAbsenceStatusDetails(player.statusDetails)
+      ? "unknown"
+      : player.status;
   const status =
-    player.status ??
+    importedStatus ??
     (clubId === undefined
       ? ("unavailable" as const)
       : (existing?.status ?? ("active" as const)));
