@@ -597,6 +597,7 @@ export default defineSchema({
     minutes: v.optional(v.number()),
     goals: v.optional(v.number()),
     assists: v.optional(v.number()),
+    cardPoints: v.optional(v.number()),
     yellowCards: v.optional(v.number()),
     redCards: v.optional(v.number()),
     secondYellowRedCards: v.optional(v.number()),

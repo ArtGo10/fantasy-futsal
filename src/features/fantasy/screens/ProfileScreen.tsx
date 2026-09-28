@@ -111,7 +111,6 @@ type AdminFixtureSheetRow = {
   goals: number;
   assists: number;
   yellowCards: number;
-  secondYellowRedCards: number;
   redCards: number;
   ownGoals: number;
   penaltiesMissed: number;
@@ -153,10 +152,6 @@ const ADMIN_FIXTURE_STAT_FIELDS: Array<{
   { key: "goals", labelKey: "profile.adminFixtureStat.goals" },
   { key: "assists", labelKey: "profile.adminFixtureStat.assists" },
   { key: "yellowCards", labelKey: "profile.adminFixtureStat.yellowCards" },
-  {
-    key: "secondYellowRedCards",
-    labelKey: "profile.adminFixtureStat.secondYellowRedCards",
-  },
   { key: "redCards", labelKey: "profile.adminFixtureStat.redCards" },
   { key: "ownGoals", labelKey: "profile.adminFixtureStat.ownGoals" },
   {
@@ -179,7 +174,6 @@ const ADMIN_FIXTURE_STAT_EVENT_TYPES: Record<
   penaltiesMissed: "penalty_missed",
   penaltiesSaved: "penalty_saved",
   redCards: "red_card",
-  secondYellowRedCards: "second_yellow_red",
   yellowCards: "yellow_card",
 };
 
@@ -192,7 +186,6 @@ const ADMIN_FIXTURE_STAT_ZERO_ROW = {
   penaltiesMissed: 0,
   penaltiesSaved: 0,
   redCards: 0,
-  secondYellowRedCards: 0,
   yellowCards: 0,
 };
 
@@ -206,21 +199,19 @@ const ADMIN_FIXTURE_STAT_LABEL_SHORT: Record<
   penaltiesMissed: "PM",
   penaltiesSaved: "PS",
   redCards: "RC",
-  secondYellowRedCards: "2Y",
   yellowCards: "YC",
 };
 
-const ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE: Record<
+const ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE: Partial<Record<
   AdminFixtureEventType,
   keyof typeof ADMIN_FIXTURE_STAT_ZERO_ROW
-> = {
+>> = {
   assist: "assists",
   goal: "goals",
   own_goal: "ownGoals",
   penalty_missed: "penaltiesMissed",
   penalty_saved: "penaltiesSaved",
   red_card: "redCards",
-  second_yellow_red: "secondYellowRedCards",
   yellow_card: "yellowCards",
 };
 
@@ -730,14 +721,8 @@ export function ProfileScreen({
     }
 
     for (const event of selectedFixtureDetails?.events ?? []) {
-      if (
-        !event.playerId ||
-        !ADMIN_FIXTURE_STAT_EVENT_TYPE_SET.has(event.type)
-      ) {
-        continue;
-      }
+      if (!event.playerId) continue;
       const player = playersById.get(event.playerId as Id<"fantasyPlayers">);
-      const key = ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE[event.type];
       const current =
         nextRows[event.playerId] ??
         (player
@@ -749,6 +734,22 @@ export function ProfileScreen({
             }
           : null);
       if (!current) continue;
+
+      if (event.type === "second_yellow_red") {
+        nextRows[event.playerId] = {
+          ...current,
+          redCards: Math.min(ADMIN_FIXTURE_STAT_MAX, current.redCards + 1),
+          yellowCards: Math.min(
+            ADMIN_FIXTURE_STAT_MAX,
+            current.yellowCards + 1,
+          ),
+        };
+        continue;
+      }
+
+      if (!ADMIN_FIXTURE_STAT_EVENT_TYPE_SET.has(event.type)) continue;
+      const key = ADMIN_FIXTURE_STAT_KEY_BY_EVENT_TYPE[event.type];
+      if (!key) continue;
       nextRows[event.playerId] = {
         ...current,
         [key]: Math.min(ADMIN_FIXTURE_STAT_MAX, current[key] + 1),

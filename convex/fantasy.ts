@@ -107,6 +107,7 @@ const FANTASY_VALUE_MIN_MARKET_PLAYERS = 5;
 const FANTASY_VALUE_PRICE_CENTER_LOW = 7.5;
 const FANTASY_VALUE_PRICE_CENTER_HIGH = 9.0;
 const FANTASY_EXPENSIVE_PRICE = 12.0;
+const FANTASY_CARD_POINTS_FLOOR_PER_FIXTURE = -4;
 const FANTASY_DEFAULT_SEASON_LOGO_KEY = "extra-liga";
 const FANTASY_DEFAULT_SEASON_THEME = {
   primaryColor: "#004494",
@@ -184,7 +185,7 @@ const sendPushToAllUsersInternal = makeFunctionReference<
   PushToAllUsersResult
 >;
 const FANTASY_DEFAULT_SCORING_RULES = {
-  version: "futsal-fantasy-v4",
+  version: "futsal-fantasy-v5",
   appearance: 1,
   outfieldGoal: 4,
   goalkeeperGoal: 7,
@@ -1934,6 +1935,7 @@ export const listPlayers = query({
       current.ownGoals += stat.ownGoals ?? 0;
       current.penaltiesMissed += stat.penaltiesMissed ?? 0;
       current.penaltiesSaved += stat.penaltiesSaved ?? 0;
+      current.cardPoints += stat.cardPoints ?? 0;
       current.points += stat.points;
       current.redCards += stat.redCards ?? 0;
       current.saves += stat.saves ?? 0;
@@ -2150,6 +2152,7 @@ type ManagerPlayerPointsAccumulator = {
 type PlayerStatsAccumulator = {
   appearances: number;
   assists: number;
+  cardPoints: number;
   cleanSheets: number;
   goals: number;
   goalsConceded: number;
@@ -2178,6 +2181,7 @@ function getEmptyPlayerStats(): PlayerStatsAccumulator {
   return {
     appearances: 0,
     assists: 0,
+    cardPoints: 0,
     cleanSheets: 0,
     goals: 0,
     goalsConceded: 0,
@@ -2341,6 +2345,82 @@ function getFixtureEventPoints(
   if (type === "penalty_saved") return rules.penaltySaved;
 
   return 0;
+}
+
+type FantasyFixtureCardCounts = {
+  redCards: number;
+  secondYellowRedCards: number;
+  yellowCards: number;
+};
+
+function isFantasyCardEventType(type: FantasyFixtureEventType) {
+  return (
+    type === "yellow_card" ||
+    type === "second_yellow_red" ||
+    type === "red_card"
+  );
+}
+
+function getFantasyFixtureCardPoints(
+  counts: FantasyFixtureCardCounts,
+  rules: ScoringRuleValues,
+) {
+  const hasSendingOff =
+    counts.yellowCards >= 2 ||
+    counts.secondYellowRedCards > 0 ||
+    counts.redCards > 0;
+  if (hasSendingOff) return FANTASY_CARD_POINTS_FLOOR_PER_FIXTURE;
+
+  return Math.max(
+    FANTASY_CARD_POINTS_FLOOR_PER_FIXTURE,
+    counts.yellowCards * rules.yellowCard,
+  );
+}
+
+function getCappedFixtureCardEventPoints(
+  events: Doc<"fantasyFixtureEvents">[],
+  rules: ScoringRuleValues,
+) {
+  const eventsByPlayerId = new Map<
+    Id<"fantasyPlayers">,
+    Doc<"fantasyFixtureEvents">[]
+  >();
+  for (const event of events) {
+    if (!event.playerId || !isFantasyCardEventType(event.type)) continue;
+    const playerEvents = eventsByPlayerId.get(event.playerId) ?? [];
+    playerEvents.push(event);
+    eventsByPlayerId.set(event.playerId, playerEvents);
+  }
+
+  const pointsByEventId = new Map<Id<"fantasyFixtureEvents">, number>();
+  for (const playerEvents of eventsByPlayerId.values()) {
+    const counts = {
+      yellowCards: playerEvents.filter(
+        (event) => event.type === "yellow_card",
+      ).length,
+      secondYellowRedCards: playerEvents.filter(
+        (event) => event.type === "second_yellow_red",
+      ).length,
+      redCards: playerEvents.filter((event) => event.type === "red_card")
+        .length,
+    };
+    const cardPoints = getFantasyFixtureCardPoints(counts, rules);
+    for (const event of playerEvents) pointsByEventId.set(event._id, 0);
+
+    const reversedPlayerEvents = [...playerEvents].reverse();
+    const pointEvent =
+      (counts.yellowCards >= 2
+        ? reversedPlayerEvents.find((event) => event.type === "yellow_card")
+        : undefined) ??
+      reversedPlayerEvents.find((event) => event.type === "red_card") ??
+      reversedPlayerEvents.find(
+        (event) => event.type === "second_yellow_red",
+      ) ??
+      playerEvents.at(-1);
+    if (pointEvent) pointsByEventId.set(pointEvent._id, cardPoints);
+  }
+
+  return pointsByEventId;
 }
 
 function getMutablePlayerGameweekStats(
@@ -2846,6 +2926,11 @@ async function recalculateGameweekScoresInternal(
   ]);
 
   for (const [fixtureIndex, fixture] of scoringFixtures.entries()) {
+    const fixtureEvents = eventLists[fixtureIndex] ?? [];
+    const cappedCardEventPoints = getCappedFixtureCardEventPoints(
+      fixtureEvents,
+      scoringRules,
+    );
     for (const lineup of lineupLists[fixtureIndex] ?? []) {
       if (!lineup.playerId) continue;
       const player = playerById.get(lineup.playerId);
@@ -2858,7 +2943,7 @@ async function recalculateGameweekScoresInternal(
       );
     }
 
-    for (const event of eventLists[fixtureIndex] ?? []) {
+    for (const event of fixtureEvents) {
       if (!event.playerId) {
         skippedEventsWithoutPlayer += 1;
         continue;
@@ -2887,12 +2972,13 @@ async function recalculateGameweekScoresInternal(
       if (event.type === "penalty_missed") playerStats.penaltiesMissed += 1;
       if (event.type === "penalty_saved") playerStats.penaltiesSaved += 1;
 
-      const eventPoints = getFixtureEventPoints(
-        event.type,
-        player,
-        scoringRules,
-      );
+      const eventPoints = cappedCardEventPoints.has(event._id)
+        ? cappedCardEventPoints.get(event._id)!
+        : getFixtureEventPoints(event.type, player, scoringRules);
       playerStats.points += eventPoints;
+      if (isFantasyCardEventType(event.type)) {
+        playerStats.cardPoints += eventPoints;
+      }
       if (
         event.points !== eventPoints ||
         event.gameweekId !== gameweek._id ||
@@ -2961,6 +3047,7 @@ async function recalculateGameweekScoresInternal(
       clubId: player?.clubId,
       appearances: stats.appearances,
       assists: stats.assists,
+      cardPoints: Number(stats.cardPoints.toFixed(2)),
       cleanSheet: stats.cleanSheets > 0,
       cleanSheets: stats.cleanSheets,
       goals: stats.goals,
@@ -3835,6 +3922,71 @@ function addPlayerPointLine(
   lines.push({ count, kind, points: roundedPoints });
 }
 
+function addPlayerCardPointLines(
+  lines: Array<{
+    count: number | null;
+    kind: PlayerPointLineKind;
+    points: number;
+  }>,
+  counts: FantasyFixtureCardCounts,
+  cardPoints: number,
+  rules: ScoringRuleValues,
+) {
+  if (
+    counts.yellowCards <= 0 &&
+    counts.secondYellowRedCards <= 0 &&
+    counts.redCards <= 0
+  ) {
+    return;
+  }
+
+  if (counts.yellowCards >= 2) {
+    addPlayerPointLine(lines, "yellow_card", counts.yellowCards, cardPoints);
+    addPlayerPointLine(
+      lines,
+      "second_yellow_red",
+      counts.secondYellowRedCards,
+      0,
+    );
+    addPlayerPointLine(lines, "red_card", counts.redCards, 0);
+    return;
+  }
+
+  if (counts.secondYellowRedCards <= 0 && counts.redCards <= 0) {
+    addPlayerPointLine(
+      lines,
+      "yellow_card",
+      counts.yellowCards,
+      cardPoints,
+    );
+    return;
+  }
+
+  const yellowCardPoints =
+    counts.yellowCards > 0
+      ? Math.max(cardPoints, counts.yellowCards * rules.yellowCard)
+      : 0;
+  addPlayerPointLine(
+    lines,
+    "yellow_card",
+    counts.yellowCards,
+    yellowCardPoints,
+  );
+
+  let remainingPoints = cardPoints - yellowCardPoints;
+  if (counts.secondYellowRedCards > 0) {
+    const secondYellowPoints = counts.redCards > 0 ? 0 : remainingPoints;
+    addPlayerPointLine(
+      lines,
+      "second_yellow_red",
+      counts.secondYellowRedCards,
+      secondYellowPoints,
+    );
+    remainingPoints -= secondYellowPoints;
+  }
+  addPlayerPointLine(lines, "red_card", counts.redCards, remainingPoints);
+}
+
 function buildPlayerPointLines(
   stat: Doc<"fantasyPlayerGameweekStats"> | undefined,
   player: Doc<"fantasyPlayers"> | null,
@@ -3865,6 +4017,10 @@ function buildPlayerPointLines(
   const ownGoals = stat.ownGoals ?? 0;
   const penaltiesMissed = stat.penaltiesMissed ?? 0;
   const penaltiesSaved = stat.penaltiesSaved ?? 0;
+  const legacyCardPoints =
+    yellowCards * rules.yellowCard +
+    secondYellowRedCards * rules.secondYellowRedCard +
+    redCards * rules.redCard;
 
   addPlayerPointLine(
     lines,
@@ -3874,19 +4030,13 @@ function buildPlayerPointLines(
   );
   addPlayerPointLine(lines, "goal", goals, goals * goalPoints);
   addPlayerPointLine(lines, "assist", assists, assists * assistPoints);
-  addPlayerPointLine(
+  const cardCounts = { redCards, secondYellowRedCards, yellowCards };
+  addPlayerCardPointLines(
     lines,
-    "yellow_card",
-    yellowCards,
-    yellowCards * rules.yellowCard,
+    cardCounts,
+    stat.cardPoints ?? legacyCardPoints,
+    rules,
   );
-  addPlayerPointLine(
-    lines,
-    "second_yellow_red",
-    secondYellowRedCards,
-    secondYellowRedCards * rules.secondYellowRedCard,
-  );
-  addPlayerPointLine(lines, "red_card", redCards, redCards * rules.redCard);
   addPlayerPointLine(lines, "own_goal", ownGoals, ownGoals * rules.ownGoal);
   addPlayerPointLine(
     lines,
@@ -4562,19 +4712,13 @@ function buildFixturePlayerPointsBreakdown({
   addPlayerPointLine(lines, "appearance", 1, rules.appearance);
   addPlayerPointLine(lines, "goal", goals, goals * goalPoints);
   addPlayerPointLine(lines, "assist", assists, assists * assistPoints);
-  addPlayerPointLine(
+  const cardCounts = { redCards, secondYellowRedCards, yellowCards };
+  addPlayerCardPointLines(
     lines,
-    "yellow_card",
-    yellowCards,
-    yellowCards * rules.yellowCard,
+    cardCounts,
+    getFantasyFixtureCardPoints(cardCounts, rules),
+    rules,
   );
-  addPlayerPointLine(
-    lines,
-    "second_yellow_red",
-    secondYellowRedCards,
-    secondYellowRedCards * rules.secondYellowRedCard,
-  );
-  addPlayerPointLine(lines, "red_card", redCards, redCards * rules.redCard);
   addPlayerPointLine(lines, "own_goal", ownGoals, ownGoals * rules.ownGoal);
   addPlayerPointLine(
     lines,
@@ -4724,6 +4868,20 @@ function compareFantasySuspensionFixtures(
   );
 }
 
+function getAccumulatedYellowCardEvents(
+  cardEvents: Doc<"fantasyFixtureEvents">[],
+) {
+  const yellowCardEvents = cardEvents.filter(
+    (event) => event.type === "yellow_card",
+  );
+  const isSecondYellowSendingOff =
+    cardEvents.some((event) => event.type === "second_yellow_red") ||
+    (yellowCardEvents.length >= 2 &&
+      cardEvents.some((event) => event.type === "red_card"));
+
+  return isSecondYellowSendingOff ? [] : yellowCardEvents;
+}
+
 async function syncFantasyPlayerSuspensionsForSeason(
   ctx: MutationCtx,
   seasonId: Id<"fantasySeasons">,
@@ -4857,9 +5015,7 @@ async function syncFantasyPlayerSuspensionsForSeason(
         getFixtureClubIdBySide(fixture, cardEvents[0].side) ??
         playersById.get(playerId)?.clubId;
 
-      for (const yellowCard of cardEvents.filter(
-        (event) => event.type === "yellow_card",
-      )) {
+      for (const yellowCard of getAccumulatedYellowCardEvents(cardEvents)) {
         const accumulatedYellowCards =
           (yellowCardsByPlayerId.get(playerId) ?? 0) + 1;
         yellowCardsByPlayerId.set(playerId, accumulatedYellowCards);
@@ -5103,6 +5259,7 @@ export const playerProfile = query({
       current.ownGoals += stat.ownGoals ?? 0;
       current.penaltiesMissed += stat.penaltiesMissed ?? 0;
       current.penaltiesSaved += stat.penaltiesSaved ?? 0;
+      current.cardPoints += stat.cardPoints ?? 0;
       current.points += stat.points;
       current.redCards += stat.redCards ?? 0;
       current.saves += stat.saves ?? 0;
@@ -5355,6 +5512,7 @@ export const seasonPlayerStatistics = query({
       current.ownGoals += stat.ownGoals ?? 0;
       current.penaltiesMissed += stat.penaltiesMissed ?? 0;
       current.penaltiesSaved += stat.penaltiesSaved ?? 0;
+      current.cardPoints += stat.cardPoints ?? 0;
       current.points += stat.points;
       current.redCards += stat.redCards ?? 0;
       current.saves += stat.saves ?? 0;
@@ -5692,6 +5850,7 @@ export const myTeam = query({
       current.ownGoals += stat.ownGoals ?? 0;
       current.penaltiesMissed += stat.penaltiesMissed ?? 0;
       current.penaltiesSaved += stat.penaltiesSaved ?? 0;
+      current.cardPoints += stat.cardPoints ?? 0;
       current.points += stat.points;
       current.redCards += stat.redCards ?? 0;
       current.saves += stat.saves ?? 0;
@@ -7646,7 +7805,7 @@ export const saveAdminFixtureSheet = mutation({
         goals: v.number(),
         assists: v.number(),
         yellowCards: v.number(),
-        secondYellowRedCards: v.number(),
+        secondYellowRedCards: v.optional(v.number()),
         redCards: v.number(),
         ownGoals: v.number(),
         penaltiesMissed: v.number(),
@@ -7704,9 +7863,18 @@ export const saveAdminFixtureSheet = mutation({
     for (const row of args.rows) {
       validateCount(row.goals, "Голы");
       validateCount(row.assists, "Ассисты");
-      validateCount(row.yellowCards, "Желтые карточки");
-      validateCount(row.secondYellowRedCards, "Вторые желтые");
-      validateCount(row.redCards, "Красные карточки");
+      const legacySecondYellowRedCards = validateCount(
+        row.secondYellowRedCards ?? 0,
+        "Вторые желтые",
+      );
+      validateCount(
+        row.yellowCards + legacySecondYellowRedCards,
+        "Желтые карточки",
+      );
+      validateCount(
+        row.redCards + legacySecondYellowRedCards,
+        "Красные карточки",
+      );
       validateCount(row.ownGoals, "Автоголы");
       validateCount(row.penaltiesMissed, "Незабитые пенальти");
       validateCount(row.penaltiesSaved, "Отбитые пенальти");
@@ -7775,12 +7943,14 @@ export const saveAdminFixtureSheet = mutation({
 
     for (const row of args.rows) {
       const player = playersById.get(row.playerId)!;
+      const legacySecondYellowRedCards = row.secondYellowRedCards ?? 0;
+      const yellowCards = row.yellowCards + legacySecondYellowRedCards;
+      const redCards = row.redCards + legacySecondYellowRedCards;
       const eventCount =
         row.goals +
         row.assists +
-        row.yellowCards +
-        row.secondYellowRedCards +
-        row.redCards +
+        yellowCards +
+        redCards +
         row.ownGoals +
         row.penaltiesMissed +
         row.penaltiesSaved;
@@ -7803,14 +7973,8 @@ export const saveAdminFixtureSheet = mutation({
 
       await insertRepeatedEvents(row, player, "goal", row.goals);
       await insertRepeatedEvents(row, player, "assist", row.assists);
-      await insertRepeatedEvents(row, player, "yellow_card", row.yellowCards);
-      await insertRepeatedEvents(
-        row,
-        player,
-        "second_yellow_red",
-        row.secondYellowRedCards,
-      );
-      await insertRepeatedEvents(row, player, "red_card", row.redCards);
+      await insertRepeatedEvents(row, player, "yellow_card", yellowCards);
+      await insertRepeatedEvents(row, player, "red_card", redCards);
       await insertRepeatedEvents(row, player, "own_goal", row.ownGoals);
       await insertRepeatedEvents(
         row,

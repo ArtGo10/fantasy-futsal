@@ -151,6 +151,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           body: [
             "Every fourth accumulated yellow card creates an automatic suspension. In the Ukrainian Extra-liga each such threshold means one match. In the Polish Futsal Ekstraklasa the 4th and 8th yellow cards mean one match, while the 12th and every later fourth yellow card mean two matches.",
             "A direct red card or a sending-off after a second yellow card immediately creates an automatic suspension for the next league match. If the league's disciplinary decision is longer, an administrator extends the player's status manually.",
+            "Yellow cards that result in a second-yellow sending-off do not count toward the accumulated-yellow thresholds. If a player receives one yellow card and later a direct red card in the same match, that yellow card still counts.",
             "A suspension is served only when the player's club completes the required league match without that player appearing. Postponed and cancelled matches do not clear it. After the required match or matches are served, the app removes the automatic suspension status.",
           ],
         },
@@ -167,6 +168,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Appearance: +1 point.",
             "Universal player actions: goal +4, assist +3, missed 6-meter penalty -3, yellow card -1, red card -4, own goal -2.",
             "Goalkeeper actions: goal +7, assist +5, saved 6-meter penalty +4, missed 6-meter penalty -3, yellow card -1, red card -4, own goal -2.",
+            "Card penalties are capped at -4 points per player per match. Two yellow cards automatically result in this -4 penalty; recording the resulting red card does not add another -4.",
             "No fantasy points are awarded for the player's team winning, drawing, losing, or scoring team goals. Negative player points are supported.",
           ],
         },
@@ -314,6 +316,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           body: [
             "Кожна четверта накопичена жовта картка автоматично призводить до дискваліфікації. В українській Екстра-лізі кожен такий поріг означає один матч. У польській Futsal Ekstraklasa 4-та і 8-ма жовті картки означають один матч, а 12-та і кожна наступна четверта картка - два матчі.",
             "Пряма червона картка або вилучення після другої жовтої картки одразу створює автоматичну дискваліфікацію на наступний матч ліги. Якщо офіційне рішення ліги передбачає довший строк, адміністратор продовжує статус гравця вручну.",
+            "Жовті картки, що призвели до вилучення після другої жовтої, не враховуються в порогах накопичених жовтих карток. Якщо гравець отримав одну жовту, а пізніше в тому самому матчі пряму червону, ця жовта продовжує враховуватися.",
             "Дискваліфікація вважається відбутою лише тоді, коли клуб гравця завершив потрібний матч ліги без участі цього гравця. Перенесені та скасовані матчі її не знімають. Після відбуття потрібної кількості матчів застосунок автоматично прибирає статус дискваліфікації.",
           ],
         },
@@ -330,6 +333,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Вихід на майданчик: +1 очко.",
             "Дії універсала: гол +4, асист +3, незабитий 6-метровий -3, жовта картка -1, червона картка -4, автогол -2.",
             "Дії воротаря: гол +7, асист +5, відбитий 6-метровий +4, незабитий 6-метровий -3, жовта картка -1, червона картка -4, автогол -2.",
+            "Штраф за картки обмежений -4 очками для одного гравця в одному матчі. Дві жовті картки автоматично дають цей штраф -4; червона картка, показана внаслідок такого вилучення, не додає ще -4.",
             "Fantasy-очки не нараховуються за перемогу, нічию, поразку або забиті командою голи. Від'ємні очки гравця підтримуються.",
           ],
         },
@@ -477,6 +481,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
           body: [
             "Każda czwarta zgromadzona żółta kartka automatycznie powoduje zawieszenie. W ukraińskiej Ekstra-lidze każdy taki próg oznacza jeden mecz. W polskiej Futsal Ekstraklasie 4. i 8. żółta kartka oznaczają jeden mecz, natomiast 12. i każda kolejna czwarta kartka - dwa mecze.",
             "Bezpośrednia czerwona kartka albo wykluczenie po drugiej żółtej kartce natychmiast powoduje automatyczne zawieszenie na najbliższy mecz ligowy. Jeśli oficjalna decyzja dyscyplinarna ligi przewiduje dłuższą karę, administrator ręcznie przedłuża status zawodnika.",
+            "Żółte kartki, które doprowadziły do wykluczenia po drugiej żółtej, nie są wliczane do progów zgromadzonych żółtych kartek. Jeśli zawodnik otrzyma jedną żółtą, a później w tym samym meczu bezpośrednią czerwoną kartkę, ta żółta nadal jest wliczana.",
             "Zawieszenie zostaje odbyte tylko wtedy, gdy klub zawodnika zakończy wymagany mecz ligowy bez jego występu. Mecze przełożone i odwołane nie zdejmują zawieszenia. Po odbyciu wymaganej liczby meczów aplikacja automatycznie usuwa status zawieszenia.",
           ],
         },
@@ -493,6 +498,7 @@ const content: Record<LanguageCode, Record<LegalKind, LegalContent>> = {
             "Występ: +1 punkt.",
             "Akcje zawodnika uniwersalnego: gol +4, asysta +3, niewykorzystany rzut karny z 6 metrów -3, żółta kartka -1, czerwona kartka -4, gol samobójczy -2.",
             "Akcje bramkarza: gol +7, asysta +5, obroniony rzut karny z 6 metrów +4, niewykorzystany rzut karny z 6 metrów -3, żółta kartka -1, czerwona kartka -4, gol samobójczy -2.",
+            "Kara za kartki jest ograniczona do -4 punktów na zawodnika w jednym meczu. Dwie żółte kartki automatycznie oznaczają tę karę -4; czerwona kartka pokazana w wyniku takiego wykluczenia nie dodaje kolejnych -4.",
             "Punkty fantasy nie są przyznawane za zwycięstwo, remis, porażkę ani gole zdobyte przez drużynę zawodnika. Ujemne punkty zawodnika są obsługiwane.",
           ],
         },
