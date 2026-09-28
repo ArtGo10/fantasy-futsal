@@ -41,6 +41,7 @@ type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
   | "unavailable"
@@ -95,7 +96,6 @@ type FantasyPlayer = {
     messageUk?: string | null;
     updatedAt?: number | null;
   } | null;
-  statusMessage?: string | null;
   yellowCards: number;
 };
 

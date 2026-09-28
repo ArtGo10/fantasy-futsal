@@ -39,6 +39,7 @@ type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
   | "unavailable"

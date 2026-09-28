@@ -1,6 +1,6 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useAction, useMutation } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Linking,
   Platform,
@@ -60,10 +60,11 @@ type AdminPlayerPosition = "goalkeeper" | "universal";
 type AdminPlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
-  | "unavailable"
   | "left";
+type StoredPlayerStatus = AdminPlayerStatus | "unavailable";
 
 type FantasyClub = {
   id: Id<"fantasyClubs">;
@@ -86,14 +87,7 @@ type FantasyPlayer = {
   photoUrl?: string | null;
   position: "goalkeeper" | "universal";
   price: number;
-  status: AdminPlayerStatus;
-  statusDetails?: {
-    message?: string | null;
-    messageEn?: string | null;
-    messagePl?: string | null;
-    messageUk?: string | null;
-    updatedAt?: number | null;
-  } | null;
+  status: StoredPlayerStatus;
 };
 
 type AdminPlayerFormState = {
@@ -108,7 +102,6 @@ type AdminPlayerFormState = {
   position: AdminPlayerPosition;
   price: string;
   status: AdminPlayerStatus;
-  statusMessage: string;
 };
 
 type AdminFixtureSheetRow = {
@@ -241,11 +234,11 @@ const ADMIN_FIXTURE_STAT_KEYS = Object.keys(
 
 const ADMIN_PLAYER_STATUSES: AdminPlayerStatus[] = [
   "active",
-  "doubtful",
-  "injured",
   "suspended",
-  "unavailable",
   "left",
+  "injured",
+  "doubtful",
+  "unknown",
 ];
 
 const ADMIN_PLAYER_STATUS_LABEL_KEYS: Record<
@@ -254,10 +247,10 @@ const ADMIN_PLAYER_STATUS_LABEL_KEYS: Record<
 > = {
   active: "players.playerStatus.active",
   doubtful: "players.playerStatus.doubtful",
+  unknown: "players.playerStatus.unknown",
   injured: "players.playerStatus.injured",
   left: "players.playerStatus.left",
   suspended: "players.playerStatus.suspended",
-  unavailable: "players.playerStatus.unavailable",
 };
 
 const ADMIN_FIXTURE_STATUSES: AdminFixtureStatus[] = [
@@ -291,7 +284,6 @@ const EMPTY_ADMIN_PLAYER_FORM: AdminPlayerFormState = {
   position: "universal",
   price: "",
   status: "active",
-  statusMessage: "",
 };
 
 const LANGUAGE_LOCALES: Record<LanguageCode, string> = {
@@ -392,13 +384,12 @@ function createAdminPlayerForm(player?: FantasyPlayer | null) {
     photoUrl: player.photoUrl ?? "",
     position: player.position,
     price: String(player.price),
-    status: player.status,
-    statusMessage:
-      player.statusDetails?.message ??
-      player.statusDetails?.messageEn ??
-      player.statusDetails?.messageUk ??
-      player.statusDetails?.messagePl ??
-      "",
+    status:
+      player.status === "unavailable"
+        ? player.clubId
+          ? "unknown"
+          : "left"
+        : player.status,
   };
 }
 
@@ -485,6 +476,8 @@ export function ProfileScreen({
   const [adminFixtureRows, setAdminFixtureRows] = useState<
     Record<string, AdminFixtureSheetRow>
   >({});
+  const adminFixtureDraftDirtyRef = useRef(false);
+  const hydratedAdminFixtureIdRef = useRef<string | null>(null);
   const [adminFixtureBusy, setAdminFixtureBusy] = useState(false);
   const [adminFixtureStatusText, setAdminFixtureStatusText] = useState<
     string | null
@@ -666,6 +659,16 @@ export function ProfileScreen({
   }, [adminFixtureOptions, isAdmin, mode]);
 
   useEffect(() => {
+    const fixtureId = selectedAdminFixtureForForm?.id ?? null;
+    const fixtureChanged = hydratedAdminFixtureIdRef.current !== fixtureId;
+
+    // Convex can emit the same fixture again after a browser-tab reconnect.
+    // Keep the user's unsaved sheet until they save or choose another fixture.
+    if (!fixtureChanged && adminFixtureDraftDirtyRef.current) return;
+
+    hydratedAdminFixtureIdRef.current = fixtureId;
+    adminFixtureDraftDirtyRef.current = false;
+
     if (!selectedAdminFixtureForForm) {
       setAdminFixtureDateText("");
       setAdminFixtureStatus("scheduled");
@@ -865,7 +868,12 @@ export function ProfileScreen({
   };
 
   const handleSelectAdminFixture = (fixture: FantasyFixture) => {
-    setSelectedAdminFixtureId(fixture.id as Id<"fantasyFixtures">);
+    const fixtureId = fixture.id as Id<"fantasyFixtures">;
+    if (fixtureId !== selectedAdminFixtureId) {
+      adminFixtureDraftDirtyRef.current = false;
+      hydratedAdminFixtureIdRef.current = null;
+      setSelectedAdminFixtureId(fixtureId);
+    }
     setAdminFixtureStatusText(null);
     setAdminFixtureErrorText(null);
   };
@@ -874,6 +882,7 @@ export function ProfileScreen({
     playerId: Id<"fantasyPlayers">,
     updater: (row: AdminFixtureSheetRow) => AdminFixtureSheetRow,
   ) => {
+    adminFixtureDraftDirtyRef.current = true;
     setAdminFixtureRows((currentRows) => {
       const current = currentRows[playerId];
       if (!current) return currentRows;
@@ -911,6 +920,7 @@ export function ProfileScreen({
       setAdminFixtureStatusText(
         `${t("profile.adminFixtureSheetSaved")} ${result.lineups}/${result.events}.`,
       );
+      adminFixtureDraftDirtyRef.current = false;
     } catch (error) {
       setAdminFixtureErrorText(getErrorMessage(error));
     } finally {
@@ -970,9 +980,7 @@ export function ProfileScreen({
         position: adminPlayerForm.position,
         price,
         status: adminPlayerForm.status,
-        statusDetails: adminPlayerForm.statusMessage.trim()
-          ? { message: adminPlayerForm.statusMessage.trim() }
-          : null,
+        statusDetails: null,
       });
 
       setAdminPlayerEditingId(result.playerId);
@@ -1105,7 +1113,6 @@ export function ProfileScreen({
       <View key={player.id} style={styles.adminFixtureSheetRow}>
         <View style={styles.adminFixtureSheetPlayerCell}>
           <Text numberOfLines={1} style={styles.adminEventRowTitle}>
-            {player.jerseyNumber ? `${player.jerseyNumber}. ` : ""}
             {player.displayName}
           </Text>
           <Text style={styles.adminEventRowMeta}>
@@ -1167,9 +1174,6 @@ export function ProfileScreen({
       <View style={styles.adminFixtureSheetHeader}>
         <Text style={styles.adminFixtureSheetHeaderPlayer}>
           {t("profile.adminFixturePlayerColumn")}
-        </Text>
-        <Text style={styles.adminFixtureSheetHeaderAppear}>
-          {t("profile.adminFixtureAppearedShort")}
         </Text>
       </View>
       {teamPlayers.length === 0 ? (
@@ -1282,7 +1286,10 @@ export function ProfileScreen({
             <View style={styles.adminFixtureMetaField}>
               <Text style={styles.label}>{t("profile.adminFixtureDate")}</Text>
               <TextInput
-                onChangeText={setAdminFixtureDateText}
+                onChangeText={(value) => {
+                  adminFixtureDraftDirtyRef.current = true;
+                  setAdminFixtureDateText(value);
+                }}
                 placeholder="YYYY-MM-DDTHH:mm"
                 placeholderTextColor="#7B8798"
                 style={styles.input}
@@ -1294,7 +1301,10 @@ export function ProfileScreen({
               <View style={styles.adminScoreRow}>
                 <TextInput
                   keyboardType="number-pad"
-                  onChangeText={setAdminHomeScoreText}
+                  onChangeText={(value) => {
+                    adminFixtureDraftDirtyRef.current = true;
+                    setAdminHomeScoreText(value);
+                  }}
                   placeholder={selectedAdminFixtureForForm.homeClubName}
                   placeholderTextColor="#7B8798"
                   style={[styles.input, styles.adminScoreInput]}
@@ -1302,7 +1312,10 @@ export function ProfileScreen({
                 />
                 <TextInput
                   keyboardType="number-pad"
-                  onChangeText={setAdminAwayScoreText}
+                  onChangeText={(value) => {
+                    adminFixtureDraftDirtyRef.current = true;
+                    setAdminAwayScoreText(value);
+                  }}
                   placeholder={selectedAdminFixtureForForm.awayClubName}
                   placeholderTextColor="#7B8798"
                   style={[styles.input, styles.adminScoreInput]}
@@ -1318,7 +1331,10 @@ export function ProfileScreen({
                 <Pressable
                   accessibilityRole="button"
                   key={status}
-                  onPress={() => setAdminFixtureStatus(status)}
+                  onPress={() => {
+                    adminFixtureDraftDirtyRef.current = true;
+                    setAdminFixtureStatus(status);
+                  }}
                   style={[
                     styles.adminEventTypeButton,
                     isSelected
@@ -1503,19 +1519,6 @@ export function ProfileScreen({
               style={styles.input}
               value={adminPlayerForm.price}
             />
-            <TextInput
-              keyboardType="number-pad"
-              onChangeText={(value) =>
-                setAdminPlayerForm((current) => ({
-                  ...current,
-                  jerseyNumber: value,
-                }))
-              }
-              placeholder={t("profile.adminPlayerJerseyNumber")}
-              placeholderTextColor="#7B8798"
-              style={styles.input}
-              value={adminPlayerForm.jerseyNumber}
-            />
           </View>
           <Text style={styles.label}>{t("profile.adminPlayerClub")}</Text>
           <ScrollView
@@ -1526,7 +1529,11 @@ export function ProfileScreen({
             <Pressable
               accessibilityRole="button"
               onPress={() =>
-                setAdminPlayerForm((current) => ({ ...current, clubId: "" }))
+                setAdminPlayerForm((current) => ({
+                  ...current,
+                  clubId: "",
+                  status: "left",
+                }))
               }
               style={[
                 styles.adminGameweekChip,
@@ -1555,6 +1562,8 @@ export function ProfileScreen({
                     setAdminPlayerForm((current) => ({
                       ...current,
                       clubId: club.id,
+                      status:
+                        current.status === "left" ? "active" : current.status,
                     }))
                   }
                   style={[
@@ -1581,6 +1590,24 @@ export function ProfileScreen({
           <View style={styles.adminEventTypeGrid}>
             {ADMIN_PLAYER_STATUSES.map((status) => {
               const isSelected = adminPlayerForm.status === status;
+              const statusColors =
+                status === "active"
+                  ? {
+                      backgroundColor: colors.state.successSoft,
+                      borderColor: colors.state.success,
+                      textColor: colors.state.success,
+                    }
+                  : status === "doubtful" || status === "unknown"
+                    ? {
+                        backgroundColor: colors.state.warningSoft,
+                        borderColor: colors.state.warningBorder,
+                        textColor: colors.state.warning,
+                      }
+                    : {
+                        backgroundColor: colors.state.dangerSoft,
+                        borderColor: colors.state.dangerBorder,
+                        textColor: colors.state.danger,
+                      };
               return (
                 <Pressable
                   accessibilityRole="button"
@@ -1588,6 +1615,7 @@ export function ProfileScreen({
                   onPress={() =>
                     setAdminPlayerForm((current) => ({
                       ...current,
+                      clubId: status === "left" ? "" : current.clubId,
                       status,
                     }))
                   }
@@ -1597,8 +1625,8 @@ export function ProfileScreen({
                       ? [
                           styles.segmentButtonActive,
                           {
-                            backgroundColor: fantasyTheme.softColor,
-                            borderColor: fantasyTheme.primaryColor,
+                            backgroundColor: statusColors.backgroundColor,
+                            borderColor: statusColors.borderColor,
                           },
                         ]
                       : null,
@@ -1611,7 +1639,7 @@ export function ProfileScreen({
                       isSelected
                         ? [
                             styles.segmentTextActive,
-                            { color: fantasyTheme.primaryColor },
+                            { color: statusColors.textColor },
                           ]
                         : null,
                     ]}
@@ -1693,19 +1721,6 @@ export function ProfileScreen({
             placeholderTextColor="#7B8798"
             style={styles.input}
             value={adminPlayerForm.photoThumbnailUrl}
-          />
-          <TextInput
-            multiline
-            onChangeText={(value) =>
-              setAdminPlayerForm((current) => ({
-                ...current,
-                statusMessage: value,
-              }))
-            }
-            placeholder={t("profile.adminPlayerStatusMessage")}
-            placeholderTextColor="#7B8798"
-            style={[styles.input, styles.profileFeedbackTextArea]}
-            value={adminPlayerForm.statusMessage}
           />
           <Pressable
             disabled={adminPlayerBusy}
