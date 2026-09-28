@@ -536,8 +536,12 @@ function isAutomaticNonParticipationStatusDetails(
       (value) =>
         /^did not play (last gameweek|in gameweek \d+)$/.test(value) ||
         /^did not play in the last \d+ gameweeks$/.test(value) ||
+        /^missing from the initial season roster\.?$/.test(value) ||
         /^не грав у (минулому турі|турі \d+)$/.test(value) ||
         /^не грав в останніх \d+ турах$/.test(value) ||
+        /^відсутній у початковій заявці на сезон\.?$/.test(value) ||
+        /^отсутствует в начальной заявке на сезон\.?$/.test(value) ||
+        /^brak w początkowej kadrze na sezon\.?$/.test(value) ||
         /^nie zagrał w (poprzedniej kolejce|\d+\. kolejce|ostatnich \d+ kolejkach)$/.test(value),
     )
   );
@@ -3555,6 +3559,7 @@ async function markGameweekNonParticipantsDoubtfulInternal(
     }
     missedGameweeksByPlayer.set(player._id, missedGameweeks);
     if (
+      player.status === "unknown" &&
       hasAutoNonParticipationStatus &&
       hasNonParticipationStatusDetailsForGameweek(
         player.statusDetails,
@@ -8881,6 +8886,55 @@ export const syncPlayerSuspensions = mutation({
       season._id,
       Date.now(),
     );
+  },
+});
+
+export const normalizePlayerAvailabilityStatuses = mutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+    seasonSlug: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const season = await requireExistingSeason(ctx, args.seasonSlug);
+    const players = await ctx.db
+      .query("fantasyPlayers")
+      .withIndex("by_season", (q) => q.eq("seasonId", season._id))
+      .collect();
+    const now = Date.now();
+    const changedPlayers = [];
+
+    for (const player of players) {
+      const nextStatus = !player.clubId
+        ? "left"
+        : player.status === "unavailable" ||
+            (player.status === "doubtful" &&
+              isAutomaticNonParticipationStatusDetails(player.statusDetails))
+          ? "unknown"
+          : null;
+      if (!nextStatus || nextStatus === player.status) continue;
+
+      if (!args.dryRun) {
+        await ctx.db.patch(player._id, {
+          status: nextStatus,
+          updatedAt: now,
+        });
+      }
+      changedPlayers.push({
+        displayName: player.displayName,
+        from: player.status,
+        playerId: player._id,
+        to: nextStatus,
+      });
+    }
+
+    return {
+      changed: changedPlayers.length,
+      dryRun: args.dryRun ?? false,
+      players: changedPlayers,
+      seasonId: season._id,
+    };
   },
 });
 

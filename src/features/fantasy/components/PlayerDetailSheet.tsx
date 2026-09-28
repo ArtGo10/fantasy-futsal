@@ -11,7 +11,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WEB_DESKTOP_MIN_WIDTH } from "../../../constants";
-import type { TranslationKey } from "../../../i18n/translations";
+import type {
+  LanguageCode,
+  TranslationKey,
+} from "../../../i18n/translations";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { styles } from "../../../styles";
 import { colors } from "../../../theme/tokens";
@@ -64,6 +67,12 @@ export type PlayerDetail = {
   seasonPoints?: number | null;
   selectedPercent?: number | null;
   status: PlayerStatus;
+  statusDetails?: {
+    message?: string | null;
+    messageEn?: string | null;
+    messagePl?: string | null;
+    messageUk?: string | null;
+  } | null;
   yellowCards?: number | null;
 };
 
@@ -102,6 +111,21 @@ const STATUS_LABEL_KEYS: Record<PlayerStatus, TranslationKey> = {
   suspended: "players.playerStatus.suspended",
   unavailable: "players.playerStatus.unavailable",
 };
+
+function getLocalizedPlayerStatusDetails(
+  details: PlayerDetail["statusDetails"],
+  language: LanguageCode,
+) {
+  if (!details) return null;
+
+  const localizedMessage =
+    language === "uk"
+      ? details.messageUk
+      : language === "pl"
+        ? details.messagePl
+        : details.messageEn;
+  return localizedMessage?.trim() || details.message?.trim() || null;
+}
 
 function getPlayerDetailNameLines(displayName: string) {
   const parts = displayName.replace(/\s+/g, " ").trim().split(" ");
@@ -224,7 +248,7 @@ export function PlayerDetailSheet({
   presentation = "sheet",
   visible,
 }: PlayerDetailSheetProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -250,8 +274,18 @@ export function PlayerDetailSheet({
     ) : null;
   }
 
+  const canShowStatusDetails =
+    player.status === "unknown" ||
+    player.status === "doubtful" ||
+    player.status === "injured" ||
+    player.status === "suspended";
   const statusNoticeMessage =
-    player.status === "active" ? null : t(STATUS_LABEL_KEYS[player.status]);
+    player.status === "active"
+      ? null
+      : (canShowStatusDetails
+          ? getLocalizedPlayerStatusDetails(player.statusDetails, language)
+          : null) ??
+        t(STATUS_LABEL_KEYS[player.status]);
   const isUncertain =
     player.status === "doubtful" || player.status === "unknown";
   const handleSetCaptainPress = () => {
