@@ -105,6 +105,7 @@ type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
   | "unavailable"
@@ -237,7 +238,6 @@ type FantasyPlayer = {
     messageUk?: string | null;
     updatedAt?: number | null;
   } | null;
-  statusMessage?: string | null;
   yellowCards?: number | null;
 };
 
@@ -2329,8 +2329,8 @@ function shouldShowPlayerStatusWarning(
   return Boolean(player && player.status !== "active");
 }
 
-function isDoubtfulPlayer(player: FantasyPlayer | null | undefined) {
-  return player?.status === "doubtful";
+function hasUncertainPlayerStatus(player: FantasyPlayer | null | undefined) {
+  return player?.status === "doubtful" || player?.status === "unknown";
 }
 
 function FutsalSquadSlotCircle({
@@ -2360,7 +2360,7 @@ function FutsalSquadSlotCircle({
     ? getPlayerSurnameLabel(player.displayName)
     : positionShortLabel;
   const hasStatusWarning = shouldShowPlayerStatusWarning(player);
-  const isDoubtfulStatus = isDoubtfulPlayer(player);
+  const isUncertainStatus = hasUncertainPlayerStatus(player);
   const canRemove = Boolean(
     player && onRemove && showRemoveButton,
   );
@@ -2447,7 +2447,7 @@ function FutsalSquadSlotCircle({
             player && showPlayerPrice ? styles.futsalSquadSlotNamePriced : null,
             !player ? styles.futsalSquadSlotPlaceholderName : null,
             hasStatusWarning
-              ? isDoubtfulStatus
+              ? isUncertainStatus
                 ? styles.futsalSquadSlotNameDoubtful
                 : styles.futsalSquadSlotNameWarning
               : null,

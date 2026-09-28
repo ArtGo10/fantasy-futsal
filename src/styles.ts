@@ -8414,14 +8414,6 @@ export const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     textTransform: "uppercase",
   },
-  adminFixtureSheetHeaderAppear: {
-    width: 44,
-    textAlign: "center",
-    color: colors.text.muted,
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    textTransform: "uppercase",
-  },
   adminFixtureSheetRow: {
     minHeight: 68,
     borderWidth: 1,

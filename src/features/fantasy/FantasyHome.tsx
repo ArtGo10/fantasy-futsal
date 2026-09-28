@@ -213,7 +213,6 @@ const CONVEX_TOKEN_WARMUP_ATTEMPTS = 24;
 const CONVEX_TOKEN_WARMUP_DELAY_MS = 500;
 const CONVEX_TOKEN_WARMUP_TOTAL_TIMEOUT_MS = 15000;
 const NATIVE_FOREGROUND_SESSION_REFRESH_GRACE_MS = 60 * 1000;
-const WEB_FOREGROUND_SESSION_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
 function waitForNextPaint() {
   return new Promise<void>((resolve) => {
@@ -694,7 +693,6 @@ export function FantasyHome({
     /inactive|background/.test(AppState.currentState) ? Date.now() : null,
   );
   const lastForegroundResumeAtRef = useRef(0);
-  const lastForegroundSessionRefreshAtRef = useRef(Date.now());
   const wasOfflineRef = useRef(isOffline);
   const preferredLanguageSyncKeyRef = useRef<string | null>(null);
   const previousPrivateLoadingOverlayDebugRef = useRef<string | null>(null);
@@ -1165,24 +1163,15 @@ export function FantasyHome({
         lastForegroundResumeAtRef.current = now;
         setIsConnectionToastVisible(false);
 
+        if (Platform.OS === "web") return;
+
         if (userIsSignedIn) {
           if (
-            Platform.OS !== "web" &&
             suspendedAt &&
             now - suspendedAt < NATIVE_FOREGROUND_SESSION_REFRESH_GRACE_MS
           ) {
             return;
           }
-
-          if (
-            Platform.OS === "web" &&
-            now - lastForegroundSessionRefreshAtRef.current <
-              WEB_FOREGROUND_SESSION_REFRESH_COOLDOWN_MS
-          ) {
-            return;
-          }
-
-          lastForegroundSessionRefreshAtRef.current = now;
           setCanShowAuthProblem(false);
           setConvexTokenStatus("idle");
           setForegroundRefreshNonce((current) => current + 1);

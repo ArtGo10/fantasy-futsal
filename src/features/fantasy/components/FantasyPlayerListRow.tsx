@@ -19,6 +19,7 @@ type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
   | "unavailable"
@@ -54,14 +55,6 @@ export type FantasyPlayerListRowPlayer = {
   seasonPoints?: number | null;
   selectedPercent?: number | null;
   status: PlayerStatus;
-  statusDetails?: {
-    message?: string | null;
-    messageEn?: string | null;
-    messagePl?: string | null;
-    messageUk?: string | null;
-    updatedAt?: number | null;
-  } | null;
-  statusMessage?: string | null;
   yellowCards?: number | null;
   redCards?: number | null;
 };
@@ -84,6 +77,7 @@ export const FANTASY_PLAYER_PICKER_STATS_ITEM_HEIGHT =
 const STATUS_LABEL_KEYS: Record<PlayerStatus, TranslationKey> = {
   active: "players.playerStatus.active",
   doubtful: "players.playerStatus.doubtful",
+  unknown: "players.playerStatus.unknown",
   injured: "players.playerStatus.injured",
   left: "players.playerStatus.left",
   suspended: "players.playerStatus.suspended",
@@ -214,7 +208,7 @@ export function FantasyPlayerStatusBadge({
     );
   }
 
-  const isDoubtful = status === "doubtful";
+  const isUncertain = status === "doubtful" || status === "unknown";
 
   return (
     <View
@@ -228,7 +222,7 @@ export function FantasyPlayerStatusBadge({
       <View
         style={[
           styles.fantasyPlayerStatusTriangle,
-          isDoubtful ? styles.fantasyPlayerStatusTriangleDoubtful : null,
+          isUncertain ? styles.fantasyPlayerStatusTriangleDoubtful : null,
           isCompact ? styles.fantasyPlayerStatusTriangleCompact : null,
           isExtraSmall ? styles.fantasyPlayerStatusTriangleExtraSmall : null,
         ]}
@@ -236,11 +230,11 @@ export function FantasyPlayerStatusBadge({
       <Text
         style={[
           styles.fantasyPlayerStatusTriangleText,
-          isDoubtful ? styles.fantasyPlayerStatusTriangleTextDoubtful : null,
+          isUncertain ? styles.fantasyPlayerStatusTriangleTextDoubtful : null,
           isCompact ? styles.fantasyPlayerStatusTriangleTextCompact : null,
         ]}
       >
-        {isDoubtful ? "?" : "!"}
+        {isUncertain ? "?" : "!"}
       </Text>
     </View>
   );

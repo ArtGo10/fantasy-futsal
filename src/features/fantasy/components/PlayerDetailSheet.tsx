@@ -29,6 +29,7 @@ type PlayerPosition = "goalkeeper" | "universal";
 type PlayerStatus =
   | "active"
   | "doubtful"
+  | "unknown"
   | "injured"
   | "suspended"
   | "unavailable"
@@ -63,14 +64,6 @@ export type PlayerDetail = {
   seasonPoints?: number | null;
   selectedPercent?: number | null;
   status: PlayerStatus;
-  statusDetails?: {
-    message?: string | null;
-    messageEn?: string | null;
-    messagePl?: string | null;
-    messageUk?: string | null;
-    updatedAt?: number | null;
-  } | null;
-  statusMessage?: string | null;
   yellowCards?: number | null;
 };
 
@@ -100,33 +93,15 @@ const POSITION_LABEL_KEYS: Record<PlayerPosition, TranslationKey> = {
   universal: "players.position.universal",
 };
 
-const STATUS_LABEL_KEYS: Record<
-  "active" | "doubtful" | "unavailable",
-  TranslationKey
-> = {
+const STATUS_LABEL_KEYS: Record<PlayerStatus, TranslationKey> = {
   active: "players.playerStatus.active",
   doubtful: "players.playerStatus.doubtful",
+  unknown: "players.playerStatus.unknown",
+  injured: "players.playerStatus.injured",
+  left: "players.playerStatus.left",
+  suspended: "players.playerStatus.suspended",
   unavailable: "players.playerStatus.unavailable",
 };
-
-const STATUS_REASON_LABEL_KEYS: Partial<Record<PlayerStatus, TranslationKey>> =
-  {
-    injured: "players.playerStatus.injured",
-    left: "players.playerStatus.left",
-    suspended: "players.playerStatus.suspended",
-  };
-
-function getPublicPlayerStatus(status: PlayerStatus) {
-  if (status === "active" || status === "doubtful") return status;
-  return "unavailable";
-}
-
-function normalizeStatusText(value: string | null | undefined) {
-  return (value ?? "")
-    .replace(/[\s.!?:;]+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
-}
 
 function getPlayerDetailNameLines(displayName: string) {
   const parts = displayName.replace(/\s+/g, " ").trim().split(" ");
@@ -275,21 +250,10 @@ export function PlayerDetailSheet({
     ) : null;
   }
 
-  const publicStatus = getPublicPlayerStatus(player.status);
-  const statusLabel = t(STATUS_LABEL_KEYS[publicStatus]);
-  const statusMessage =
-    player.status !== "active" ? player.statusMessage?.trim() : null;
-  const fallbackStatusReasonKey = STATUS_REASON_LABEL_KEYS[player.status];
-  const fallbackStatusReason = fallbackStatusReasonKey
-    ? t(fallbackStatusReasonKey)
-    : null;
-  const normalizedStatusLabel = normalizeStatusText(statusLabel);
-  const normalizedStatusMessage = normalizeStatusText(statusMessage);
   const statusNoticeMessage =
-    statusMessage && normalizedStatusMessage !== normalizedStatusLabel
-      ? statusMessage
-      : fallbackStatusReason;
-  const isDoubtful = publicStatus === "doubtful";
+    player.status === "active" ? null : t(STATUS_LABEL_KEYS[player.status]);
+  const isUncertain =
+    player.status === "doubtful" || player.status === "unknown";
   const handleSetCaptainPress = () => {
     onSetCaptain?.();
     onClose();
@@ -417,7 +381,7 @@ export function PlayerDetailSheet({
     <View
       style={[
         styles.playerDetailStatusNotice,
-        isDoubtful
+        isUncertain
           ? styles.playerDetailStatusNoticeWarning
           : styles.playerDetailStatusNoticeDanger,
       ]}
@@ -425,7 +389,7 @@ export function PlayerDetailSheet({
       <Text
         style={[
           styles.playerDetailStatusNoticeText,
-          isDoubtful
+          isUncertain
             ? styles.playerDetailStatusNoticeTextWarning
             : styles.playerDetailStatusNoticeTextDanger,
         ]}

@@ -7,21 +7,12 @@ type LocalizableClub = {
   shortName?: string | null;
 };
 
-type LocalizablePlayerStatusDetails = {
-  message?: string | null;
-  messageEn?: string | null;
-  messagePl?: string | null;
-  messageUk?: string | null;
-  updatedAt?: number | null;
-} | null;
-
 type LocalizablePlayer = {
   clubId?: string | null;
   clubName?: string | null;
   displayName: string;
   firstName?: string | null;
   lastName?: string | null;
-  statusDetails?: LocalizablePlayerStatusDetails;
 };
 
 type LocalizableFixture = {
@@ -222,17 +213,6 @@ const CITY_LOCALIZATIONS: Record<string, { en: string; pl?: string; uk?: string 
   poznań: { en: "Poznań", pl: "Poznań", uk: "Познань" },
 };
 
-const NO_CLUB_STATUS_MESSAGES: Record<LanguageCode, string> = {
-  en: "Without club right now.",
-  pl: "Obecnie bez klubu.",
-  uk: "Без клубу зараз.",
-};
-
-const LEGACY_LEFT_CLUB_STATUS_MESSAGES = new Set([
-  "left club",
-  "покинув клуб",
-]);
-
 const LATIN_ASCII_CHAR_REPLACEMENTS: Record<string, string> = {
   Æ: "AE",
   æ: "ae",
@@ -261,34 +241,6 @@ const LATIN_ASCII_CHAR_REPLACEMENTS: Record<string, string> = {
   İ: "I",
   ı: "i",
 };
-
-function normalizePlayerStatusMessage(value: string | null | undefined) {
-  return (value ?? "")
-    .replace(/[\s.!?:;]+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
-}
-
-function getDisplayPlayerStatusMessage(
-  player: LocalizablePlayer,
-  language: LanguageCode,
-) {
-  const statusMessage = getLocalizedPlayerStatusMessage(
-    player.statusDetails ?? null,
-    language,
-  );
-
-  if (
-    !player.clubId &&
-    LEGACY_LEFT_CLUB_STATUS_MESSAGES.has(
-      normalizePlayerStatusMessage(statusMessage),
-    )
-  ) {
-    return NO_CLUB_STATUS_MESSAGES[language];
-  }
-
-  return statusMessage;
-}
 
 const UK_TO_LATIN_CHARS: Record<string, string> = {
   А: "A",
@@ -1534,28 +1486,6 @@ export function localizeFantasyPlayers<
   );
 }
 
-function getLocalizedPlayerStatusMessage(
-  details: LocalizablePlayerStatusDetails,
-  language: LanguageCode,
-) {
-  if (!details) return null;
-
-  if (language === "uk") {
-    return details.messageUk ?? details.message ?? details.messageEn ?? null;
-  }
-  if (language === "pl") {
-    return (
-      details.messagePl ??
-      details.message ??
-      details.messageEn ??
-      details.messageUk ??
-      null
-    );
-  }
-
-  return details.messageEn ?? details.message ?? details.messageUk ?? null;
-}
-
 export function localizeFantasyPlayer<
   TPlayer extends LocalizablePlayer,
   TClub extends LocalizableClub,
@@ -1571,7 +1501,6 @@ export function localizeFantasyPlayer<
       (player.clubName
         ? getLocalizedClubName(player.clubName, language)
         : player.clubName),
-    statusMessage: getDisplayPlayerStatusMessage(player, language),
   };
 }
 

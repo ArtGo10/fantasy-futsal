@@ -39,6 +39,7 @@ export const FANTASY_PLAYER_STORAGE_POSITIONS = [
 export const FANTASY_PLAYER_STATUSES = [
   "active",
   "doubtful",
+  "unknown",
   "injured",
   "suspended",
   "unavailable",
@@ -104,6 +105,7 @@ export const fantasyPlayerStoragePositionValidator = v.union(
 export const fantasyPlayerStatusValidator = v.union(
   v.literal("active"),
   v.literal("doubtful"),
+  v.literal("unknown"),
   v.literal("injured"),
   v.literal("suspended"),
   v.literal("unavailable"),

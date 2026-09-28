@@ -1190,14 +1190,10 @@ export function MatchDetailsPage({
                       {column.title}
                     </Text>
                     {column.lineups.map((lineup) => {
-                      const playerLabel =
-                        (lineup.jerseyNumber !== null
-                          ? lineup.jerseyNumber + ". "
-                          : "") +
-                        formatCompactMatchPlayerName(
-                          lineup.playerName,
-                          language,
-                        );
+                      const playerLabel = formatCompactMatchPlayerName(
+                        lineup.playerName,
+                        language,
+                      );
                       const playerName = (
                         <Text
                           numberOfLines={1}

@@ -290,41 +290,6 @@ function validateAdminPrice(value: number, fieldName: string) {
   return roundFantasyMoney(value);
 }
 
-function normalizeAdminPlayerStatusDetails(
-  details:
-    | {
-        message?: string;
-        messageEn?: string;
-        messagePl?: string;
-        messageUk?: string;
-        updatedAt?: number;
-      }
-    | null
-    | undefined,
-  now: number,
-) {
-  if (!details) return undefined;
-
-  const normalized = {
-    message: toOptionalText(details.message),
-    messageEn: toOptionalText(details.messageEn),
-    messagePl: toOptionalText(details.messagePl),
-    messageUk: toOptionalText(details.messageUk),
-  };
-  const hasMessage = Boolean(
-    normalized.message ||
-      normalized.messageEn ||
-      normalized.messagePl ||
-      normalized.messageUk,
-  );
-  if (!hasMessage) return undefined;
-
-  return {
-    ...normalized,
-    updatedAt: details.updatedAt ?? now,
-  };
-}
-
 const EXTRA_LEAGUE_2026_27_CLUBS: ExtraLeagueClubSeed[] = [
   { name: "ХІТ", shortName: "ХІТ", city: "Київ", sortOrder: 1 },
   {
@@ -737,13 +702,21 @@ function getEffectiveFantasyPlayerStatus(
     | "activeSuspensionGameweekNumbers"
     | "clubId"
     | "status"
+    | "statusDetails"
     | "suspensionGameweekNumbers"
   >,
   context?: FantasyPlayerAvailabilityContext,
 ): FantasyPlayerStatus {
-  if (!player.clubId) return "unavailable";
+  if (!player.clubId) return "left";
   if (isFantasyPlayerSuspendedForGameweek(player, context)) {
     return "suspended";
+  }
+  if (player.status === "unavailable") return "unknown";
+  if (
+    player.status === "doubtful" &&
+    isAutomaticNonParticipationStatusDetails(player.statusDetails)
+  ) {
+    return "unknown";
   }
   return player.status;
 }
@@ -3455,7 +3428,7 @@ async function markGameweekNonParticipantsDoubtfulInternal(
       statusContext,
     );
     const hasAutoNonParticipationStatus =
-      player.status === "doubtful" &&
+      (player.status === "unknown" || player.status === "doubtful") &&
       isAutomaticNonParticipationStatusDetails(player.statusDetails);
 
     if (appeared || suspendedForGameweek) {
@@ -3521,7 +3494,7 @@ async function markGameweekNonParticipantsDoubtfulInternal(
   if (!options.dryRun) {
     for (const player of sortedTargets) {
       await ctx.db.patch(player._id, {
-        status: "doubtful",
+        status: "unknown",
         statusDetails: getFantasyNonParticipationStatusDetails(
           gameweek.number,
           now,
@@ -7386,8 +7359,11 @@ export const upsertAdminPlayer = mutation({
       throw new Error("Игрок не найден в этом сезоне.");
     }
 
-    const clubId =
+    const requestedStatus =
+      args.status === "unavailable" ? "unknown" : args.status;
+    const requestedClubId =
       args.clubId === null ? undefined : args.clubId ?? existingPlayer?.clubId;
+    const clubId = requestedStatus === "left" ? undefined : requestedClubId;
     const club = clubId ? await ctx.db.get(clubId) : null;
     if (clubId && (!club || club.seasonId !== season._id)) {
       throw new Error("Клуб не найден в этом сезоне.");
@@ -7412,10 +7388,7 @@ export const upsertAdminPlayer = mutation({
       args.initialPrice ?? existingPlayer?.price ?? price,
       "Стартовая цена игрока",
     );
-    const statusDetails = normalizeAdminPlayerStatusDetails(
-      args.statusDetails,
-      now,
-    );
+    const status = clubId ? requestedStatus : "left";
     const jerseyNumber =
       args.jerseyNumber === null || args.jerseyNumber === undefined
         ? undefined
@@ -7435,8 +7408,8 @@ export const upsertAdminPlayer = mutation({
       displayName,
       position: args.position,
       price,
-      status: args.status,
-      statusDetails,
+      status,
+      statusDetails: undefined,
       jerseyNumber,
       photoUrl: toOptionalText(args.photoUrl ?? undefined),
       photoThumbnailUrl: toOptionalText(args.photoThumbnailUrl ?? undefined),
