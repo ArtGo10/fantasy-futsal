@@ -6823,8 +6823,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   seasonFixtureProfilePillDouble: {
-    borderColor: colors.state.warningBorder,
-    backgroundColor: colors.state.warningSoft,
+    borderColor: colors.state.success,
+    backgroundColor: colors.state.successSoft,
   },
   seasonFixtureProfilePillBlank: {
     borderColor: colors.state.dangerBorder,

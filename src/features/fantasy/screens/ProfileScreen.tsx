@@ -459,6 +459,8 @@ export function ProfileScreen({
   >(null);
   const [selectedAdminFixtureId, setSelectedAdminFixtureId] =
     useState<Id<"fantasyFixtures"> | null>(null);
+  const [adminFixtureGameweekId, setAdminFixtureGameweekId] =
+    useState<Id<"fantasyGameweeks"> | null>(null);
   const [adminFixtureDateText, setAdminFixtureDateText] = useState("");
   const [adminFixtureStatus, setAdminFixtureStatus] =
     useState<AdminFixtureStatus>("scheduled");
@@ -469,6 +471,7 @@ export function ProfileScreen({
   >({});
   const adminFixtureDraftDirtyRef = useRef(false);
   const hydratedAdminFixtureIdRef = useRef<string | null>(null);
+  const adminFixtureMovePendingIdRef = useRef<string | null>(null);
   const [adminFixtureBusy, setAdminFixtureBusy] = useState(false);
   const [adminFixtureStatusText, setAdminFixtureStatusText] = useState<
     string | null
@@ -638,6 +641,18 @@ export function ProfileScreen({
     setSelectedAdminFixtureId((currentFixtureId) => {
       if (
         currentFixtureId &&
+        currentFixtureId === adminFixtureMovePendingIdRef.current
+      ) {
+        const currentFixture = (fixtures ?? []).find(
+          (fixture) => fixture.id === currentFixtureId,
+        );
+        if (currentFixture?.gameweekId === selectedAdminGameweek?.id) {
+          adminFixtureMovePendingIdRef.current = null;
+        }
+        return currentFixtureId;
+      }
+      if (
+        currentFixtureId &&
         adminFixtureOptions.some((fixture) => fixture.id === currentFixtureId)
       ) {
         return currentFixtureId;
@@ -647,7 +662,13 @@ export function ProfileScreen({
         ? (adminFixtureOptions[0].id as Id<"fantasyFixtures">)
         : null;
     });
-  }, [adminFixtureOptions, isAdmin, mode]);
+  }, [
+    adminFixtureOptions,
+    fixtures,
+    isAdmin,
+    mode,
+    selectedAdminGameweek?.id,
+  ]);
 
   useEffect(() => {
     const fixtureId = selectedAdminFixtureForForm?.id ?? null;
@@ -661,6 +682,7 @@ export function ProfileScreen({
     adminFixtureDraftDirtyRef.current = false;
 
     if (!selectedAdminFixtureForForm) {
+      setAdminFixtureGameweekId(null);
       setAdminFixtureDateText("");
       setAdminFixtureStatus("scheduled");
       setAdminHomeScoreText("");
@@ -669,6 +691,9 @@ export function ProfileScreen({
       return;
     }
 
+    setAdminFixtureGameweekId(
+      (selectedAdminFixtureForForm.gameweekId as Id<"fantasyGameweeks"> | null) ?? null,
+    );
     setAdminFixtureDateText(
       formatDateTimeInputValue(selectedAdminFixtureForForm.scheduledAt),
     );
@@ -760,6 +785,7 @@ export function ProfileScreen({
   }, [
     selectedAdminFixtureForForm?.awayScore,
     selectedAdminFixtureForForm?.homeScore,
+    selectedAdminFixtureForForm?.gameweekId,
     selectedAdminFixtureForForm?.id,
     selectedAdminFixtureForForm?.scheduledAt,
     selectedAdminFixtureForForm?.status,
@@ -875,6 +901,9 @@ export function ProfileScreen({
       hydratedAdminFixtureIdRef.current = null;
       setSelectedAdminFixtureId(fixtureId);
     }
+    setAdminFixtureGameweekId(
+      (fixture.gameweekId as Id<"fantasyGameweeks"> | null) ?? null,
+    );
     setAdminFixtureStatusText(null);
     setAdminFixtureErrorText(null);
   };
@@ -896,6 +925,10 @@ export function ProfileScreen({
 
   const handleSaveAdminFixtureSheet = async () => {
     if (!selectedAdminFixtureId) return;
+    if (!adminFixtureGameweekId) {
+      setAdminFixtureErrorText(t("profile.adminFixtureGameweekRequired"));
+      return;
+    }
 
     try {
       setAdminFixtureBusy(true);
@@ -906,6 +939,7 @@ export function ProfileScreen({
       const rows = Object.values(adminFixtureRows);
       const result = await saveAdminFixtureSheet({
         fixtureId: selectedAdminFixtureId,
+        gameweekId: adminFixtureGameweekId,
         scheduledAt,
         status: adminFixtureStatus,
         homeScore: parseNullableAdminInteger(
@@ -922,6 +956,13 @@ export function ProfileScreen({
         `${t("profile.adminFixtureSheetSaved")} ${result.lineups}/${result.events}.`,
       );
       adminFixtureDraftDirtyRef.current = false;
+      const targetGameweek = sortedGameweeks.find(
+        (gameweek) => gameweek.id === adminFixtureGameweekId,
+      );
+      if (targetGameweek) {
+        adminFixtureMovePendingIdRef.current = selectedAdminFixtureId;
+        setAdminGameweekText(String(targetGameweek.number));
+      }
     } catch (error) {
       setAdminFixtureErrorText(getErrorMessage(error));
     } finally {
@@ -1289,6 +1330,43 @@ export function ProfileScreen({
 
       {selectedAdminFixtureForForm ? (
         <View style={styles.adminFixtureEditor}>
+          <View style={styles.adminFixtureMetaField}>
+            <Text style={styles.label}>{t("profile.adminFixtureGameweek")}</Text>
+            <ScrollView
+              contentContainerStyle={styles.adminGameweekChips}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {sortedGameweeks.map((gameweek) => {
+                const isSelected = adminFixtureGameweekId === gameweek.id;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={gameweek.id}
+                    onPress={() => {
+                      adminFixtureDraftDirtyRef.current = true;
+                      setAdminFixtureGameweekId(
+                        gameweek.id as Id<"fantasyGameweeks">,
+                      );
+                    }}
+                    style={[
+                      styles.adminGameweekChip,
+                      isSelected ? styles.adminGameweekChipActive : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.adminGameweekChipText,
+                        isSelected ? { color: fantasyTheme.primaryColor } : null,
+                      ]}
+                    >
+                      {gameweek.number}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
           <View style={styles.adminFixtureMetaGrid}>
             <View style={styles.adminFixtureMetaField}>
               <Text style={styles.label}>{t("profile.adminFixtureDate")}</Text>

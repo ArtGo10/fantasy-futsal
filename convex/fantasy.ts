@@ -7550,8 +7550,7 @@ export const upsertAdminPlayer = mutation({
 
     const requestedStatus =
       args.status === "unavailable" ? "unknown" : args.status;
-    const clubId =
-      args.clubId === null ? undefined : args.clubId ?? existingPlayer?.clubId;
+    const clubId = args.clubId ?? existingPlayer?.clubId;
     if (!clubId) {
       throw new Error("Выберите клуб, к которому привязан игрок.");
     }
@@ -7832,6 +7831,7 @@ export const deleteAdminPlayer = mutation({
 export const saveAdminFixtureSheet = mutation({
   args: {
     fixtureId: v.id("fantasyFixtures"),
+    gameweekId: v.id("fantasyGameweeks"),
     scheduledAt: v.optional(v.number()),
     status: fantasyFixtureStatusValidator,
     homeScore: v.optional(v.union(v.number(), v.null())),
@@ -7858,6 +7858,10 @@ export const saveAdminFixtureSheet = mutation({
     const fixture = await ctx.db.get(args.fixtureId);
     if (!fixture) {
       throw new Error("Матч не найден.");
+    }
+    const targetGameweek = await ctx.db.get(args.gameweekId);
+    if (!targetGameweek || targetGameweek.seasonId !== fixture.seasonId) {
+      throw new Error("Тур не найден в сезоне этого матча.");
     }
     if (
       args.scheduledAt !== undefined &&
@@ -7944,6 +7948,7 @@ export const saveAdminFixtureSheet = mutation({
     for (const event of existingEvents) await ctx.db.delete(event._id);
 
     const fixturePatch: Partial<Doc<"fantasyFixtures">> = {
+      gameweekId: targetGameweek._id,
       scheduledAt: args.scheduledAt ?? fixture.scheduledAt,
       status: args.status,
       homeScore,
@@ -7966,7 +7971,7 @@ export const saveAdminFixtureSheet = mutation({
         await ctx.db.insert("fantasyFixtureEvents", {
           seasonId: fixture.seasonId,
           fixtureId: fixture._id,
-          gameweekId: fixture.gameweekId,
+          gameweekId: targetGameweek._id,
           clubId: player.clubId ?? getFixtureClubIdBySide(fixture, row.side),
           playerId: player._id,
           playerName: player.displayName,
@@ -8030,6 +8035,14 @@ export const saveAdminFixtureSheet = mutation({
     }
 
     const updatedFixture = (await ctx.db.get(fixture._id)) ?? fixture;
+    const previousGameweekRefresh =
+      fixture.gameweekId && fixture.gameweekId !== targetGameweek._id
+        ? await refreshGameweekAfterFixtureChange(
+            ctx,
+            { ...updatedFixture, gameweekId: fixture.gameweekId },
+            now,
+          )
+        : null;
     const refresh = await refreshGameweekAfterFixtureChange(
       ctx,
       updatedFixture,
@@ -8047,6 +8060,7 @@ export const saveAdminFixtureSheet = mutation({
       fixtureId: fixture._id,
       lineups: createdLineups,
       events: createdEvents,
+      previousGameweekRefresh,
       refresh,
       suspensionSync,
     };
