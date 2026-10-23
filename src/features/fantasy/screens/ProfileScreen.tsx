@@ -931,7 +931,10 @@ export function ProfileScreen({
 
   const handleOpenAdminPlayerCreate = () => {
     setAdminPlayerEditingId(null);
-    setAdminPlayerForm(EMPTY_ADMIN_PLAYER_FORM);
+    setAdminPlayerForm({
+      ...EMPTY_ADMIN_PLAYER_FORM,
+      clubId: sortedAdminClubs[0]?.id ?? "",
+    });
     setAdminPlayerFormOpen(true);
     setAdminPlayerStatusText(null);
     setAdminPlayerErrorText(null);
@@ -965,6 +968,9 @@ export function ProfileScreen({
         adminPlayerForm.jerseyNumber,
         t("profile.adminPlayerJerseyNumber"),
       );
+      if (!adminPlayerForm.clubId) {
+        throw new Error(t("profile.adminPlayerClubRequired"));
+      }
       const result = await upsertAdminPlayer({
         ...(seasonSlug ? { seasonSlug } : {}),
         ...(adminPlayerEditingId ? { playerId: adminPlayerEditingId } : {}),
@@ -1527,32 +1533,6 @@ export function ProfileScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.adminGameweekChips}
           >
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                setAdminPlayerForm((current) => ({
-                  ...current,
-                  clubId: "",
-                  status: "left",
-                }))
-              }
-              style={[
-                styles.adminGameweekChip,
-                !adminPlayerForm.clubId
-                  ? [
-                      styles.adminGameweekChipActive,
-                      {
-                        backgroundColor: fantasyTheme.softColor,
-                        borderColor: fantasyTheme.primaryColor,
-                      },
-                    ]
-                  : null,
-              ]}
-            >
-              <Text style={styles.adminGameweekChipText}>
-                {t("players.freeAgents")}
-              </Text>
-            </Pressable>
             {sortedAdminClubs.map((club) => {
               const isSelected = adminPlayerForm.clubId === club.id;
               return (
@@ -1563,8 +1543,6 @@ export function ProfileScreen({
                     setAdminPlayerForm((current) => ({
                       ...current,
                       clubId: club.id,
-                      status:
-                        current.status === "left" ? "active" : current.status,
                     }))
                   }
                   style={[
@@ -1616,7 +1594,6 @@ export function ProfileScreen({
                   onPress={() =>
                     setAdminPlayerForm((current) => ({
                       ...current,
-                      clubId: status === "left" ? "" : current.clubId,
                       status,
                     }))
                   }
@@ -1751,7 +1728,7 @@ export function ProfileScreen({
                   {player.displayName}
                 </Text>
                 <Text style={styles.adminEventRowMeta}>
-                  {player.clubName ?? t("players.freeAgents")} ·{" "}
+                  {player.clubName ?? t("players.noClub")} ·{" "}
                   {player.position === "goalkeeper"
                     ? t("players.positionShort.goalkeeper")
                     : t("players.positionShort.universal")}{" "}

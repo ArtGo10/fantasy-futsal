@@ -22,6 +22,7 @@ require.extensions[".ts"] = (module, filename) => {
 const fantasy = require("../convex/fantasy.ts");
 const chips = require("../convex/fantasyChips.ts");
 const chipState = require("../convex/fantasyChipState.ts");
+const scheduling = require("../convex/gameweekScheduling.ts");
 if (originalLoader) require.extensions[".ts"] = originalLoader;
 else delete require.extensions[".ts"];
 
@@ -230,6 +231,14 @@ function fixture() {
             const range = {
               eq(key, value) {
                 conditions.push((row) => row[key] === value);
+                return range;
+              },
+              gte(key, value) {
+                conditions.push((row) => row[key] >= value);
+                return range;
+              },
+              lte(key, value) {
+                conditions.push((row) => row[key] <= value);
                 return range;
               },
             };
@@ -727,3 +736,263 @@ for (const chip of ["benchBoost", "tripleCaptain"]) {
     });
   }
 }
+
+const HALF_HOUR = 30 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+
+async function addCalendarFixture(f, scheduledAt, status = "scheduled") {
+  return f.ctx.db.insert("fantasyFixtures", {
+    seasonId: "season",
+    gameweekId: "gw2",
+    externalId: `fixture-${scheduledAt}-${status}`,
+    homeClubId: "club0",
+    awayClubId: "club1",
+    homeClubName: "Club 0",
+    awayClubName: "Club 1",
+    scheduledAt,
+    status,
+    createdAt: BASE - DAY,
+    updatedAt: now,
+  });
+}
+
+test("calendar deadline follows the earliest active fixture, always one hour before kickoff", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE + DAY);
+  await addCalendarFixture(f, BASE + 2 * DAY);
+  await addCalendarFixture(f, BASE + HOUR, "postponed");
+  await addCalendarFixture(f, BASE + 2 * HOUR, "cancelled");
+
+  await scheduling.syncGameweekScheduleFromFixtures(f.ctx, f.get("gw2"), now);
+  assert.equal(f.get("gw2").startsAt, BASE + DAY);
+  assert.equal(f.get("gw2").deadlineAt, BASE + DAY - HOUR);
+
+  await f.ctx.db.patch(first, { scheduledAt: BASE + 3 * DAY });
+  await scheduling.syncGameweekScheduleFromFixtures(f.ctx, f.get("gw2"), now);
+  assert.equal(f.get("gw2").startsAt, BASE + 2 * DAY);
+  assert.equal(f.get("gw2").deadlineAt, BASE + 2 * DAY - HOUR);
+  const reminders = f.rows("pushNotificationSchedules");
+  const activeReminders = reminders.filter((row) => row.status === "scheduled");
+  assert.ok(activeReminders.length > 0);
+  assert.ok(activeReminders.every((row) => row.deadlineAt === f.get("gw2").deadlineAt));
+  await scheduling.syncGameweekScheduleFromFixtures(f.ctx, f.get("gw2"), now);
+  assert.deepEqual(f.rows("pushNotificationSchedules"), reminders);
+});
+
+test("saving an earlier live match immediately makes the gameweek live and freezes eligible squads", async () => {
+  const f = fixture();
+  now = BASE - 3 * HOUR;
+  await f.play("tripleCaptain");
+  now = BASE;
+  const first = await addCalendarFixture(f, BASE + DAY);
+  await addCalendarFixture(f, BASE + DAY + HOUR);
+
+  const result = await f.run(fantasy.saveAdminFixtureSheet, {
+    fixtureId: first,
+    scheduledAt: BASE - HOUR,
+    status: "live",
+    homeScore: 0,
+    awayScore: 0,
+    rows: [],
+  });
+  assert.equal(f.get("gw2").startsAt, BASE - HOUR);
+  assert.equal(f.get("gw2").deadlineAt, BASE - 2 * HOUR);
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(result.refresh.skippedBeforeDeadline, undefined);
+  const snapshots = f.rows("fantasyGameweekSquadPicks");
+  assert.equal(snapshots.length, 12);
+  assert.ok(snapshots.every((row) => row.gameweekId === "gw2"));
+  assert.ok(snapshots.every((row) => row.captainBonusMultiplier === 2));
+  assert.equal(f.get("team").freeTransfers, 2);
+  assert.equal(f.get("season").currentGameweekId, "gw3");
+  await f.rollover();
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+  assert.equal(f.get("team").freeTransfers, 2);
+});
+
+test("saving a future reschedule updates the deadline without prematurely locking squads", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE + DAY);
+  await addCalendarFixture(f, BASE + 3 * DAY);
+  const result = await f.run(fantasy.saveAdminFixtureSheet, {
+    fixtureId: first,
+    scheduledAt: BASE + 2 * DAY,
+    status: "scheduled",
+    rows: [],
+  });
+  assert.equal(f.get("gw2").deadlineAt, BASE + 2 * DAY - HOUR);
+  assert.equal(f.get("gw2").status, "open");
+  assert.equal(result.refresh.skippedBeforeDeadline, true);
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 0);
+  assert.equal(f.get("team").freeTransfers, 1);
+});
+
+test("fixture upsert also synchronizes its gameweek deadline and live state", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE + DAY);
+  await f.run(fantasy.upsertFixture, {
+    seasonSlug: "test-season",
+    gameweekNumber: 2,
+    externalId: f.get(first).externalId,
+    homeClubName: "Club 0",
+    awayClubName: "Club 1",
+    scheduledAt: BASE - HOUR,
+    status: "live",
+    homeScore: 0,
+    awayScore: 0,
+  });
+  assert.equal(f.get(first).scheduledAt, BASE - HOUR);
+  assert.equal(f.get("gw2").deadlineAt, BASE - 2 * HOUR);
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+});
+
+test("automatic fixture processing repairs gameweeks for matches already marked live", async () => {
+  const f = fixture();
+  await addCalendarFixture(f, BASE - HOUR, "live");
+  const result = await f.run(fantasy.processStartedFixturesNow, {
+    seasonSlug: "test-season",
+  });
+  assert.equal(result.updatedFixtures, 0);
+  assert.equal(result.updatedGameweeks, 1);
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.get("gw2").deadlineAt, BASE - 2 * HOUR);
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+  assert.equal(f.get("team").freeTransfers, 2);
+  await f.run(fantasy.processStartedFixturesNow, { seasonSlug: "test-season" });
+  assert.equal(f.get("team").freeTransfers, 2);
+});
+
+test("automatic fixture processing also freezes squads when a scheduled match starts", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE - HOUR);
+  const result = await f.run(fantasy.processStartedFixturesNow, {
+    seasonSlug: "test-season",
+  });
+  assert.equal(result.updatedFixtures, 1);
+  assert.equal(result.updatedGameweeks, 1);
+  assert.equal(f.get(first).status, "live");
+  assert.equal(f.get("gw2").deadlineAt, BASE - 2 * HOUR);
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+});
+
+test("an explicitly live match closes a stale future deadline even when its kickoff date is wrong", async () => {
+  const f = fixture();
+  await addCalendarFixture(f, BASE + DAY, "live");
+  await f.rollover();
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.get("gw2").deadlineAt, now);
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+});
+
+test("deadline processing makes a scheduled gameweek live exactly one hour before kickoff", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE + 2 * HOUR);
+  await f.rollover();
+  assert.equal(f.get("gw2").status, "open");
+  assert.equal(f.get("gw2").deadlineAt, BASE + HOUR);
+  now = BASE + HOUR - 1;
+  await f.rollover();
+  assert.equal(f.get("gw2").status, "open");
+  now = BASE + HOUR;
+  await f.rollover();
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.get(first).status, "scheduled");
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+});
+
+test("an earlier reschedule snapshots the Free Hit lineup before restoring the original squad", async () => {
+  const f = fixture();
+  now = BASE - 3 * HOUR;
+  await f.play("freeHit");
+  await f.save({ 2: "p14" });
+  now = BASE;
+  await addCalendarFixture(f, BASE - HOUR, "live");
+  await f.rollover();
+  assert.equal(
+    f.rows("fantasyGameweekSquadPicks").find((row) => row.rosterSlot === 2).playerId,
+    "p14",
+  );
+  assert.equal(f.rows("fantasySquadPicks").find((row) => row.rosterSlot === 2).playerId, "p2");
+  assert.equal(f.get("team").freeTransfers, 2);
+  await f.rollover();
+  assert.equal(f.get("team").freeTransfers, 2);
+});
+
+test("a manually locked round does not reopen when its first match moves later", async () => {
+  const f = fixture();
+  await f.ctx.db.patch("gw2", { status: "locked" });
+  const deadline = f.get("gw2").deadlineAt;
+  await addCalendarFixture(f, BASE + 2 * DAY);
+  await scheduling.syncGameweekScheduleFromFixtures(f.ctx, f.get("gw2"), now);
+  assert.equal(f.get("gw2").deadlineAt, deadline);
+  assert.equal(f.get("gw2").status, "locked");
+});
+
+test("deadline cron repairs a stale gameweek even outside the fixture auto-live lookback", async () => {
+  const f = fixture();
+  for (const pick of f.rows("fantasySquadPicks")) {
+    await f.ctx.db.patch(pick._id, { updatedAt: BASE - 2 * DAY });
+  }
+  await addCalendarFixture(f, BASE - DAY, "live");
+  await f.rollover();
+  assert.equal(f.get("gw2").deadlineAt, BASE - DAY - HOUR);
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 12);
+});
+
+test("moving a started round later never reopens its deadline or replaces its frozen squad", async () => {
+  const f = fixture();
+  const first = await addCalendarFixture(f, BASE - HOUR, "live");
+  await f.rollover();
+  const deadline = f.get("gw2").deadlineAt;
+  const snapshots = f.rows("fantasyGameweekSquadPicks");
+  await f.ctx.db.patch(first, { scheduledAt: BASE + DAY, status: "scheduled" });
+  await f.ctx.db.patch("pick2", { playerId: "p14", updatedAt: now });
+  await f.rollover();
+  assert.equal(f.get("gw2").deadlineAt, deadline);
+  assert.equal(f.get("gw2").status, "live");
+  assert.deepEqual(f.rows("fantasyGameweekSquadPicks"), snapshots);
+  assert.equal(f.get("team").freeTransfers, 2);
+});
+
+test("switching to an hour deadline never backdates a previously locked half-hour round", async () => {
+  const f = fixture();
+  await addCalendarFixture(f, BASE - HOUR, "live");
+  const oldDeadline = BASE - HOUR - HALF_HOUR;
+  await f.ctx.db.patch("gw2", {
+    startsAt: BASE - HOUR,
+    deadlineAt: oldDeadline,
+    status: "live",
+    freeTransfersGrantedAt: oldDeadline,
+  });
+  await f.ctx.db.patch("team", { createdAt: oldDeadline - 1 });
+  await fantasy.testing.ensureGameweekSquadSnapshots(f.ctx, f.get("season"), f.get("gw2"), now);
+  const snapshots = f.rows("fantasyGameweekSquadPicks");
+  await f.rollover();
+  assert.equal(f.get("gw2").deadlineAt, oldDeadline);
+  assert.deepEqual(f.rows("fantasyGameweekSquadPicks"), snapshots);
+  const scoring = await fantasy.testing.recalculateGameweekScoresInternal(
+    f.ctx, f.get("season"), f.get("gw2"), now,
+  );
+  assert.equal(scoring.participatedTeams, 1);
+});
+
+test("earlier reschedules never invent a historical snapshot from picks saved after the new cutoff", async () => {
+  const f = fixture();
+  await addCalendarFixture(f, BASE - HOUR, "live");
+  await f.ctx.db.patch("pick2", { updatedAt: BASE });
+  await f.rollover();
+  assert.equal(f.get("gw2").status, "live");
+  assert.equal(f.rows("fantasyGameweekSquadPicks").length, 0);
+  assert.equal(f.get("team").freeTransfers, 1);
+});
+
+test("completed rounds keep their historical deadline despite later fixture corrections", async () => {
+  const f = fixture();
+  await f.ctx.db.patch("gw2", { status: "completed" });
+  const before = f.get("gw2");
+  await addCalendarFixture(f, BASE - HOUR, "completed");
+  await scheduling.syncGameweekScheduleFromFixtures(f.ctx, f.get("gw2"), now);
+  assert.deepEqual(f.get("gw2"), before);
+});

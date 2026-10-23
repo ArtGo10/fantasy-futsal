@@ -278,7 +278,8 @@ export function PlayerDetailSheet({
     player.status === "unknown" ||
     player.status === "doubtful" ||
     player.status === "injured" ||
-    player.status === "suspended";
+    player.status === "suspended" ||
+    player.status === "unavailable";
   const statusNoticeMessage =
     player.status === "active"
       ? null

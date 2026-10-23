@@ -582,9 +582,17 @@ async function upsertPlayer(
     seasonId,
     player.externalId,
   );
-  const clubId = player.clubExternalId
+  const importedClubId = player.clubExternalId
     ? clubIdsByExternalId.get(player.clubExternalId)
     : undefined;
+  const clubId =
+    importedClubId ??
+    (player.status === "left" || existing?.status === "left"
+      ? existing?.clubId
+      : undefined);
+  if (!clubId) {
+    throw new Error(`Не удалось определить клуб для игрока ${player.displayName}.`);
+  }
   const statusDetails =
     player.statusDetails === undefined
       ? existing?.statusDetails
@@ -784,16 +792,14 @@ async function deactivateMissingPlayers(
     if (player.externalId && importedExternalIds.has(player.externalId))
       continue;
 
-    const hasStaleClubAssignment =
-      player.clubId !== undefined ||
+    const hasStaleRosterAssignment =
       (player.currentTeamExternalIds?.length ?? 0) > 0 ||
       (player.listedTeamExternalIds?.length ?? 0) > 0;
-    if (player.status === "left" && !hasStaleClubAssignment) continue;
+    if (player.status === "left" && !hasStaleRosterAssignment) continue;
 
     count += 1;
     if (!dryRun) {
       await ctx.db.patch(player._id, {
-        clubId: undefined,
         currentTeamExternalIds: [],
         listedTeamExternalIds: [],
         status: "left",
