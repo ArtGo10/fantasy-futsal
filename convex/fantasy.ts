@@ -11,6 +11,7 @@ import {
   requireAdmin,
 } from "./authHelpers";
 import { syncGameweekDeadlineReminderSchedules } from "./deadlineReminderScheduling";
+import { syncGameweekScheduleFromFixtures } from "./gameweekScheduling";
 import { getPlayerProfileSummary } from "./playerProfileStats";
 import {
   chipRoleMultiplier,
@@ -134,6 +135,12 @@ const FANTASY_NON_PARTICIPATION_STATUS_DETAILS = {
   messageEn: "Did not play last gameweek",
   messagePl: "Nie zagrał w poprzedniej kolejce",
   messageUk: "Не грав у минулому турі",
+} as const;
+const FANTASY_PLAYER_LEFT_CLUB_STATUS_DETAILS = {
+  message: "Більше не грає за цей клуб",
+  messageEn: "No longer plays for this club.",
+  messagePl: "Nie gra już w tym klubie.",
+  messageUk: "Більше не грає за цей клуб.",
 } as const;
 const EXTRA_LEAGUE_ACCIDENTAL_DEV_CLUB_NAMES = new Set([
   "Атлетик Футзал",
@@ -792,18 +799,19 @@ function getMedianFantasyValueScore(values: number[]) {
   return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
 }
 
+function areGameweekFixturesResolved(fixtures: Doc<"fantasyFixtures">[]) {
+  return fixtures.every(
+    (fixture) =>
+      fixture.status === "completed" ||
+      fixture.status === "cancelled" ||
+      fixture.status === "postponed",
+  );
+}
+
 function areGameweekFixturesReadyForPriceChanges(
   fixtures: Doc<"fantasyFixtures">[],
 ) {
-  const activeFixtures = fixtures.filter(
-    (fixture) =>
-      fixture.status !== "cancelled" && fixture.status !== "postponed",
-  );
-
-  return (
-    activeFixtures.length > 0 &&
-    activeFixtures.every((fixture) => fixture.status === "completed")
-  );
+  return areGameweekFixturesResolved(fixtures);
 }
 
 function getFantasyPriceAdjustmentProfile(price: number) {
@@ -2689,7 +2697,13 @@ async function processSeasonDeadlineRollovers(
   let processedGameweeks = 0;
   let latestProcessedGameweek: Doc<"fantasyGameweeks"> | null = null;
 
-  for (const gameweek of gameweeks) {
+  for (let index = 0; index < gameweeks.length; index += 1) {
+    const gameweek = await syncGameweekScheduleFromFixtures(
+      ctx,
+      gameweeks[index],
+      now,
+    );
+    gameweeks[index] = gameweek;
     if (!gameweek.deadlineAt || gameweek.deadlineAt > now) continue;
     if (gameweek.status === "completed") continue;
 
@@ -3668,11 +3682,8 @@ async function completeGameweekIfAllFixturesResolved(
     (fixture) =>
       fixture.status !== "cancelled" && fixture.status !== "postponed",
   );
-  const allFixturesCompleted =
-    activeFixtures.length > 0 &&
-    activeFixtures.every((fixture) => fixture.status === "completed");
 
-  if (!allFixturesCompleted) {
+  if (!areGameweekFixturesResolved(fixtures)) {
     return { activeFixtures: activeFixtures.length, completed: false };
   }
 
@@ -3720,13 +3731,28 @@ async function refreshGameweekAfterFixtureChange(
 ) {
   if (!fixture.gameweekId) return null;
 
-  const [season, gameweek] = await Promise.all([
+  const [season, storedGameweek] = await Promise.all([
     ctx.db.get(fixture.seasonId),
     ctx.db.get(fixture.gameweekId),
   ]);
-  if (!season || !gameweek) return null;
+  if (!season || !storedGameweek) return null;
+  const gameweek = await syncGameweekScheduleFromFixtures(
+    ctx,
+    storedGameweek,
+    now,
+  );
   if (typeof gameweek.deadlineAt === "number" && now < gameweek.deadlineAt) {
-    return { skippedBeforeDeadline: true };
+    const fixtures = await ctx.db
+      .query("fantasyFixtures")
+      .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
+      .collect();
+    if (!areGameweekFixturesResolved(fixtures)) {
+      return { skippedBeforeDeadline: true };
+    }
+    await ctx.db.patch(gameweek._id, {
+      deadlineAt: now,
+      updatedAt: now,
+    });
   }
 
   await processSeasonDeadlineRollovers(ctx, season, now);
@@ -7309,36 +7335,35 @@ async function processStartedFixturesForSeason(
   let updatedGameweeks = 0;
 
   for (const fixture of fixtures) {
-    if (fixture.status !== "scheduled") continue;
-
-    await ctx.db.patch(fixture._id, {
-      status: "live",
-      homeScore: fixture.homeScore ?? 0,
-      awayScore: fixture.awayScore ?? 0,
-      updatedAt: now,
-    });
-    updatedFixtures += 1;
-    if (fixture.gameweekId) {
+    if (fixture.status === "scheduled") {
+      await ctx.db.patch(fixture._id, {
+        status: "live",
+        homeScore: fixture.homeScore ?? 0,
+        awayScore: fixture.awayScore ?? 0,
+        updatedAt: now,
+      });
+      updatedFixtures += 1;
+    }
+    if (
+      fixture.gameweekId &&
+      (fixture.status === "scheduled" ||
+        fixture.status === "live" ||
+        fixture.status === "completed")
+    ) {
       liveGameweekIds.add(fixture.gameweekId);
     }
   }
 
-  for (const gameweekId of liveGameweekIds) {
-    const gameweek = await ctx.db.get(gameweekId);
-    if (
-      !gameweek ||
-      gameweek.seasonId !== season._id ||
-      gameweek.status === "completed" ||
-      gameweek.status === "live"
-    ) {
-      continue;
+  if (liveGameweekIds.size > 0) {
+    const previousGameweeks = await Promise.all(
+      [...liveGameweekIds].map((gameweekId) => ctx.db.get(gameweekId)),
+    );
+    await processSeasonDeadlineRollovers(ctx, season, now);
+    for (const gameweek of previousGameweeks) {
+      if (!gameweek || gameweek.status === "live") continue;
+      const updatedGameweek = await ctx.db.get(gameweek._id);
+      if (updatedGameweek?.status === "live") updatedGameweeks += 1;
     }
-
-    await ctx.db.patch(gameweek._id, {
-      status: "live",
-      updatedAt: now,
-    });
-    updatedGameweeks += 1;
   }
 
   return {
@@ -7525,9 +7550,11 @@ export const upsertAdminPlayer = mutation({
 
     const requestedStatus =
       args.status === "unavailable" ? "unknown" : args.status;
-    const requestedClubId =
+    const clubId =
       args.clubId === null ? undefined : args.clubId ?? existingPlayer?.clubId;
-    const clubId = requestedStatus === "left" ? undefined : requestedClubId;
+    if (!clubId) {
+      throw new Error("Выберите клуб, к которому привязан игрок.");
+    }
     const club = clubId ? await ctx.db.get(clubId) : null;
     if (clubId && (!club || club.seasonId !== season._id)) {
       throw new Error("Клуб не найден в этом сезоне.");
@@ -7552,7 +7579,14 @@ export const upsertAdminPlayer = mutation({
       args.initialPrice ?? existingPlayer?.price ?? price,
       "Стартовая цена игрока",
     );
-    const status = clubId ? requestedStatus : "left";
+    const status = requestedStatus;
+    const statusDetails =
+      status === "left"
+        ? normalizeFantasyPlayerStatusDetails(
+            args.statusDetails ?? FANTASY_PLAYER_LEFT_CLUB_STATUS_DETAILS,
+            now,
+          )
+        : undefined;
     const jerseyNumber =
       args.jerseyNumber === null || args.jerseyNumber === undefined
         ? undefined
@@ -7573,7 +7607,7 @@ export const upsertAdminPlayer = mutation({
       position: args.position,
       price,
       status,
-      statusDetails: undefined,
+      statusDetails,
       jerseyNumber,
       photoUrl: toOptionalText(args.photoUrl ?? undefined),
       photoThumbnailUrl: toOptionalText(args.photoThumbnailUrl ?? undefined),
@@ -9127,15 +9161,9 @@ export const recalculateGameweekScores = mutation({
       .query("fantasyFixtures")
       .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
       .collect();
-    const unresolvedFixtures = fixtures.filter(
-      (fixture) =>
-        fixture.status !== "cancelled" &&
-        fixture.status !== "postponed" &&
-        fixture.status !== "completed",
-    );
     if (
       (args.requireCompletedFixtures ?? true) &&
-      unresolvedFixtures.length > 0
+      !areGameweekFixturesResolved(fixtures)
     ) {
       throw new Error("Нельзя пересчитать тур: не все матчи завершены.");
     }
@@ -9281,15 +9309,9 @@ export const reapplyGameweekPriceChanges = mutation({
       .query("fantasyFixtures")
       .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
       .collect();
-    const unresolvedFixtures = fixtures.filter(
-      (fixture) =>
-        fixture.status !== "cancelled" &&
-        fixture.status !== "postponed" &&
-        fixture.status !== "completed",
-    );
     if (
       (args.requireCompletedFixtures ?? true) &&
-      unresolvedFixtures.length > 0
+      !areGameweekFixturesResolved(fixtures)
     ) {
       throw new Error("Нельзя пересчитать цены: не все матчи завершены.");
     }
@@ -9361,13 +9383,7 @@ export const completeGameweekAndGrantTransfers = mutation({
       .query("fantasyFixtures")
       .withIndex("by_gameweek", (q) => q.eq("gameweekId", gameweek._id))
       .collect();
-    const unresolvedFixtures = fixtures.filter(
-      (fixture) =>
-        fixture.status !== "cancelled" &&
-        fixture.status !== "postponed" &&
-        fixture.status !== "completed",
-    );
-    if (unresolvedFixtures.length > 0) {
+    if (!areGameweekFixturesResolved(fixtures)) {
       throw new Error("Нельзя завершить тур: не все матчи завершены.");
     }
 
@@ -10181,6 +10197,7 @@ export const upsertFixture = mutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, payload);
+      await processSeasonDeadlineRollovers(ctx, season, now);
       return { id: existing._id, created: false };
     }
 
@@ -10188,6 +10205,7 @@ export const upsertFixture = mutation({
       ...payload,
       createdAt: now,
     });
+    await processSeasonDeadlineRollovers(ctx, season, now);
     return { id, created: true };
   },
 });
@@ -10260,13 +10278,8 @@ async function getTeamEditState(
     !firstGameweek?.deadlineAt || now < firstGameweek.deadlineAt;
   const isInitialSelectionPeriod =
     completedGameweeksCount === 0 && isBeforeFirstDeadline;
-  const activeCurrentFixtures = currentFixtures.filter(
-    (fixture) =>
-      fixture.status !== "cancelled" && fixture.status !== "postponed",
-  );
   const currentFixturesCompleted =
-    activeCurrentFixtures.length > 0 &&
-    activeCurrentFixtures.every((fixture) => fixture.status === "completed");
+    areGameweekFixturesResolved(currentFixtures);
   return {
     currentGameweek,
     currentFixturesCompleted,

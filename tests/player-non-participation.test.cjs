@@ -82,7 +82,7 @@ test("a single absence names the gameweek in every language", async () => {
   const f = setup();
   f.addWeek(1, { appeared: true }); f.addWeek(2);
   await f.run(2);
-  assert.equal(f.player.status, "doubtful");
+  assert.equal(f.player.status, "unknown");
   assert.equal(f.player.statusDetails.message, "Не грав у турі 2");
   assert.equal(f.player.statusDetails.messageUk, "Не грав у турі 2");
   assert.equal(f.player.statusDetails.messageEn, "Did not play in Gameweek 2");

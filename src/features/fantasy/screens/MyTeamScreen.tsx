@@ -180,6 +180,9 @@ type FantasyOverview =
       } | null;
       currentGameweek: {
         deadlineAt: number | null;
+        fixtureProfile: {
+          teamsWithBlank: Array<{ clubId: string | null }>;
+        } | null;
         id: string;
         name: string;
         number: number;
@@ -242,6 +245,12 @@ type FantasyPlayer = {
 };
 
 type FantasyPlayers = FantasyPlayer[] | undefined;
+
+const NO_GAMEWEEK_FIXTURE_STATUS_DETAILS: Record<LanguageCode, string> = {
+  en: "Their team has no match in this Gameweek.",
+  pl: "Drużyna nie gra w tej kolejce.",
+  uk: "Команда пропускає цей тур.",
+};
 
 type FantasyLeagueTeam = {
   currentGameweekId?: string | null;
@@ -3434,6 +3443,15 @@ export function MyTeamScreen({
       null,
     [fantasyGameweeks],
   );
+  const currentGameweekBlankClubIds = useMemo(
+    () =>
+      new Set(
+        (currentGameweek?.fixtureProfile?.teamsWithBlank ?? [])
+          .map((team) => team.clubId)
+          .filter((clubId): clubId is string => clubId !== null),
+      ),
+    [currentGameweek?.fixtureProfile],
+  );
   const deadlineAt = currentGameweek
     ? currentGameweek.deadlineAt
     : (fantasyOverview?.nextDeadlineAt ?? null);
@@ -3934,6 +3952,21 @@ export function MyTeamScreen({
       const isSelectedInDraft = selectedSlot !== null;
       const disabledReason = getPlayerPickerDisabledReason(player);
       const isDisabled = Boolean(disabledReason);
+      const missesCurrentGameweek =
+        player.clubId !== null &&
+        currentGameweekBlankClubIds.has(player.clubId);
+      const pickerPlayer = missesCurrentGameweek
+        ? {
+            ...player,
+            status: "unavailable" as const,
+            statusDetails: {
+              message: NO_GAMEWEEK_FIXTURE_STATUS_DETAILS[language],
+              messageEn: NO_GAMEWEEK_FIXTURE_STATUS_DETAILS.en,
+              messagePl: NO_GAMEWEEK_FIXTURE_STATUS_DETAILS.pl,
+              messageUk: NO_GAMEWEEK_FIXTURE_STATUS_DETAILS.uk,
+            },
+          }
+        : player;
 
       return (
         <FantasyPlayerListRow
@@ -3949,7 +3982,13 @@ export function MyTeamScreen({
           onPress={selectPickerPlayer}
           onInfoPress={setPickerDetailPlayer}
           pickerNameFormat="initialLastName"
-          player={player}
+          player={pickerPlayer}
+          stateLabel={
+            missesCurrentGameweek
+              ? t("team.playerPicker.teamHasBye")
+              : null
+          }
+          stateTone="danger"
           t={t}
           variant="pickerStats"
         />
@@ -3958,10 +3997,12 @@ export function MyTeamScreen({
     [
       activeSlotPlayer?.id,
       clubsById,
+      currentGameweekBlankClubIds,
       getPlayerPickerDisabledReason,
       selectPickerPlayer,
       incomingTransferPlayer?.id,
       isDesktopWeb,
+      language,
       playerPickerPurpose,
       selectedPlayerSlotById,
       t,

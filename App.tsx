@@ -1,7 +1,6 @@
 import "react-native-url-polyfill/auto";
 
 import { ClerkProvider, useAuth } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
 import { ConvexReactClient, useMutation } from "convex/react";
 import {
   Component,
@@ -16,7 +15,6 @@ import {
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import {
-  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -46,6 +44,7 @@ import {
 } from "./src/web/publicSiteConfig";
 import { api } from "./src/lib/convexApi";
 import { styles } from "./src/styles";
+import { clerkTokenCache } from "./src/utils/clerkTokenCache";
 import {
   clearStoredCrashReport,
   createCrashReport,
@@ -64,7 +63,6 @@ installGlobalCrashReporter();
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
-const LONG_SLEEP_APP_RESET_MS = 5 * 60 * 1000;
 const AUTH_BOOT_TIMEOUT_MS = 15000;
 const AUTH_BOOT_RECOVERY_ATTEMPT_LIMIT = 1;
 const CRASH_REPORT_SUBMISSION_TIMEOUT_MS = 3000;
@@ -284,47 +282,6 @@ function StandaloneCrashReportNotice({
       </SafeAreaProvider>
     </I18nProvider>
   );
-}
-
-function useAppResumeResetKey() {
-  const appStateRef = useRef(AppState.currentState);
-  const suspendedAtRef = useRef<number | null>(
-    /inactive|background/.test(AppState.currentState) ? Date.now() : null,
-  );
-  const [resetKey, setResetKey] = useState(0);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      const previousAppState = appStateRef.current;
-      appStateRef.current = nextAppState;
-
-      if (/inactive|background/.test(nextAppState)) {
-        if (!/inactive|background/.test(previousAppState)) {
-          suspendedAtRef.current = Date.now();
-        }
-        return;
-      }
-
-      if (
-        nextAppState === "active" &&
-        /inactive|background/.test(previousAppState)
-      ) {
-        const suspendedAt = suspendedAtRef.current;
-        suspendedAtRef.current = null;
-
-        if (
-          suspendedAt &&
-          Date.now() - suspendedAt >= LONG_SLEEP_APP_RESET_MS
-        ) {
-          setResetKey((current) => current + 1);
-        }
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-
-  return resetKey;
 }
 
 function AppContent({
@@ -614,7 +571,7 @@ function ConfiguredApp({
     <ClerkProvider
       key={sessionProviderResetKey}
       publishableKey={clerkPublishableKey}
-      tokenCache={tokenCache}
+      tokenCache={clerkTokenCache}
     >
       <ConvexClerkProvider client={convexClient}>
         <SafeAreaProvider>
@@ -677,7 +634,6 @@ function ConfiguredApp({
 export default function App() {
   useWebScrollbarStyles();
 
-  const appResumeResetKey = useAppResumeResetKey();
   const { clearCrashReport, storedCrashReport } = useStoredCrashReportNotice();
 
   if (storedCrashReport && publishableKey && convexUrl) {
@@ -686,7 +642,7 @@ export default function App() {
         clerkPublishableKey={publishableKey}
         convexUrl={convexUrl}
         initialCrashReport={storedCrashReport}
-        key={`crash-${appResumeResetKey}-${storedCrashReport.id}`}
+        key={`crash-${storedCrashReport.id}`}
         onClearCrashReport={clearCrashReport}
       />
     );
@@ -729,7 +685,6 @@ export default function App() {
     <ConfiguredApp
       clerkPublishableKey={publishableKey}
       convexUrl={convexUrl}
-      key={appResumeResetKey}
     />
   );
 }
