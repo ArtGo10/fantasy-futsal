@@ -107,11 +107,7 @@ function shouldShowFixtureScore(fixture: FantasyFixture) {
 }
 
 function formatFixtureProfileList(items: string[]) {
-  const visibleItems = items.slice(0, 3);
-  const hiddenCount = items.length - visibleItems.length;
-  const suffix = hiddenCount > 0 ? ` +${hiddenCount}` : "";
-
-  return visibleItems.join(", ") + suffix;
+  return items.join(", ");
 }
 
 export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenProps) {
@@ -204,7 +200,7 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                         <Text style={styles.seasonFixtureProfileLabel}>
                           {t("season.fixtureProfile.double")}
                         </Text>
-                        <Text numberOfLines={2} style={styles.seasonFixtureProfileText}>
+                        <Text style={styles.seasonFixtureProfileText}>
                           {formatFixtureProfileList(doubleTeams)}
                         </Text>
                       </View>
@@ -219,7 +215,7 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                         <Text style={styles.seasonFixtureProfileLabel}>
                           {t("season.fixtureProfile.blank")}
                         </Text>
-                        <Text numberOfLines={2} style={styles.seasonFixtureProfileText}>
+                        <Text style={styles.seasonFixtureProfileText}>
                           {formatFixtureProfileList(blankTeams)}
                         </Text>
                       </View>

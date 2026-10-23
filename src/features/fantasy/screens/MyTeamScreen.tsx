@@ -180,13 +180,7 @@ type FantasyOverview =
       } | null;
       currentGameweek: {
         deadlineAt: number | null;
-        fixtureProfile: {
-          teamsWithBlank: Array<{ clubId: string | null }>;
-          teamsWithDouble: Array<{
-            clubId: string | null;
-            matchCount: number;
-          }>;
-        } | null;
+        fixtureProfile: FantasyGameweekFixtureProfile | null;
         id: string;
         name: string;
         number: number;
@@ -196,6 +190,15 @@ type FantasyOverview =
     }
   | null
   | undefined;
+
+type FantasyGameweekFixtureProfile = {
+  teamsWithBlank: Array<{ clubId: string | null; name?: string }>;
+  teamsWithDouble: Array<{
+    clubId: string | null;
+    matchCount: number;
+    name?: string;
+  }>;
+};
 
 type FantasyClub = {
   id: Id<"fantasyClubs">;
@@ -270,6 +273,7 @@ type FantasyLeagueTeam = {
 
 type FantasyGameweek = {
   deadlineAt?: number | null;
+  fixtureProfile?: FantasyGameweekFixtureProfile | null;
   id: string;
   name: string;
   number: number;
@@ -3441,6 +3445,15 @@ export function MyTeamScreen({
   const isOverviewLoading = fantasyOverview === undefined;
   const season = fantasyOverview?.season ?? null;
   const currentGameweek = fantasyOverview?.currentGameweek ?? null;
+  const currentGameweekFixtureProfile = useMemo(
+    () =>
+      fantasyGameweeks?.find(
+        (gameweek) => gameweek.id === currentGameweek?.id,
+      )?.fixtureProfile ??
+      currentGameweek?.fixtureProfile ??
+      null,
+    [currentGameweek?.fixtureProfile, currentGameweek?.id, fantasyGameweeks],
+  );
   const liveGameweek = useMemo(
     () =>
       (fantasyGameweeks ?? []).find((gameweek) => gameweek.status === "live") ??
@@ -3450,20 +3463,20 @@ export function MyTeamScreen({
   const currentGameweekBlankClubIds = useMemo(
     () =>
       new Set(
-        (currentGameweek?.fixtureProfile?.teamsWithBlank ?? [])
+        (currentGameweekFixtureProfile?.teamsWithBlank ?? [])
           .map((team) => team.clubId)
           .filter((clubId): clubId is string => clubId !== null),
       ),
-    [currentGameweek?.fixtureProfile],
+    [currentGameweekFixtureProfile],
   );
   const currentGameweekDoubleClubMatchCounts = useMemo(
     () =>
       new Map<string, number>(
-        (currentGameweek?.fixtureProfile?.teamsWithDouble ?? [])
+        (currentGameweekFixtureProfile?.teamsWithDouble ?? [])
           .filter((team) => team.clubId !== null)
           .map((team) => [team.clubId as string, team.matchCount]),
       ),
-    [currentGameweek?.fixtureProfile],
+    [currentGameweekFixtureProfile],
   );
   const deadlineAt = currentGameweek
     ? currentGameweek.deadlineAt
