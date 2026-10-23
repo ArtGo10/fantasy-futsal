@@ -182,6 +182,10 @@ type FantasyOverview =
         deadlineAt: number | null;
         fixtureProfile: {
           teamsWithBlank: Array<{ clubId: string | null }>;
+          teamsWithDouble: Array<{
+            clubId: string | null;
+            matchCount: number;
+          }>;
         } | null;
         id: string;
         name: string;
@@ -3452,6 +3456,15 @@ export function MyTeamScreen({
       ),
     [currentGameweek?.fixtureProfile],
   );
+  const currentGameweekDoubleClubMatchCounts = useMemo(
+    () =>
+      new Map<string, number>(
+        (currentGameweek?.fixtureProfile?.teamsWithDouble ?? [])
+          .filter((team) => team.clubId !== null)
+          .map((team) => [team.clubId as string, team.matchCount]),
+      ),
+    [currentGameweek?.fixtureProfile],
+  );
   const deadlineAt = currentGameweek
     ? currentGameweek.deadlineAt
     : (fantasyOverview?.nextDeadlineAt ?? null);
@@ -3955,6 +3968,11 @@ export function MyTeamScreen({
       const missesCurrentGameweek =
         player.clubId !== null &&
         currentGameweekBlankClubIds.has(player.clubId);
+      const currentGameweekMatchCount = player.clubId
+        ? currentGameweekDoubleClubMatchCounts.get(player.clubId)
+        : undefined;
+      const playsMultipleMatches =
+        !missesCurrentGameweek && currentGameweekMatchCount !== undefined;
       const pickerPlayer = missesCurrentGameweek
         ? {
             ...player,
@@ -3986,9 +4004,17 @@ export function MyTeamScreen({
           stateLabel={
             missesCurrentGameweek
               ? t("team.playerPicker.teamHasBye")
-              : null
+              : playsMultipleMatches
+                ? `${t("team.playerPicker.teamHasDouble")} x${currentGameweekMatchCount}`
+                : null
           }
-          stateTone="danger"
+          stateTone={
+            missesCurrentGameweek
+              ? "danger"
+              : playsMultipleMatches
+                ? "success"
+                : undefined
+          }
           t={t}
           variant="pickerStats"
         />
@@ -3998,6 +4024,7 @@ export function MyTeamScreen({
       activeSlotPlayer?.id,
       clubsById,
       currentGameweekBlankClubIds,
+      currentGameweekDoubleClubMatchCounts,
       getPlayerPickerDisabledReason,
       selectPickerPlayer,
       incomingTransferPlayer?.id,

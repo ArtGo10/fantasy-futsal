@@ -106,6 +106,14 @@ function shouldShowFixtureScore(fixture: FantasyFixture) {
   );
 }
 
+function formatFixtureProfileList(items: string[]) {
+  const visibleItems = items.slice(0, 3);
+  const hiddenCount = items.length - visibleItems.length;
+  const suffix = hiddenCount > 0 ? ` +${hiddenCount}` : "";
+
+  return visibleItems.join(", ") + suffix;
+}
+
 export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenProps) {
   const { language, t } = useI18n();
   const fantasyTheme = useFantasySeasonTheme();
@@ -152,6 +160,13 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
           {sortedGameweeks.map((gameweek) => {
             const gameweekFixtures = fixturesByGameweekId.get(gameweek.id) ?? [];
             const fallbackDate = gameweekFixtures[0]?.scheduledAt ?? gameweek.startsAt ?? null;
+            const profile = gameweek.fixtureProfile;
+            const doubleTeams = (profile?.teamsWithDouble ?? []).map(
+              (team) => `${team.name} x${team.matchCount}`,
+            );
+            const blankTeams = (profile?.teamsWithBlank ?? []).map(
+              (team) => team.name,
+            );
 
             return (
               <View key={gameweek.id} style={styles.fixtureGameweekCard}>
@@ -176,6 +191,41 @@ export function FixturesCalendarContent({ fixtures, gameweeks }: FixturesScreenP
                     {formatDate(fallbackDate, language, t("fixtures.dateUnknown"))}
                   </Text>
                 </View>
+
+                {doubleTeams.length > 0 || blankTeams.length > 0 ? (
+                  <View style={[styles.seasonFixtureProfileStack, { padding: 12 }]}>
+                    {doubleTeams.length > 0 ? (
+                      <View
+                        style={[
+                          styles.seasonFixtureProfilePill,
+                          styles.seasonFixtureProfilePillDouble,
+                        ]}
+                      >
+                        <Text style={styles.seasonFixtureProfileLabel}>
+                          {t("season.fixtureProfile.double")}
+                        </Text>
+                        <Text numberOfLines={2} style={styles.seasonFixtureProfileText}>
+                          {formatFixtureProfileList(doubleTeams)}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {blankTeams.length > 0 ? (
+                      <View
+                        style={[
+                          styles.seasonFixtureProfilePill,
+                          styles.seasonFixtureProfilePillBlank,
+                        ]}
+                      >
+                        <Text style={styles.seasonFixtureProfileLabel}>
+                          {t("season.fixtureProfile.blank")}
+                        </Text>
+                        <Text numberOfLines={2} style={styles.seasonFixtureProfileText}>
+                          {formatFixtureProfileList(blankTeams)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
 
                 <View style={styles.fixtureRows}>
                   {gameweekFixtures.map((fixture) => {
